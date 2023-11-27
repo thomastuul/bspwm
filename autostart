@@ -1,12 +1,7 @@
 #!/usr/bin/env bash
 
 main() {
-    local ext_monitor="false"
     local wireless="$(ls /sys/class/net/ | grep ^wl | awk 'NR==1{print $1}')"
-
-    #if [[ -n  "$(polybar --list-monitors | grep HDMI)" ]]; then
-    #    ext_monitor="true"
-    #fi
 
     sxhkd -c $HOME/.config/bspwm/sxhkd/sxhkdrc &
 
@@ -24,21 +19,9 @@ main() {
 
     xwallpaper --daemon --zoom $HOME/Bilder/Wallpapers/ladybug.jpg &>/dev/null
 
-    # Terminate already running bar instances
-    #polybar
-
-    # Launch polybar
-    #for m in $(polybar --list-monitors | cut -d":" -f1); do
-    #    WIRELESS="$wireless" MONITOR="$m" polybar --reload bar-bspwm -c ~/.config/bspwm/polybar/config.ini 2>&1 | tee -a "/tmp/polybar_$m.log"  & disown
-    #done
-
-    ~/.config/bspwm/lemonbar/start.sh &
+    WIRELESS="$wireless" ~/.config/bspwm/lemonbar/start.sh &
     sleep 0.2
     ~/.config/bspwm/trayer/start_trayer.sh &
-
-    #if [ "$ext_monitor" = "true" ]; then
-        #xrandr --output eDP1 --off
-    #fi
 
     xset s 420 20 &
     xss-lock -n /usr/libexec/xsecurelock/dimmer -l -- xsecurelock &
