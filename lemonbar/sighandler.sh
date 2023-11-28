@@ -49,6 +49,10 @@ tray() {
     tray_string="$("$LEMONDIR"/block_trayer.sh)"
 }
 
+network() {
+    net_string="$("$LEMONDIR"/block_network.sh)"
+}
+
 trap 'wsindicator'      RTMIN+2
 trap 'cpu'              RTMIN+3
 trap 'clock'            RTMIN+4
@@ -57,6 +61,7 @@ trap 'volume'           RTMIN+6
 trap 'monitor "+"'      RTMIN+7
 trap 'monitor "-"'      RTMIN+8
 trap 'tray'             RTMIN+9
+trap 'network'          RTMIN+10
 
 "$LEMONDIR"/scheduler.sh &
 scheduler_pid=$!
@@ -71,8 +76,9 @@ power
 volume
 monitor
 tray
+network
 
 while true; do
-    printf "%s" "%{l}${launch_string}${ws_string}%{c}${title_string}%{r}${mon_string}${vol_string}${cpu_string}${clock_string}${tray_string}${power_string}"
+    printf "%s" "%{l}${launch_string}${ws_string}%{c}${title_string}%{r}${net_string}${mon_string}${vol_string}${cpu_string}${clock_string}${tray_string}${power_string}"
     wait $scheduler_pid
 done

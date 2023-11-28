@@ -23,7 +23,7 @@ while true; do
 
     # every 60 seconds
     if [[ $((seconds % 60)) -eq 0 ]]; then
-        dummy
+        pkill -RTMIN+10 sighandler.sh
     fi
 
     ((seconds++))

@@ -8,7 +8,7 @@ trayer_width() {
     # Width of the trayer window
     width=$(xprop -name panel | grep 'program specified minimum size' | cut -d ' ' -f 5)
     # number of spaces
-    num=$(( (width / 22) + 5  ))
+    num=$(( (width / 16) + 3 ))
 
     printf "%*s" $num ""
 }

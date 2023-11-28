@@ -1,8 +1,6 @@
 #!/usr/bin/env bash
 
 main() {
-    local wireless="$(ls /sys/class/net/ | grep ^wl | awk 'NR==1{print $1}')"
-
     sxhkd -c $HOME/.config/bspwm/sxhkd/sxhkdrc &
 
     dunst -config $HOME/.config/bspwm/dunst/dunstrc &
@@ -19,9 +17,9 @@ main() {
 
     xwallpaper --daemon --zoom $HOME/Bilder/Wallpapers/ladybug.jpg &>/dev/null
 
-    WIRELESS="$wireless" ~/.config/bspwm/lemonbar/start.sh &
+    $HOME/.config/bspwm/lemonbar/start.sh &
     sleep 0.2
-    ~/.config/bspwm/trayer/start_trayer.sh &
+    $HOME/.config/bspwm/trayer/start_trayer.sh &
 
     xset s 420 20 &
     xss-lock -n /usr/libexec/xsecurelock/dimmer -l -- xsecurelock &
