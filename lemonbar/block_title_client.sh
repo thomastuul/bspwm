@@ -2,6 +2,8 @@
 
 # vim: syntax=bash
 
+tmp_Dir="$1"
+
 title_fifo="${tmp_Dir}/lemonbar_title.fifo"
 
 # wait for fifo file to be established
