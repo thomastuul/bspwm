@@ -1,7 +1,13 @@
 #!/usr/bin/env bash
 
+set -o errexit      # Exit on most errors (see the manual)
+set -o nounset      # Disallow expansion of unset variables
+set -o pipefail     # Use last non-zero exit code in a pipeline
+# Enable errtrace or the error trap handler will not work as expected
+set -o errtrace     # Ensure the error trap handler is inherited
+
 dummy() {
-    printf ""
+    :
 }
 
 seconds=0
@@ -13,7 +19,8 @@ while true; do
 
     # every 5 seconds
     if [[ $((seconds % 5)) -eq 0 ]]; then
-        dummy
+        pkill -RTMIN+3 sighandler.sh
+        pkill -RTMIN+4 sighandler.sh
     fi
 
     # every 10 seconds
@@ -26,6 +33,6 @@ while true; do
         pkill -RTMIN+10 sighandler.sh
     fi
 
-    ((seconds++))
+    seconds=$((seconds+1))
     sleep 1
 done

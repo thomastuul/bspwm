@@ -5,7 +5,7 @@ if [[ ${DEBUG-} =~ ^1|yes|true$ ]]; then
     set -o xtrace       # Trace the execution of the script (debug)
 fi
 
-#set -o errexit      # Exit on most errors (see the manual)
+set -o errexit      # Exit on most errors (see the manual)
 set -o nounset      # Disallow expansion of unset variables
 set -o pipefail     # Use last non-zero exit code in a pipeline
 # Enable errtrace or the error trap handler will not work as expected
@@ -21,7 +21,7 @@ script_trap_err() {
     local code="$2"
     local commands="$3"
     trap_err_triggered=true
-    echo "Error exit status $code, at file $0 on or near line $parent_lineno: $commands"
+    echo "Error exit status $code (SIG$(kill -l $code)), at file $0 on or near line $parent_lineno: $commands"
 }
 
 # DESC:
@@ -171,10 +171,6 @@ main() {
     wait $events_pid
 }
 
-# Invoke main with args if not sourced
-# Approach via: https://stackoverflow.com/a/28776166/8787985
-if ! (return 0 2> /dev/null); then
-    main "$@"
-fi
+main "$@"
 
 # vim: syntax=sh cc=80 tw=79 ts=4 sw=4 sts=4 et sr

@@ -1,6 +1,5 @@
 #!/bin/bash
 
-#set -x
 set -o errexit      # Exit on most errors (see the manual)
 set -o nounset      # Disallow expansion of unset variables
 set -o pipefail     # Use last non-zero exit code in a pipeline
@@ -47,7 +46,7 @@ activeWindow() {
             focus_title="${BASH_REMATCH[1]}"
             window_title="${BASH_REMATCH[3]}"
             if [[ "$focus_title" == "focus_changed" || "$focus_title" == "title_changed" || "$focus_title" == "initial_focus" ]]; then
-                pkill -RTMIN+5 sighandler.sh
+                kill -RTMIN+5 "$sighandler_pid"
                 if [[ -z "$window_title" ]]; then
                     window_title="Desktop"
                 fi

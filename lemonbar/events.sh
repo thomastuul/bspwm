@@ -1,8 +1,6 @@
 #!/usr/bin/env bash
 
-#set -x
-
-#set -o errexit      # Exit on most errors (see the manual)
+set -o errexit      # Exit on most errors (see the manual)
 set -o nounset      # Disallow expansion of unset variables
 set -o pipefail     # Use last non-zero exit code in a pipeline
 # Enable errtrace or the error trap handler will not work as expected
@@ -64,4 +62,4 @@ get_ws_updates_layout_change &
 get_trayer_updates &
 get_new_node_updates &
 
-tmp_Dir="$tmp_Dir" "$LEMONDIR/title_server.sh"
+tmp_Dir="$tmp_Dir" sighandler_pid="$sighandler_pid" "$LEMONDIR/title_server.sh"

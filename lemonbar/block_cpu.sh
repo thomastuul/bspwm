@@ -1,5 +1,13 @@
 #!/usr/bin/env bash
 
+#set -x
+
+set -o errexit      # Exit on most errors (see the manual)
+set -o nounset      # Disallow expansion of unset variables
+set -o pipefail     # Use last non-zero exit code in a pipeline
+# Enable errtrace or the error trap handler will not work as expected
+set -o errtrace     # Ensure the error trap handler is inherited
+
 source "$LEMONDIR/config.sh"
 
 icon=""

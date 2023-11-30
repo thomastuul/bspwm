@@ -1,7 +1,5 @@
 #!/usr/bin/env bash
 
-#set -x
-
 set -o errexit      # Exit on most errors (see the manual)
 set -o nounset      # Disallow expansion of unset variables
 set -o pipefail     # Use last non-zero exit code in a pipeline
@@ -45,9 +43,11 @@ monitor() {
 inc="pkill -RTMIN+7 sighandler.sh"
 dec="pkill -RTMIN+8 sighandler.sh"
 
-if [[ "$1" == "+" ]]; then
+change_level="${1-}"
+
+if [[ "$change_level" == "+" ]]; then
     inc_brightness
-elif [[ "$1" == "-" ]]; then
+elif [[ "$change_level" == "-" ]]; then
     dec_brightness
 else
     :
