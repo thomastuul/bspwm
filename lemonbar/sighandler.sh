@@ -102,7 +102,7 @@ sig_init() {
     scheduler_pid=$!
 
     # init
-    #window_title -> don't initialize it, its updated at an initial signal
+    window_title "$tmp_dir"
     wsindicator
     cpu
     clock
