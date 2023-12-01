@@ -46,7 +46,7 @@ wsindicator() {
 }
 
 window_title() {
-    title_string="$("$LEMONDIR"/block_title_client.sh "$tmp_dir")"
+    tmp_dir="$tmp_dir" title_string="$("$LEMONDIR"/block_title_client.sh)"
 }
 
 launcher() {
@@ -80,28 +80,21 @@ network() {
 #       $3 (optional): Set to any value to not append a new line to the message
 # OUTS: None
 sig_init() {
-    trap 'wsindicator'              RTMIN+2
-    trap 'cpu'                      RTMIN+3
-    trap 'clock'                    RTMIN+4
-    trap 'window_title "$tmp_dir"'  RTMIN+5
-    trap 'volume'                   RTMIN+6
-    trap 'monitor "+"'              RTMIN+7
-    trap 'monitor "-"'              RTMIN+8
-    trap 'tray'                     RTMIN+9
-    trap 'network'                  RTMIN+10
+    trap 'wsindicator'  RTMIN+2
+    trap 'cpu'          RTMIN+3
+    trap 'clock'        RTMIN+4
+    trap 'window_title' RTMIN+5
+    trap 'volume'       RTMIN+6
+    trap 'monitor "+"'  RTMIN+7
+    trap 'monitor "-"'  RTMIN+8
+    trap 'tray'         RTMIN+9
+    trap 'network'      RTMIN+10
 
-    if [[ $# -lt 2 ]]; then
-        printf "%s\n" "missing argument, $0"
-    fi
-
-    tmp_dir=$1
-    lemondir=$2
-
-    "$lemondir"/scheduler.sh &
+    "$LEMONDIR"/scheduler.sh &
     scheduler_pid=$!
 
     # init
-    window_title "$tmp_dir"
+    window_title
     wsindicator
     cpu
     clock
@@ -122,4 +115,4 @@ sig_init() {
     set -o errtrace
 }
 
-sig_init "$@"
+sig_init

@@ -6,7 +6,7 @@ set -o pipefail     # Use last non-zero exit code in a pipeline
 # Enable errtrace or the error trap handler will not work as expected
 set -o errtrace     # Ensure the error trap handler is inherited
 
-source "$HOME/.config/bspwm/lemonbar/config.sh"
+source "$LEMONDIR/config.sh"
 max_length_title=45
 
 cleanup() {
@@ -21,7 +21,7 @@ cleanup() {
 # DESC:
 # ARGS: None
 # OUTS: None
-script_trap_err() {
+trap_err() {
     local parent_lineno="$1"
     local code="$2"
     local commands="$3"
@@ -29,10 +29,10 @@ script_trap_err() {
 }
 
 trap 'cleanup' INT TERM QUIT EXIT
-trap 'script_trap_err "${LINENO}/${BASH_LINENO}" "$?" "$BASH_COMMAND"'  ERR
+trap 'trap_err "${LINENO}/${BASH_LINENO}" "$?" "$BASH_COMMAND"'  ERR
 
 # create named pipe
-title_fifo="${tmp_Dir}/lemonbar_title.fifo"
+title_fifo="${tmp_dir}/lemonbar_title.fifo"
 if [[ -e "$title_fifo" ]]; then
     rm "$title_fifo"
 fi

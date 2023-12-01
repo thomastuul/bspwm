@@ -62,4 +62,4 @@ get_ws_updates_layout_change &
 get_trayer_updates &
 get_new_node_updates &
 
-tmp_Dir="$tmp_Dir" sighandler_pid="$sighandler_pid" "$LEMONDIR/title_server.sh"
+tmp_dir="$tmp_dir" sighandler_pid="$sighandler_pid" "$LEMONDIR/title_server.sh"

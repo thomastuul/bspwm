@@ -11,47 +11,40 @@ set -o pipefail     # Use last non-zero exit code in a pipeline
 # Enable errtrace or the error trap handler will not work as expected
 set -o errtrace     # Ensure the error trap handler is inherited
 
-trap_err_triggered=false
-
 # DESC:
 # ARGS: None
 # OUTS: None
-script_trap_err() {
-    local parent_lineno="$1"
-    local code="$2"
-    local commands="$3"
-    trap_err_triggered=true
-    echo "Error exit status $code (SIG$(kill -l $code)), at file $0 on or near line $parent_lineno: $commands"
+trap_err() {
+    local exit_code=1
+    # Disable the error trap handler to prevent potential recursion
+    trap - ERR
+
+    if [[ $# -eq 1 ]] && [[ ${1-} =~ ^[0-9]+$ ]]; then
+        exit_code="$1"
+        exit "$exit_code"
+    else
+        local parent_lineno="$1"
+        local code="$2"
+        local commands="$3"
+        echo "Error exit status $code (SIG$(kill -l $code 2>/dev/null)), at file $0 on or near line $parent_lineno: $commands"
+    fi
 }
 
 # DESC: Handler for exiting the script
 # ARGS: None
 # OUTS: None
-script_trap_exit() {
+trap_exit() {
     cd "$orig_cwd"
 
     # Remove Log mode script log
-    #if [[ -n ${log-} && -f ${script_output-} ]]; then
-    #    rm "$script_output"
+    #if [[ -n ${log-} && -f ${log_file-} ]]; then
+    #    rm "$log_file"
     #fi
 
     # Remove script execution lock
     if [[ -d ${script_lock-} ]]; then
         rmdir "$script_lock"
     fi
-
-    kill -TERM -- -"$pgid"
-
-    # Terminate all subprocesses (all processes in the current process group)
-#    kill -TERM -$$
-#    if [ "$trap_err_triggered" = false ]; then
-#        echo "Exit $0"
-#    fi
-
-    # Terminate sighandler
-#    if $(ps -p "$sighandler_pid" > /dev/null); then
-#        kill -TERM "$sighandler_pid"
-#    fi
 }
 
 # DESC: Exit script with the given message
@@ -62,7 +55,7 @@ script_trap_exit() {
 #       0: Normal exit
 #       1: Abnormal exit due to external error
 #       2: Abnormal exit due to script error
-script_exit() {
+exit_handler() {
     if [[ $# -eq 1 ]]; then
         printf '%s\n' "$1"
         exit 0
@@ -72,29 +65,36 @@ script_exit() {
         printf '%b\n' "$1"
         # If we've been provided a non-zero exit code run the error trap
         if [[ $2 -ne 0 ]]; then
-            script_trap_err "$2"
+            trap_err "$2"
         else
             exit 0
         fi
     fi
 
-    script_exit 'Missing required argument to script_exit()!' 2
+    exit_handler 'Missing required argument to exit_handler()!' 2
 }
 
 # DESC: remove FIFO at termination
 # ARGS: None
 # OUTS: None
-script_trap_cleanup() {
+trap_cleanup() {
     if [[ -e "$fifo" ]]; then
         rm "$fifo"
     fi
+
+    rm -rf "$tmp_dir"
+    # https://linuxconfig.org/how-to-propagate-a-signal-to-child-processes-from-a-bash-script
+    trap " " TERM
+    kill 0
+    wait
+
     printf "%s stopped\n" "$0"
 }
 
 # DESC: Usage help
 # ARGS: None
 # OUTS: None
-script_usage() {
+usage() {
     cat << EOF
 Usage:
      -h|--help                  Displays this help
@@ -112,14 +112,14 @@ parse_params() {
         shift
         case $param in
             -h | --help)
-                script_usage
+                usage
                 exit 0
                 ;;
             -l | --log)
                 log=true
                 ;;
             *)
-                script_exit "Invalid parameter was provided: $param" 1
+                exit_handler "Invalid parameter was provided: $param" 1
                 ;;
         esac
     done
@@ -127,14 +127,13 @@ parse_params() {
 
 # DESC: Initialise log mode
 # ARGS: None
-# OUTS: $script_output: Path to the file stdout & stderr was redirected to
+# OUTS: $log_file: Path to the file stdout & stderr was redirected to
 log_init() {
     if [[ -n ${log-} ]]; then
+        readonly log_file="$TMPDIR/lemonbar.$(date +"%Y_%m_%d_%I_%M_%S").log"
         # Redirect all output to a temporary file
-        script_output=""$tmp_dir"/lemonbar.log"
-        touch "$tmp_dir"/lemonbar.log
-        #readonly script_output
-        exec 3>&1 4>&2 1> "$script_output" 2>&1
+        touch "$log_file"
+        exec 3>&1 4>&2 1> "$log_file" 2>&1
     fi
 }
 
@@ -148,18 +147,18 @@ log_init() {
 lock_init() {
     local lock_dir
     if [[ $1 = 'system' ]]; then
-        lock_dir="/tmp/$script_name.lock"
+        lock_dir="$TMPDIR/$script_name.lock"
     elif [[ $1 = 'user' ]]; then
-        lock_dir="/tmp/$script_name.$UID.lock"
+        lock_dir="$TMPDIR/$script_name.$UID.lock"
     else
-        script_exit 'Missing or invalid argument to lock_init()!' 2
+        exit_handler 'Missing or invalid argument to lock_init()!' 2
     fi
 
     if mkdir "$lock_dir" 2> /dev/null; then
         readonly script_lock="$lock_dir"
         printf "%s\n" "Acquired script lock: $script_lock"
     else
-        script_exit "Unable to acquire script lock: $lock_dir" 1
+        exit_handler "Unable to acquire script lock: $lock_dir" 1
     fi
 }
 
@@ -175,7 +174,7 @@ lock_init() {
 #       You can use a tool like realpath to obtain the "true" path. The same
 #       caveat applies to both the $script_dir and $script_name variables.
 # shellcheck disable=SC2034
-script_init() {
+init() {
     # Useful variables
     readonly orig_cwd="$PWD"
     readonly script_params="$*"
@@ -183,24 +182,20 @@ script_init() {
     script_dir="$(dirname "$script_path")"
     script_name="$(basename "$script_path")"
     readonly script_dir script_name
-    readonly pid=$$
-    readonly pgid=$(ps -o pgid= $pid | grep -o [0-9]*)
-    printf "%s\n" "PGID: $pgid"
+    export XDG_CONFIG_HOME="${XDG_CONFIG_HOME:-$HOME/.config}"
+    export TMPDIR="${TMPDIR:-/tmp}"
+    export LEMONDIR="${XDG_CONFIG_HOME}/bspwm/lemonbar"
 }
 
 # DESC: Main control flow
 # ARGS: $@ (optional): Arguments provided to the script
 # OUTS: None
 main() {
-    trap 'script_trap_err "${LINENO}/${BASH_LINENO}" "$?" "$BASH_COMMAND"'  ERR
-    trap script_trap_exit                                                   EXIT
-    trap script_trap_cleanup                                                INT TERM QUIT
+    trap 'trap_err "${LINENO}/${BASH_LINENO}" "$?" "$BASH_COMMAND"'  ERR
+    trap trap_exit                                                   EXIT
+    trap trap_cleanup                                                INT TERM QUIT
 
-    script_init
-
-    export XDG_CONFIG_HOME="${XDG_CONFIG_HOME:-$HOME/.config}"
-    export TMPDIR="${TMPDIR:-/tmp}"
-    export LEMONDIR="${XDG_CONFIG_HOME}/bspwm/lemonbar"
+    init
 
     tmp_dir=$(mktemp -p "$TMPDIR" -d lemonbar.XXXX)
 
@@ -210,11 +205,6 @@ main() {
 
     source "$LEMONDIR/config.sh"
 
-#    if [[ $(pgrep -cx lemonbar) -gt 0 ]] ; then
-#        printf "%s\n" "The panel is already running." >&2
-#        exit 1
-#    fi
-
     # create named pipe
     fifo="${tmp_dir}/lemonbar.fifo"
     if [[ -e "$fifo" ]]; then
@@ -222,7 +212,7 @@ main() {
     fi
     mkfifo "$fifo"
 
-    "$LEMONDIR/sighandler.sh" "$tmp_dir" "$LEMONDIR" > "$fifo" &
+    tmp_dir="$tmp_dir" "$LEMONDIR/sighandler.sh" > "$fifo" &
     sighandler_pid=$!
 
     lemonbar -p -a "$CLICKABLE_AREAS" \
@@ -230,10 +220,11 @@ main() {
         -f "$PANEL_FONT" -f "$PANEL_ICON_FONT" -F "$COLOR_DEFAULT_FG" -B "$COLOR_PANEL_BG" \
         -u "$UNDERLINE_HEIGHT" -n "$PANEL_WM_NAME" < "$fifo" | sh &
 
-    sighandler_pid="$sighandler_pid" tmp_Dir="$tmp_dir" "$LEMONDIR/events.sh" &
+    sighandler_pid="$sighandler_pid" tmp_dir="$tmp_dir" "$LEMONDIR/events.sh" &
     events_pid=$!
 
-    wait $events_pid
+    # wait for all subprocesses to be finished
+    wait
 }
 
 main "$@"
