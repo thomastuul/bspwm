@@ -14,8 +14,7 @@ set -o pipefail     # Use last non-zero exit code in a pipeline
 cleanup() {
     if ps -q "${scheduler_pid}" > /dev/null; then
         #kill -KILL "${scheduler_pid}"
-        #kill -INT "${scheduler_pid}"
-        :
+        kill -TERM "${scheduler_pid}"
     fi
     trap - TERM
     #kill 0

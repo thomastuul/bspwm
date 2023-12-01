@@ -18,8 +18,8 @@ main() {
     xwallpaper --daemon --zoom $HOME/Bilder/Wallpapers/ladybug.jpg &>/dev/null
 
     $HOME/.config/bspwm/lemonbar/start.sh -l &
-    sleep 0.2
-    $HOME/.config/bspwm/trayer/start_trayer.sh &
+#    sleep 0.2
+#    $HOME/.config/bspwm/trayer/start_trayer.sh &
 
     xset s 420 20 &
     xss-lock -n /usr/libexec/xsecurelock/dimmer -l -- xsecurelock &

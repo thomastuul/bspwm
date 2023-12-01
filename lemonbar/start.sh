@@ -40,11 +40,18 @@ script_trap_exit() {
         rmdir "$script_lock"
     fi
 
-    # Kill all subprocesses (all processes in the current process group)
-    kill -HUP -$$
-    if [ "$trap_err_triggered" = false ]; then
-        echo "Exit $0"
-    fi
+    kill -TERM -- -"$pgid"
+
+    # Terminate all subprocesses (all processes in the current process group)
+#    kill -TERM -$$
+#    if [ "$trap_err_triggered" = false ]; then
+#        echo "Exit $0"
+#    fi
+
+    # Terminate sighandler
+#    if $(ps -p "$sighandler_pid" > /dev/null); then
+#        kill -TERM "$sighandler_pid"
+#    fi
 }
 
 # DESC: Exit script with the given message
@@ -176,6 +183,9 @@ script_init() {
     script_dir="$(dirname "$script_path")"
     script_name="$(basename "$script_path")"
     readonly script_dir script_name
+    readonly pid=$$
+    readonly pgid=$(ps -o pgid= $pid | grep -o [0-9]*)
+    printf "%s\n" "PGID: $pgid"
 }
 
 # DESC: Main control flow
@@ -186,13 +196,14 @@ main() {
     trap script_trap_exit                                                   EXIT
     trap script_trap_cleanup                                                INT TERM QUIT
 
+    script_init
+
     export XDG_CONFIG_HOME="${XDG_CONFIG_HOME:-$HOME/.config}"
     export TMPDIR="${TMPDIR:-/tmp}"
     export LEMONDIR="${XDG_CONFIG_HOME}/bspwm/lemonbar"
 
     tmp_dir=$(mktemp -p "$TMPDIR" -d lemonbar.XXXX)
 
-    script_init
     parse_params "$@"
     log_init
     lock_init user
