@@ -19,6 +19,10 @@ trap_err() {
     # Disable the error trap handler to prevent potential recursion
     trap - ERR
 
+    # Consider any further errors non-fatal to ensure we run to completion
+    set +o errexit
+    set +o pipefail
+
     if [[ $# -eq 1 ]] && [[ ${1-} =~ ^[0-9]+$ ]]; then
         exit_code="$1"
         exit "$exit_code"
@@ -26,7 +30,7 @@ trap_err() {
         local parent_lineno="$1"
         local code="$2"
         local commands="$3"
-        echo "Error exit status $code (SIG$(kill -l $code 2>/dev/null)), at file $0 on or near line $parent_lineno: $commands"
+        echo "Error exit status $code (SIG$(kill -l "$code" 2>/dev/null)), at file $0 on or near line $parent_lineno: $commands"
     fi
 }
 
@@ -45,6 +49,8 @@ trap_exit() {
     if [[ -d ${script_lock-} ]]; then
         rmdir "$script_lock"
     fi
+
+    kill -HUP -$$
 }
 
 # DESC: Exit script with the given message
@@ -78,17 +84,19 @@ exit_handler() {
 # ARGS: None
 # OUTS: None
 trap_cleanup() {
+    set -x
+    # https://linuxconfig.org/how-to-propagate-a-signal-to-child-processes-from-a-bash-script
+    trap - TERM
+
+    # FIFO (pipe) must be removed AFTER terminating sighandler
     if [[ -e "$fifo" ]]; then
         rm "$fifo"
     fi
 
     rm -rf "$tmp_dir"
-    # https://linuxconfig.org/how-to-propagate-a-signal-to-child-processes-from-a-bash-script
-    trap " " TERM
-    kill 0
-    wait
 
     printf "%s stopped\n" "$0"
+    set +x
 }
 
 # DESC: Usage help
@@ -130,10 +138,16 @@ parse_params() {
 # OUTS: $log_file: Path to the file stdout & stderr was redirected to
 log_init() {
     if [[ -n ${log-} ]]; then
-        readonly log_file="$TMPDIR/lemonbar.$(date +"%Y_%m_%d_%I_%M_%S").log"
+        log_file="$TMPDIR/lemonbar.$(date +"%Y_%m_%d_%I_%M_%S").log"
+        readonly log_file
         # Redirect all output to a temporary file
         touch "$log_file"
         exec 3>&1 4>&2 1> "$log_file" 2>&1
+        # redirect xtrace to file
+        if [[ ${DEBUG-} =~ ^1|yes|true$ ]]; then
+            exec 5> "$TMPDIR/lemonbar.debug.$(date +"%Y_%m_%d_%I_%M_%S").log"
+            BASH_XTRACEFD="5"
+        fi
     fi
 }
 
@@ -195,7 +209,7 @@ main() {
     trap trap_exit                                                   EXIT
     trap trap_cleanup                                                INT TERM QUIT
 
-    init
+    init "$@"
 
     tmp_dir=$(mktemp -p "$TMPDIR" -d lemonbar.XXXX)
 
@@ -223,8 +237,8 @@ main() {
     sighandler_pid="$sighandler_pid" tmp_dir="$tmp_dir" "$LEMONDIR/events.sh" &
     events_pid=$!
 
-    # wait for all subprocesses to be finished
-    wait
+    # wait for subprocesses to be finished except one fails
+    wait -n
 }
 
 main "$@"

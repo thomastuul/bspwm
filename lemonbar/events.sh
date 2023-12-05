@@ -1,5 +1,10 @@
 #!/usr/bin/env bash
 
+# Enable xtrace if the DEBUG environment variable is set
+if [[ ${DEBUG-} =~ ^1|yes|true$ ]]; then
+    set -o xtrace       # Trace the execution of the script (debug)
+fi
+
 set -o errexit      # Exit on most errors (see the manual)
 set -o nounset      # Disallow expansion of unset variables
 set -o pipefail     # Use last non-zero exit code in a pipeline
@@ -43,7 +48,7 @@ get_trayer_updates() {
         sleep 1
     done
 
-    xprop -name panel -spy | grep --line-buffered 'program specified minimum size' | while IFS= read -r line; do
+    xprop -name panel -spy | grep --line-buffered 'program specified minimum size' | while IFS= read -r; do
         kill -RTMIN+9 "$sighandler_pid"
     done
 }

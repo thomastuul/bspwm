@@ -1,5 +1,10 @@
 #!/bin/bash
 
+# Enable xtrace if the DEBUG environment variable is set
+if [[ ${DEBUG-} =~ ^1|yes|true$ ]]; then
+    set -o xtrace       # Trace the execution of the script (debug)
+fi
+
 set -o errexit      # Exit on most errors (see the manual)
 set -o nounset      # Disallow expansion of unset variables
 set -o pipefail     # Use last non-zero exit code in a pipeline
@@ -7,15 +12,14 @@ set -o pipefail     # Use last non-zero exit code in a pipeline
 set -o errtrace     # Ensure the error trap handler is inherited
 
 source "$LEMONDIR/config.sh"
-max_length_title=45
+readonly max_length_title=45
 
-cleanup() {
+trap_cleanup() {
+    # Disable the termination trap handler to prevent potential recursion
+    trap - TERM
     if [[ -e "$title_fifo" ]]; then
         rm "$title_fifo"
     fi
-    # Disable the termination trap handler to prevent potential recursion
-    trap - TERM
-    kill 0
 }
 
 # DESC:
@@ -28,7 +32,7 @@ trap_err() {
     echo "Error exit status $code, at file $0 on or near line $parent_lineno: $commands"
 }
 
-trap 'cleanup' INT TERM QUIT EXIT
+trap 'trap_cleanup' INT TERM QUIT EXIT
 trap 'trap_err "${LINENO}/${BASH_LINENO}" "$?" "$BASH_COMMAND"'  ERR
 
 # create named pipe

@@ -2,10 +2,10 @@
 
 source "$LEMONDIR/config.sh"
 
-wlan_adapter_list="$(ls /sys/class/net/ | grep ^wl)"
+wlan_adapter_list="$(ls /sys/class/ieee80211/*/device/net/)"
 for wlan in $wlan_adapter_list; do
-    if [[ "$(cat /sys/class/net/${wlan}/operstate)" == "up" ]]; then
-        ssid="$(nmcli connection | grep $wlan | awk '{print $1}')"
+    if [[ "$(cat /sys/class/net/"${wlan}"/operstate)" == "up" ]]; then
+        ssid="$(nmcli connection | grep "$wlan" | awk '{print $1}')"
         strength="$(cat /proc/net/wireless | awk 'END { print int($3 * 100 / 70) }' | sed 's/\.$//')"
         wlan_string="說 ${strength}%"
         break

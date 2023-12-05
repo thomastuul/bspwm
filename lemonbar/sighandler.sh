@@ -1,6 +1,9 @@
-#!/usr/bin/bash
+#!/bin/bash
 
-#set -x
+# Enable xtrace if the DEBUG environment variable is set
+if [[ ${DEBUG-} =~ ^1|yes|true$ ]]; then
+    set -o xtrace       # Trace the execution of the script (debug)
+fi
 
 # Hint: Shebang has to be here as it is!
 # don't change it to '/usr/bin/env bash'
@@ -11,27 +14,23 @@ set -o pipefail     # Use last non-zero exit code in a pipeline
 # Enable errtrace or the error trap handler will not work as expected
 #set -o errtrace     # Ensure the error trap handler is inherited
 
-cleanup() {
-    if ps -q "${scheduler_pid}" > /dev/null; then
-        #kill -KILL "${scheduler_pid}"
-        kill -TERM "${scheduler_pid}"
-    fi
+trap_cleanup() {
     trap - TERM
-    #kill 0
+    kill -HUP "$scheduler_pid"
 }
 
 # DESC:
 # ARGS: None
 # OUTS: None
-script_trap_err() {
+trap_err() {
     local parent_lineno="$1"
     local code="$2"
     local commands="$3"
     echo "Error exit status $code, at file $0 on or near line $parent_lineno: $commands"
 }
 
-trap cleanup INT TERM QUIT EXIT
-trap 'script_trap_err "${LINENO}/${BASH_LINENO}" "$?" "$BASH_COMMAND"'  ERR
+trap trap_cleanup INT TERM QUIT EXIT
+trap 'trap_err "${LINENO}/${BASH_LINENO}" "$?" "$BASH_COMMAND"'  ERR
 
 cpu() {
     cpu_string="$("$LEMONDIR"/block_cpu.sh)"
@@ -105,14 +104,13 @@ sig_init() {
     tray
     network
 
+    # disable termination at error as every signal from scheduler would terminate sighandler
     set +o errexit
-    set +o errtrace
     while true; do
         printf "%s" "%{l}${launch_string}${ws_string}%{c}${title_string}%{r}${net_string}${mon_string}${vol_string}${cpu_string}${clock_string}${tray_string}${power_string}"
         wait $scheduler_pid
     done
     set -o errexit
-    set -o errtrace
 }
 
 sig_init
