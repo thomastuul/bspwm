@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
 
 main() {
-    sxhkd -c $HOME/.config/bspwm/sxhkd/sxhkdrc &
+    sxhkd -c "$HOME/.config/bspwm/sxhkd/sxhkdrc" &
 
-    dunst -config $HOME/.config/bspwm/dunst/dunstrc &
+    dunst -config "$HOME/.config/bspwm/dunst/dunstrc" &
 
-    picom --config $HOME/.config/bspwm/picom/picom.conf --daemon --experimental-backends
+    picom --config "$HOME/.config/bspwm/picom/picom.conf" --daemon --experimental-backends
 
     blueman-applet &
 
@@ -15,13 +15,14 @@ main() {
 
     xsetroot -cursor_name left_ptr &
 
-    xwallpaper --daemon --zoom $HOME/Bilder/Wallpapers/ladybug.jpg &>/dev/null
+    xwallpaper --daemon --zoom "$HOME/Bilder/Wallpapers/ladybug.jpg" &>/dev/null
 
-    export DEBUG=no
-    $HOME/.config/bspwm/lemonbar/start.sh -l &
+    export DEBUG=yes
+    #systemd-run --user --unit=lemonbar "$HOME/.config/bspwm/lemonbar/start.sh" &
+    setsid "$HOME/.config/bspwm/lemonbar/start.sh" &
     sleep 0.2
-    $HOME/.config/bspwm/trayer/start_trayer.sh &
-    export DEBUG=no
+    "$HOME/.config/bspwm/trayer/start_trayer.sh" &
+    #setsid "$HOME/.bin/Test/trapTest.sh" &
 
     xset s 420 20 &
     xss-lock -n /usr/libexec/xsecurelock/dimmer -l -- xsecurelock &
