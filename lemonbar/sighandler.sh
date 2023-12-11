@@ -15,8 +15,13 @@ set -o pipefail     # Use last non-zero exit code in a pipeline
 #set -o errtrace     # Ensure the error trap handler is inherited
 
 trap_cleanup() {
+    echo "PID: $!"
+    echo "BASHPID: $BASHPID"
     trap - TERM
-    kill -HUP "$scheduler_pid"
+    kill "$scheduler_pid"
+    wait
+    kill "$BASHPID"
+    wait
 }
 
 # DESC:
@@ -29,7 +34,7 @@ trap_err() {
     echo "Error exit status $code, at file $0 on or near line $parent_lineno: $commands"
 }
 
-trap trap_cleanup INT TERM QUIT EXIT
+trap trap_cleanup INT TERM QUIT EXIT HUP
 trap 'trap_err "${LINENO}/${BASH_LINENO}" "$?" "$BASH_COMMAND"'  ERR
 
 cpu() {

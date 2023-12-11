@@ -1,5 +1,16 @@
 #!/usr/bin/env bash
 
+# Enable xtrace if the DEBUG environment variable is set
+if [[ ${DEBUG-} =~ ^1|yes|true$ ]]; then
+    set -o xtrace       # Trace the execution of the script (debug)
+fi
+
+#set -o errexit      # Exit on most errors (see the manual)
+#set -o nounset      # Disallow expansion of unset variables
+#set -o pipefail     # Use last non-zero exit code in a pipeline
+# Enable errtrace or the error trap handler will not work as expected
+#set -o errtrace     # Ensure the error trap handler is inherited
+
 source "$LEMONDIR/config.sh"
 
 wlan_adapter_list="$(ls /sys/class/ieee80211/*/device/net/)"
@@ -14,7 +25,7 @@ done
 
 eth_adapter_list="$(ls /sys/class/net/ | grep ^e)"
 for eth in $eth_adapter_list; do
-    if [[ "$(cat /sys/class/net/${eth}/operstate)" == "up" ]]; then
+    if [[ "$(cat /sys/class/net/"${eth}"/operstate)" == "up" ]]; then
         eth_string="🌐"
         break
     fi

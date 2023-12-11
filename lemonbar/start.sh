@@ -40,17 +40,21 @@ trap_err() {
 trap_exit() {
     cd "$orig_cwd"
 
-    # Remove Log mode script log
-    #if [[ -n ${log-} && -f ${log_file-} ]]; then
-    #    rm "$log_file"
-    #fi
+    # Output debug data if in Cron mode
+    if [[ -n ${log-} ]]; then
+        # Restore original file output descriptors
+        if [[ -n ${log_file-} ]]; then
+            exec 1>&3 2>&4
+        fi
+    fi
 
     # Remove script execution lock
     if [[ -d ${script_lock-} ]]; then
         rmdir "$script_lock"
     fi
 
-    kill -HUP -$$
+    kill -- -$$
+    wait
 }
 
 # DESC: Exit script with the given message
@@ -84,19 +88,18 @@ exit_handler() {
 # ARGS: None
 # OUTS: None
 trap_cleanup() {
-    set -x
-    # https://linuxconfig.org/how-to-propagate-a-signal-to-child-processes-from-a-bash-script
     trap - TERM
 
     # FIFO (pipe) must be removed AFTER terminating sighandler
-    if [[ -e "$fifo" ]]; then
+    if [[ -e "${fifo-}" ]]; then
         rm "$fifo"
     fi
 
-    rm -rf "$tmp_dir"
+    if [[ -e "${tmp_dir-}" ]]; then
+        rm -rf "$tmp_dir"
+    fi
 
     printf "%s stopped\n" "$0"
-    set +x
 }
 
 # DESC: Usage help
@@ -207,13 +210,17 @@ init() {
 main() {
     trap 'trap_err "${LINENO}/${BASH_LINENO}" "$?" "$BASH_COMMAND"'  ERR
     trap trap_exit                                                   EXIT
-    trap trap_cleanup                                                INT TERM QUIT
+    trap trap_cleanup                                                INT TERM QUIT HUP PIPE
+
+    tmp_dir=""
+    fifo=""
 
     init "$@"
+    parse_params "$@"
 
     tmp_dir=$(mktemp -p "$TMPDIR" -d lemonbar.XXXX)
+    #readonly tmp_dir
 
-    parse_params "$@"
     log_init
     lock_init user
 
@@ -221,6 +228,7 @@ main() {
 
     # create named pipe
     fifo="${tmp_dir}/lemonbar.fifo"
+    readonly fifo
     if [[ -e "$fifo" ]]; then
         rm "$fifo"
     fi
@@ -233,6 +241,7 @@ main() {
         -g "$PANEL_WIDTH"x"$PANEL_HEIGHT"+"$PANEL_HORIZONTAL_OFFSET"+"$PANEL_VERTICAL_OFFSET" \
         -f "$PANEL_FONT" -f "$PANEL_ICON_FONT" -F "$COLOR_DEFAULT_FG" -B "$COLOR_PANEL_BG" \
         -u "$UNDERLINE_HEIGHT" -n "$PANEL_WM_NAME" < "$fifo" | sh &
+    lemonbar_pid=$!
 
     sighandler_pid="$sighandler_pid" tmp_dir="$tmp_dir" "$LEMONDIR/events.sh" &
     events_pid=$!
