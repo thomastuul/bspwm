@@ -5,11 +5,11 @@ if [[ ${DEBUG-} =~ ^1|yes|true$ ]]; then
     set -o xtrace       # Trace the execution of the script (debug)
 fi
 
-#set -o errexit      # Exit on most errors (see the manual)
-#set -o nounset      # Disallow expansion of unset variables
-#set -o pipefail     # Use last non-zero exit code in a pipeline
+set -o errexit      # Exit on most errors (see the manual)
+set -o nounset      # Disallow expansion of unset variables
+set -o pipefail     # Use last non-zero exit code in a pipeline
 # Enable errtrace or the error trap handler will not work as expected
-#set -o errtrace     # Ensure the error trap handler is inherited
+set -o errtrace     # Ensure the error trap handler is inherited
 
 source "$LEMONDIR/config.sh"
 
@@ -31,4 +31,4 @@ for eth in $eth_adapter_list; do
     fi
 done
 
-printf "%s\n" "%{B$COLOR_DEFAULT_BG}%{F$COLOR_NETWORK_FG}%{+u} ${eth_string} ${wlan_string}% %{-u}%{F-}%{B-}"
+printf "%s\n" "%{B$COLOR_DEFAULT_BG}%{F$COLOR_NETWORK_FG}%{+u} ${eth_string-} ${wlan_string-}% %{-u}%{F-}%{B-}"

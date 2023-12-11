@@ -11,8 +11,8 @@ fi
 set -o errexit      # Exit on most errors (see the manual)
 set -o nounset      # Disallow expansion of unset variables
 set -o pipefail     # Use last non-zero exit code in a pipeline
-# Enable errtrace or the error trap handler will not work as expected
-#set -o errtrace     # Ensure the error trap handler is inherited
+# errtrace must not set here because wait throws errors at every
+# reception of a signal
 
 trap_cleanup() {
     echo "PID: $!"
@@ -32,6 +32,7 @@ trap_err() {
     local code="$2"
     local commands="$3"
     echo "Error exit status $code, at file $0 on or near line $parent_lineno: $commands"
+    #trap_cleanup
 }
 
 trap trap_cleanup INT TERM QUIT EXIT HUP
@@ -50,6 +51,7 @@ wsindicator() {
 }
 
 window_title() {
+    # shellcheck disable=SC2269
     tmp_dir="$tmp_dir" title_string="$("$LEMONDIR"/block_title_client.sh)"
 }
 
@@ -95,7 +97,7 @@ sig_init() {
     trap 'network'      RTMIN+10
 
     "$LEMONDIR"/scheduler.sh &
-    scheduler_pid=$!
+    scheduler_pid="$!"
 
     # init
     window_title
@@ -113,7 +115,7 @@ sig_init() {
     set +o errexit
     while true; do
         printf "%s" "%{l}${launch_string}${ws_string}%{c}${title_string}%{r}${net_string}${mon_string}${vol_string}${cpu_string}${clock_string}${tray_string}${power_string}"
-        wait $scheduler_pid
+        wait -n "$scheduler_pid"
     done
     set -o errexit
 }

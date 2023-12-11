@@ -5,11 +5,11 @@ if [[ ${DEBUG-} =~ ^1|yes|true$ ]]; then
     set -o xtrace       # Trace the execution of the script (debug)
 fi
 
-#set -o errexit      # Exit on most errors (see the manual)
-#set -o nounset      # Disallow expansion of unset variables
-#set -o pipefail     # Use last non-zero exit code in a pipeline
+set -o errexit      # Exit on most errors (see the manual)
+set -o nounset      # Disallow expansion of unset variables
+set -o pipefail     # Use last non-zero exit code in a pipeline
 # Enable errtrace or the error trap handler will not work as expected
-#set -o errtrace     # Ensure the error trap handler is inherited
+set -o errtrace     # Ensure the error trap handler is inherited
 
 source "$LEMONDIR/config.sh"
 
@@ -54,7 +54,7 @@ bspc subscribe report --count 1 | while read -r line; do
                     u*) FG=$COLOR_URGENT_FG; BG=$COLOR_URGENT_BG; UL=$COLOR_FOREGROUND ;;
                 esac
                 lemonbar_output+="%{F${FG}}%{B${BG}}%{U${UL}}%{+u}%{A1:${CALLBACK}:}$PADDING${tag_name}$PADDING%{A}%{B-}%{F-}%{-u}"
-                (( k++ ))
+                (( ++k ))
             done
         done
         case "${ws_array[$k]}" in

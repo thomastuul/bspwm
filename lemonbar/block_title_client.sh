@@ -5,17 +5,17 @@ if [[ ${DEBUG-} =~ ^1|yes|true$ ]]; then
     set -o xtrace       # Trace the execution of the script (debug)
 fi
 
-#set -o errexit      # Exit on most errors (see the manual)
-#set -o nounset      # Disallow expansion of unset variables
-#set -o pipefail     # Use last non-zero exit code in a pipeline
+set -o errexit      # Exit on most errors (see the manual)
+set -o nounset      # Disallow expansion of unset variables
+set -o pipefail     # Use last non-zero exit code in a pipeline
 # Enable errtrace or the error trap handler will not work as expected
-#set -o errtrace     # Ensure the error trap handler is inherited
+set -o errtrace     # Ensure the error trap handler is inherited
 
 title_fifo="${tmp_dir}/lemonbar_title.fifo"
 
 # wait for fifo file to be established
 if [[ ! -p "$title_fifo" ]]; then
-    printf "none"
+    printf ""
 else
     read -t 0.1 -r line < "$title_fifo"
     printf "%s" "$line"
