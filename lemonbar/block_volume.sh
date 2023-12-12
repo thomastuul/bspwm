@@ -36,4 +36,4 @@ dec_vol="amixer set Master 2%- > /dev/null; pkill -RTMIN+6 sighandler.sh"
 
 vol_toggle="amixer set Master toggle > /dev/null; pkill -RTMIN+6 sighandler.sh"
 
-printf "%s" "%{A4:${inc_vol}:}%{A5:${dec_vol}:}%{A1:${vol_toggle}:}$(vol)%{A}%{A}%{A}"
+printf "%s" "%{A1:setsid -f /usr/bin/alacritty -e pulsemixer:}%{A4:${inc_vol}:}%{A5:${dec_vol}:}%{A3:${vol_toggle}:}$(vol)%{A}%{A}%{A}%{A}"

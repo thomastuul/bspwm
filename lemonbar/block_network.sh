@@ -31,4 +31,4 @@ for eth in $eth_adapter_list; do
     fi
 done
 
-printf "%s\n" "%{B$COLOR_DEFAULT_BG}%{F$COLOR_NETWORK_FG}%{+u} ${eth_string-} ${wlan_string-}% %{-u}%{F-}%{B-}"
+printf "%s" "%{A1:/usr/bin/alacritty -e nmtui:}%{A3:notify-send "$ssid":}%{B$COLOR_DEFAULT_BG}%{F$COLOR_NETWORK_FG}%{+u} ${eth_string-} ${wlan_string-}% %{-u}%{F-}%{B-}%{A}%{A}"
