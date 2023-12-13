@@ -36,6 +36,7 @@ trap 'trap_cleanup' INT TERM QUIT EXIT
 trap 'trap_err "${LINENO}/${BASH_LINENO}" "$?" "$BASH_COMMAND"'  ERR
 
 # create named pipe
+# shellcheck disable=SC2154
 title_fifo="${tmp_dir}/lemonbar_title.fifo"
 if [[ -e "$title_fifo" ]]; then
     rm "$title_fifo"
@@ -50,6 +51,7 @@ activeWindow() {
             focus_title="${BASH_REMATCH[1]}"
             window_title="${BASH_REMATCH[3]}"
             if [[ "$focus_title" == "focus_changed" || "$focus_title" == "title_changed" || "$focus_title" == "initial_focus" ]]; then
+                # shellcheck disable=SC2154
                 kill -RTMIN+5 "$sighandler_pid"
                 if [[ -z "$window_title" ]]; then
                     window_title="Desktop"

@@ -11,6 +11,7 @@ set -o pipefail     # Use last non-zero exit code in a pipeline
 # Enable errtrace or the error trap handler will not work as expected
 set -o errtrace     # Ensure the error trap handler is inherited
 
+# shellcheck disable=SC2154
 title_fifo="${tmp_dir}/lemonbar_title.fifo"
 
 # wait for fifo file to be established
