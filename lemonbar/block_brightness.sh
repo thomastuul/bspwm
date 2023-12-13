@@ -13,6 +13,9 @@ set -o errtrace     # Ensure the error trap handler is inherited
 
 source "$LEMONDIR/config.sh"
 
+change_level="$1"
+sighandler_pid="$2"
+
 connection=$(xrandr --listmonitors | awk 'NR==2 {print $4}')
 
 brightness=$(xrandr --verbose | grep -i "$connection" -A10 | grep -i Brightness | cut -f2 -d ' ' | head -n1)
@@ -45,10 +48,8 @@ monitor() {
     printf "%s" "$mon_string"
 }
 
-inc="pkill -RTMIN+7 sighandler.sh"
-dec="pkill -RTMIN+8 sighandler.sh"
-
-change_level="${1-}"
+inc="kill -RTMIN+7 $sighandler_pid"
+dec="kill -RTMIN+8 $sighandler_pid"
 
 if [[ "$change_level" == "+" ]]; then
     inc_brightness

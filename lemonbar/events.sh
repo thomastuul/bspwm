@@ -24,6 +24,7 @@ script_trap_err() {
 # Send signal for update lemonbar workspaces at event desktop change
 get_ws_updates_changed_desktop() {
     bspc subscribe desktop_focus | while read -r; do
+        # shellcheck disable=SC2154
         kill -RTMIN+2 "$sighandler_pid"
     done
 }
@@ -67,4 +68,5 @@ get_ws_updates_layout_change &
 get_trayer_updates &
 get_new_node_updates &
 
+# shellcheck disable=SC2154
 tmp_dir="$tmp_dir" sighandler_pid="$sighandler_pid" "$LEMONDIR/title_server.sh"

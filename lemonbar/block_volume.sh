@@ -13,6 +13,8 @@ set -o errtrace     # Ensure the error trap handler is inherited
 
 source "$LEMONDIR/config.sh"
 
+sighandler_pid="$1"
+
 vol() {
     icon_on=""
     icon_off=""
@@ -30,10 +32,10 @@ vol() {
     printf "%s" "$vol_string"
 }
 
-inc_vol="amixer set Master 2%+ > /dev/null; pkill -RTMIN+6 sighandler.sh"
+inc_vol="amixer set Master 2%+ > /dev/null; kill -RTMIN+6 $sighandler_pid"
 
-dec_vol="amixer set Master 2%- > /dev/null; pkill -RTMIN+6 sighandler.sh"
+dec_vol="amixer set Master 2%- > /dev/null; kill -RTMIN+6 $sighandler_pid"
 
-vol_toggle="amixer set Master toggle > /dev/null; pkill -RTMIN+6 sighandler.sh"
+vol_toggle="amixer set Master toggle > /dev/null; kill -RTMIN+6 $sighandler_pid"
 
 printf "%s" "%{A1:setsid -f /usr/bin/alacritty -e pulsemixer:}%{A4:${inc_vol}:}%{A5:${dec_vol}:}%{A3:${vol_toggle}:}$(vol)%{A}%{A}%{A}%{A}"

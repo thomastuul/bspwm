@@ -1,3 +1,4 @@
+# shellcheck disable=2034
 COLOR_DEFAULT_FG="#FF0000"
 COLOR_DEFAULT_BG="#002b36"
 COLOR_MONITOR_FG="#8dbcdf"

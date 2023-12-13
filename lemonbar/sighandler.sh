@@ -64,11 +64,11 @@ power() {
 }
 
 volume() {
-    vol_string="$("$LEMONDIR"/block_volume.sh)"
+    vol_string="$("$LEMONDIR"/block_volume.sh "$1")"
 }
 
 monitor() {
-    mon_string="$("$LEMONDIR"/block_brightness.sh "$1")"
+    mon_string="$("$LEMONDIR"/block_brightness.sh "$1" "$2")"
 }
 
 tray() {
@@ -86,17 +86,20 @@ network() {
 #       $3 (optional): Set to any value to not append a new line to the message
 # OUTS: None
 sig_init() {
-    trap 'wsindicator'  RTMIN+2
-    trap 'cpu'          RTMIN+3
-    trap 'clock'        RTMIN+4
-    trap 'window_title' RTMIN+5
-    trap 'volume'       RTMIN+6
-    trap 'monitor "+"'  RTMIN+7
-    trap 'monitor "-"'  RTMIN+8
-    trap 'tray'         RTMIN+9
-    trap 'network'      RTMIN+10
+    trap 'wsindicator'          RTMIN+2
+    trap 'cpu'                  RTMIN+3
+    trap 'clock'                RTMIN+4
+    trap 'window_title'         RTMIN+5
+    trap 'volume "$pid"'        RTMIN+6
+    trap 'monitor "+" "$pid"'   RTMIN+7
+    trap 'monitor "-" "$pid"'   RTMIN+8
+    trap 'tray'                 RTMIN+9
+    trap 'network'              RTMIN+10
 
-    "$LEMONDIR"/scheduler.sh &
+    # own PID
+    pid="$BASHPID"
+
+    "$LEMONDIR"/scheduler.sh "$pid" &
     scheduler_pid="$!"
 
     # init
@@ -106,8 +109,8 @@ sig_init() {
     clock
     launcher
     power
-    volume
-    monitor ""
+    volume "$pid"
+    monitor " " "$pid"
     tray
     network
 
