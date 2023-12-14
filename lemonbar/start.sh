@@ -11,8 +11,11 @@ set -o pipefail     # Use last non-zero exit code in a pipeline
 # Enable errtrace or the error trap handler will not work as expected
 set -o errtrace     # Ensure the error trap handler is inherited
 
-# DESC:
-# ARGS: None
+# DESC: Errorhandler
+# ARGS: $1: If only param -> Exit status code
+#           else line number of err occurence.
+#       $2: Exit status code
+#       $3: invoked command
 # OUTS: None
 trap_err() {
     local exit_code=1
@@ -34,7 +37,7 @@ trap_err() {
     fi
 }
 
-# DESC: Handler for exiting the script
+# DESC: Exithandler
 # ARGS: None
 # OUTS: None
 trap_exit() {

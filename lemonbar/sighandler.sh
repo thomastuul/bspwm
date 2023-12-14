@@ -14,6 +14,9 @@ set -o pipefail     # Use last non-zero exit code in a pipeline
 # errtrace must not set here because wait throws errors at every
 # reception of a signal
 
+# DESC: Terminate subprocesses
+# ARGS: None
+# OUTS: None
 trap_cleanup() {
     echo "PID: $!"
     echo "BASHPID: $BASHPID"
@@ -24,8 +27,11 @@ trap_cleanup() {
     wait
 }
 
-# DESC:
-# ARGS: None
+# DESC: Errorhandler
+# ARGS: $1: If only param -> Exit status code
+#           else line number of err occurence.
+#       $2: Exit status code
+#       $3: invoked command
 # OUTS: None
 trap_err() {
     local parent_lineno="$1"

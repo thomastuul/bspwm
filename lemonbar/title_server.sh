@@ -14,6 +14,9 @@ set -o errtrace     # Ensure the error trap handler is inherited
 source "$LEMONDIR/config.sh"
 readonly max_length_title=45
 
+# DESC: Remove FIFO
+# ARGS: None
+# OUTS: None
 trap_cleanup() {
     # Disable the termination trap handler to prevent potential recursion
     trap - TERM
@@ -22,8 +25,11 @@ trap_cleanup() {
     fi
 }
 
-# DESC:
-# ARGS: None
+# DESC: Errorhandler
+# ARGS: $1: If only param -> Exit status code
+#           else line number of err occurence.
+#       $2: Exit status code
+#       $3: invoked command
 # OUTS: None
 trap_err() {
     local parent_lineno="$1"
@@ -43,6 +49,9 @@ if [[ -e "$title_fifo" ]]; then
 fi
 mkfifo "$title_fifo"
 
+# DESC: Get title of active window
+# ARGS: None
+# OUTS: None
 activeWindow() {
     # endless loop, for xtmon see https://github.com/vimist/xtmon/tree/master
     xtmon | while read -r line; do
