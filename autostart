@@ -19,7 +19,7 @@ main() {
 
     export DEBUG=no
     #systemd-run --user --unit=lemonbar "$HOME/.config/bspwm/lemonbar/start.sh" &
-    setsid "$HOME/.config/bspwm/lemonbar/start.sh" &
+    setsid "$HOME/.config/bspwm/lemonbar/start.sh" -l &
     sleep 0.2
     "$HOME/.config/bspwm/trayer/start_trayer.sh" &
 
