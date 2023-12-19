@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 # Enable xtrace if the DEBUG environment variable is set
 if [[ ${DEBUG-} =~ ^1|yes|true$ ]]; then
@@ -18,8 +18,6 @@ set -o pipefail     # Use last non-zero exit code in a pipeline
 # ARGS: None
 # OUTS: None
 trap_cleanup() {
-    echo "PID: $!"
-    echo "BASHPID: $BASHPID"
     trap - TERM
     kill "$scheduler_pid"
     wait

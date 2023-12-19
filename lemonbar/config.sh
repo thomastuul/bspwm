@@ -32,7 +32,7 @@ COLOR_MONITOR_FG="#22bbaa"
 COLOR_NETWORK_FG="#20B3F7"
 
 PADDING=" "
-CLICKABLE_AREAS=20
+CLICKABLE_AREAS=30
 PANEL_WIDTH=$(xdpyinfo | awk '/dimensions/{print $2}' | cut -d 'x' -f 1)
 PANEL_HEIGHT=$(bspc config top_padding)
 PANEL_HORIZONTAL_OFFSET=0
