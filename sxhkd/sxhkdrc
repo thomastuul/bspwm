@@ -176,3 +176,9 @@ super + ctrl + c
 
 super + alt + {b, e, t}
     {brave-browser, evolution, nautilus}
+
+alt + c
+    /bin/sh -c "~/.bin/camtoggle.sh"
+
+alt + s
+    /bin/sh -c "~/.bin/screencast.sh"
