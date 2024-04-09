@@ -222,7 +222,6 @@ main() {
     parse_params "$@"
 
     tmp_dir=$(mktemp -p "$TMPDIR" -d lemonbar.XXXX)
-    #readonly tmp_dir
 
     log_init
     lock_init user

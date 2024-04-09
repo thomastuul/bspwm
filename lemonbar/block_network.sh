@@ -32,9 +32,9 @@ done
 eth_string=""
 for eth in "${eth_adapter_list[@]}"; do
     if [[ "$(cat "/sys/class/net/${eth}/operstate")" == "up" ]]; then
-        eth_string="🌐"
+        eth_string=""
         break
     fi
 done
 
-printf "%s" "%{A1:/usr/bin/alacritty -e nmtui:}%{A3:notify-send \"SSID\: $ssid\":}%{B$COLOR_DEFAULT_BG}%{F$COLOR_NETWORK_FG}%{+u} ${eth_string-} ${wlan_string-}% %{-u}%{F-}%{B-}%{A}%{A}"
+printf "%s" "%{A1:/usr/bin/alacritty -e nmtui:}%{A3:notify-send \"SSID\: $ssid\":}%{B$COLOR_DEFAULT_BG}%{F$COLOR_NETWORK_FG}%{+u} ${eth_string-} ${wlan_string-} %{-u}%{F-}%{B-}%{A}%{A}"

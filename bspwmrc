@@ -37,10 +37,11 @@ bspc rule -a Gimp-2.10 desktop='^6' state=floating follow=on
 bspc rule -a Brave-browser desktop='^2'
 bspc rule -a Evolution desktop='^5'
 bspc rule -a org.gnome.Nautilus desktop='^3'
-bspc rule -a KeePassXC desktop='^9' state=floating center=true follow=on
+bspc rule -a KeePassXC state=floating center=true follow=on
 bspc rule -a Virt-manager desktop='^6' state=floating follow=on
 bspc rule -a TelegramDesktop desktop='^8'
 bspc rule -a mpv state=floating follow=on sticky=on
+bspc rule -a Zathura state=floating rectangle=1300x1500+1600+25
 
 # Sets master/stack layout in bspwm
 bsp-layout set tall 1 -- --master-size 0.5

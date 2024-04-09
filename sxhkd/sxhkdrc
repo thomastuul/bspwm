@@ -110,6 +110,10 @@ super + alt + space
 super + alt + shift + space
     bspc query -N -d | xargs -I id -n 1 bspc node id -p cancel
 
+# Move current window to a pre-selected space
+super + shift + m
+    bspc node -n last.!automatic
+
 # MOVE/RESIVE
 # shrink/expand
 super + ctrl + h
@@ -132,17 +136,16 @@ Print
 Print + ctrl
     scrot -s "$HOME/Bilder/screencut-%d-%m-%Y-%H-%M-%S.png" -e "xclip -selection c -t image/png < $f" && sleep 1; notify-send "Screencut abgelegt in ~/Bilder"
 
+Print + ctrl + shift
+    scrot -u "$HOME/Bilder/activewindow-%d-%m-%Y-%H-%M-%S.png" -e "xclip -selection c -t image/png < $f" && sleep 1; notify-send "Screenshot von Fenster abgelegt in ~/Bilder"
+
+# lock screen
 # lock screen
 ctrl + alt + l
     loginctl lock-session
 #
 # anything else
 #
-
-# Hide-show polybar
-#super + b
-#    {polybar-msg cmd toggle; bspc config top_padding +0 ,\
-#     polybar-msg cmd toggle; bspc config top_padding 25 }
 
 # Hide-show lemonbar
 super + b
@@ -173,6 +176,10 @@ super + ctrl + s
 # show/copy clipboard
 super + ctrl + c
     rofi -modi clipboard:"~/.local/share/greenclip/greenclip" print -show clipboard -run-command "{cmd}"
+
+# rofi-translate (using translate-shell)
+super + ctrl + t
+    "/home/thomas/.local/share/rofi/rofi-translate/rofi_trans"
 
 super + alt + {b, e, t}
     {brave-browser, evolution, nautilus}

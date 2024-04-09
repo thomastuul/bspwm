@@ -18,14 +18,13 @@ main() {
     xwallpaper --daemon --zoom "$HOME/Bilder/Wallpapers/ladybug.jpg" &>/dev/null
 
     export DEBUG=no
-    #systemd-run --user --unit=lemonbar "$HOME/.config/bspwm/lemonbar/start.sh" &
     setsid "$HOME/.config/bspwm/lemonbar/start.sh" -l &
     sleep 0.2
     "$HOME/.config/bspwm/trayer/start_trayer.sh" &
 
-    xset s 420 20 &
-    xss-lock -n /usr/libexec/xsecurelock/dimmer -l -- xsecurelock &
-    xautolock -time 10 -notify 5 -notifier '/usr/libexec/xsecurelock/until_nonidle /usr/libexec/xsecurelock/dimmer' -locker xsecurelock &
+    xset s 300 5 &
+    XSECURELOCK_DIM_TIME_MS=5000 xss-lock -n /usr/libexec/xsecurelock/dimmer -l -- xsecurelock &
+    xautolock -time 15 -locker "systemctl suspend-then-hibernate" -detectsleep &
 }
 
 main

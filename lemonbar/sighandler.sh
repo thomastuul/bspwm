@@ -83,6 +83,10 @@ network() {
     net_string="$("$LEMONDIR"/block_network.sh)"
 }
 
+screencast() {
+    cast_string="$("$LEMONDIR"/block_screencast.sh)"
+}
+
 # DESC: Initialize signals, print lemonbar strings
 # ARGS: $1 (required): Message to print (defaults to a green foreground)
 #       $2 (optional): Colour to print the message with. This can be an ANSI
@@ -99,6 +103,7 @@ sig_init() {
     trap 'monitor "-" "$pid"'   RTMIN+8
     trap 'tray'                 RTMIN+9
     trap 'network'              RTMIN+10
+    trap 'screencast'           RTMIN+11
 
     # own PID
     pid="$BASHPID"
@@ -117,11 +122,12 @@ sig_init() {
     monitor " " "$pid"
     tray
     network
+    screencast
 
     # disable termination at error as every signal from scheduler would terminate sighandler
     set +o errexit
     while true; do
-        printf "%s" "%{l}${launch_string}${ws_string}%{c}${title_string}%{r}${net_string}${mon_string}${vol_string}${cpu_string}${clock_string}${tray_string}${power_string}"
+        printf "%s" "%{l}${launch_string}${ws_string}%{c}${title_string}%{r}${cast_string}${net_string}${mon_string}${vol_string}${cpu_string}${clock_string}${tray_string}${power_string}"
         wait -n "$scheduler_pid"
     done
     set -o errexit
