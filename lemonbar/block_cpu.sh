@@ -11,9 +11,17 @@ set -o pipefail     # Use last non-zero exit code in a pipeline
 # Enable errtrace or the error trap handler will not work as expected
 set -o errtrace     # Ensure the error trap handler is inherited
 
+calculate() {
+  echo "scale=2; $*" | bc | awk '{printf "%2.1f", $0}'
+}
+
 source "$LEMONDIR/config.sh"
 
-icon=""
-load=$(cut -d ' ' -f1 /proc/loadavg)
+LOADAVG=$(cut -d ' ' -f1 /proc/loadavg)
+NUM_CORES=$(nproc --all)
 
-printf "%s" "%{A1:/usr/bin/alacritty -e sh -c btop:}%{B$COLOR_DEFAULT_BG}%{F$COLOR_SYS_FG}%{+u} $icon ${load} %{-u}%{F-}%{B-}%{A}"
+icon=""
+RESULT=$(calculate "$LOADAVG * 100")
+load=$(calculate "$RESULT / $NUM_CORES")
+
+printf "%s" "%{A1:/usr/bin/alacritty -e sh -c btop:}%{B$COLOR_DEFAULT_BG}%{F$COLOR_SYS_FG}%{+u} $icon ${load}% %{-u}%{F-}%{B-}%{A}"
