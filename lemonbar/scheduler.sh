@@ -22,6 +22,8 @@ seconds=0
 while true; do
     # every second
     kill -RTMIN+3 "$sighandler_pid"
+    # delay necessary as second kill-signal may drop
+    sleep 0.1
     kill -RTMIN+4 "$sighandler_pid"
 
     # every 5 seconds
