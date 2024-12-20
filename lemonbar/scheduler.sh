@@ -26,8 +26,7 @@ while true; do
 
     # every 5 seconds
     if [[ $((seconds % 5)) -eq 0 ]]; then
-        kill -RTMIN+3 "$sighandler_pid"
-        kill -RTMIN+4 "$sighandler_pid"
+        dummy
     fi
 
     # every 10 seconds
