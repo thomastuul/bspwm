@@ -15,4 +15,4 @@ source "$LEMONDIR/config.sh"
 
 Weather=$(/home/thomas/.local/bin/sb-forecast.sh)
 
-printf "%s\n" "%{B$COLOR_DEFAULT_BG}%{F$COLOR_WEATHER_FG}%{+u} ${Weather} %{-u}%{F-}%{B-}"
+printf "%s\n" "%{A3:notify-send \"Update vor $(/home/thomas/.local/bin/sb-forecast.sh München age) min\":}%{B$COLOR_DEFAULT_BG}%{F$COLOR_WEATHER_FG}%{+u} ${Weather} %{-u}%{F-}%{B-}%{A}"
