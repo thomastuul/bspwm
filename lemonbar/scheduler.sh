@@ -41,8 +41,8 @@ while true; do
         kill -RTMIN+10 "$sighandler_pid"
     fi
 
-    # every 3600 seconds (1h)
-    if [[ $((seconds % 3600)) -eq 0 ]]; then
+    # every 900 seconds (15min)
+    if [[ $((seconds % 900)) -eq 0 ]]; then
         kill -RTMIN+12 "$sighandler_pid"
     fi
 
