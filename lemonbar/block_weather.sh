@@ -13,6 +13,8 @@ set -o errtrace     # Ensure the error trap handler is inherited
 
 source "$LEMONDIR/config.sh"
 
-Weather=$(/home/thomas/.local/bin/sb-forecast.sh)
+Weather=$(/home/thomas/.local/bin/sb-forecast.sh München)
 
-printf "%s\n" "%{A3:notify-send \"Update vor $(/home/thomas/.local/bin/sb-forecast.sh München age) min\":}%{B$COLOR_DEFAULT_BG}%{F$COLOR_WEATHER_FG}%{+u} ${Weather} %{-u}%{F-}%{B-}%{A}"
+run="notify-send \"Update vor $(/home/thomas/.local/bin/sb-forecast.sh München age) min\""
+
+printf "%s\n" "%{A3:$run:}%{B$COLOR_DEFAULT_BG}%{F$COLOR_WEATHER_FG}%{+u} ${Weather}%{-u}%{F-}%{B-}%{A}"
