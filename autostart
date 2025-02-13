@@ -21,8 +21,14 @@ main() {
     sleep 0.2
     "$HOME/.config/bspwm/trayer/start_trayer.sh" &
 
-    xset s 300 5 &
-    XSECURELOCK_DIM_TIME_MS=5000 xss-lock -n /usr/libexec/xsecurelock/dimmer -l -- xsecurelock &
+    # activate screensaver after 5 minutes
+    xset s 300 10 &
+    # activate DPMS
+    xset +dpms
+    # set DPMS Standby, Suspend, Off
+    xset dpms 400 600 900
+
+    XSECURELOCK_DIM_TIME_MS=10000 xss-lock -n /usr/libexec/xsecurelock/dimmer -l -- xsecurelock &
     xautolock -time 15 -locker "systemctl suspend-then-hibernate" -detectsleep &
 }
 
