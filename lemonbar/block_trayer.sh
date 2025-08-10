@@ -19,7 +19,7 @@ trayer_width() {
     if [[ -n "$(pidof trayer)" ]]; then
         width=$(xprop -name panel | grep 'program specified minimum size' | cut -d ' ' -f 5)
         # number of spaces
-        num=$(( (width / 16) + 3 ))
+        num=$(( (width / 16) + 9 ))
     fi
 
     printf "%*s" "${num-}" ""
