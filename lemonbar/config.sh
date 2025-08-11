@@ -39,7 +39,7 @@ PANEL_WIDTH=$(xdpyinfo | awk '/dimensions/{print $2}' | cut -d 'x' -f 1)
 PANEL_HEIGHT=$(bspc config top_padding)
 PANEL_HORIZONTAL_OFFSET=0
 PANEL_VERTICAL_OFFSET=0
-PANEL_FONT="JetBrainsMono:style=Regular:size=10"
+PANEL_FONT="JetBrainsMono:style=Regular:size=9"
 PANEL_ICON_FONT="Hack Nerd Font Mono:style=Regular:size=11"
 UNDERLINE_HEIGHT=0
 PANEL_WM_NAME="lemonbar"
