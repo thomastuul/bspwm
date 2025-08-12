@@ -5,7 +5,7 @@ main() {
 
     dunst -config "$HOME/.config/bspwm/dunst/dunstrc" &
 
-#    picom --config "$HOME/.config/bspwm/picom/picom.conf" --daemon --experimental-backends
+    picom --config "$HOME/.config/bspwm/picom/picom.conf" --daemon
 
     blueman-applet &
 
