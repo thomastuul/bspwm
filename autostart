@@ -5,8 +5,6 @@ main() {
 
     dunst -config "$HOME/.config/bspwm/dunst/dunstrc" &
 
-    picom --config "$HOME/.config/bspwm/picom/picom.conf" --daemon
-
     blueman-applet &
 
     nextcloud --background &
@@ -29,6 +27,9 @@ main() {
 
     XSECURELOCK_DIM_TIME_MS=10000 xss-lock -n /usr/libexec/xsecurelock/dimmer -l -- xsecurelock &
     xautolock -time 15 -locker "systemctl suspend-then-hibernate" -detectsleep &
+
+    # compositor shall be invoked last to prevent glitches
+    picom --config "$HOME/.config/picom/picom.conf" --daemon
 }
 
 main
