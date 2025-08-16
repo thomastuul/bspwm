@@ -18,6 +18,8 @@ main() {
     sleep 0.2
     "$HOME/.config/bspwm/trayer/start_trayer.sh" &
 
+    "$HOME/.config/conky/start-conky" &
+
     # activate screensaver after 5 minutes
     xset s 300 10 &
     # activate DPMS
