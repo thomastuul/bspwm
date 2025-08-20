@@ -182,10 +182,10 @@ super + ctrl + t
     "/home/thomas/.local/share/rofi/rofi-translate/rofi_trans"
 
 super + alt + {b, e, t}
-    {brave-browser, evolution, nautilus}
+    {brave-browser, thunderbird, thunar}
 
-alt + c
+super + alt + c
     /bin/sh -c "~/.bin/camtoggle.sh"
 
-alt + s
+super + alt + s
     /bin/sh -c "~/.bin/screencast.sh"
