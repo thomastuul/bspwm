@@ -189,3 +189,18 @@ super + alt + c
 
 super + alt + s
     /bin/sh -c "~/.bin/screencast.sh"
+
+XF86AudioRaiseVolume
+    amixer set Master 2%+ > /dev/null;\
+    [ -f "$XDG_RUNTIME_DIR/lemonbar.pid" ] && kill -RTMIN+6 $(cat "$XDG_RUNTIME_DIR/lemonbar.pid")
+
+XF86AudioLowerVolume
+    amixer set Master 2%- > /dev/null;\
+    [ -f "$XDG_RUNTIME_DIR/lemonbar.pid" ] && kill -RTMIN+6 $(cat "$XDG_RUNTIME_DIR/lemonbar.pid")
+
+XF86AudioMute
+    amixer set Master toggle > /dev/null;\
+    [ -f "$XDG_RUNTIME_DIR/lemonbar.pid" ] && kill -RTMIN+6 $(cat "$XDG_RUNTIME_DIR/lemonbar.pid")
+
+#XF86MonBrightnessDown
+#XF86MonBrightnessUp

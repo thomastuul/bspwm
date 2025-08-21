@@ -239,6 +239,11 @@ main() {
     tmp_dir="$tmp_dir" "$LEMONDIR/sighandler.sh" > "$fifo" &
     sighandler_pid=$!
 
+    # file for exchanging sighandler_pid to sxhkd
+    if [[ -n "${XDG_RUNTIME_DIR:-}" ]]; then
+        echo "$sighandler_pid" > "$XDG_RUNTIME_DIR/lemonbar.pid"
+    fi
+
     lemonbar -p -a "$CLICKABLE_AREAS" \
         -g "$PANEL_WIDTH"x"$PANEL_HEIGHT"+"$PANEL_HORIZONTAL_OFFSET"+"$PANEL_VERTICAL_OFFSET" \
         -f "$PANEL_FONT" -f "$PANEL_ICON_FONT" -F "$COLOR_DEFAULT_FG" -B "$COLOR_PANEL_BG" \

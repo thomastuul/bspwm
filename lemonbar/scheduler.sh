@@ -33,12 +33,12 @@ while true; do
 
     # every 10 seconds
     if [[ $((seconds % 10)) -eq 0 ]]; then
-        dummy
+        kill -RTMIN+10 "$sighandler_pid"
     fi
 
     # every 60 seconds
     if [[ $((seconds % 60)) -eq 0 ]]; then
-        kill -RTMIN+10 "$sighandler_pid"
+        dummy
     fi
 
     seconds=$((seconds+1))
