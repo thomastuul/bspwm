@@ -159,7 +159,7 @@ super + Escape
 
 # run program launcher
 super + ctrl + p
-    rofi -show drun -show-icons
+    rofi -show drun -config "$HOME/.config/bspwm/rofi/config.rasi"
 
 # choose monitor
 super + ctrl + m

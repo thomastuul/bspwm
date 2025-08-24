@@ -1,0 +1,16 @@
+/*****----- Configuration -----*****/
+configuration {
+    modi:                 "drun,window,ssh,calc:~/.local/share/rofi/rofi-calculator.sh";
+    show-icons:           true;
+    display-drun:         " Apps";
+    display-filebrowser:  " Files";
+    display-window:       " Windows";
+    display-ssh:          " SSH";
+    drun-display-format:  "{name}";
+    window-format:        "{w} · {c} · {t}";
+}
+
+/*****----- Global Properties -----*****/
+@import "shared/colors.rasi"
+@import "shared/fonts.rasi"
+@import "themes/standard.rasi"
