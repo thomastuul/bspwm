@@ -6,6 +6,7 @@ configuration {
     display-filebrowser:  " Files";
     display-window:       " Windows";
     display-ssh:          " SSH";
+    display-calc:         " Calc";
     drun-display-format:  "{name}";
     window-format:        "{w} · {c} · {t}";
 }

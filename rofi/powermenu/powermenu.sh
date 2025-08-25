@@ -29,7 +29,7 @@ rofi_cmd() {
     rofi -dmenu \
         -p "$host" \
         -mesg "Uptime: $uptime" \
-        -theme-str 'window {width: 12em; location: North East; x-offset: -110; y-offset: 230;} listview {lines: 6;}' \
+        -theme-str 'window {width: 12em; location: North East; x-offset: -110; y-offset: 220;} listview {lines: 6;}' \
         -theme ${dir}/${theme}.rasi
 }
 
