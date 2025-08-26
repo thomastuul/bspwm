@@ -1,109 +1,129 @@
 #!/usr/bin/env bash
+# Rofi Power Menu – Nerd-Font-Glyphen, Mausfix & Ein-Klick-Bestätigung
 
-## Author : Aditya Shakya (adi1090x)
-## Github : @adi1090x
-#
-## Rofi   : Power Menu
-#
-# Modified by Thomas Tuul
-#
-# Current Theme
-dir="/home/thomas/.config/bspwm/rofi/themes"
-theme='powermenu'
+set -Eeuo pipefail
 
-# CMDs
-uptime="`uptime -p | sed -e 's/up //g'`"
-host=`hostname`
+############################
+# Pfade & Theme
+############################
+SCRIPT_DIR="/home/thomas/.config/bspwm/rofi/themes"
+THEME_FILE="${SCRIPT_DIR}/powermenu.rasi"
 
-# Options
-shutdown=' Shutdown'
-reboot=' Reboot'
-lock=' Lock'
-suspend=' Suspend'
-logout=' Logout'
-yes=' Yes'
-no=' No'
+# Gemeinsame Rofi-Optionen (ohne Icons – wir nutzen Glyphen in den Labels)
+ROFI_COMMON_OPTS=(-dmenu -i -p "Power")
+if [[ -f "$THEME_FILE" ]]; then
+  ROFI_COMMON_OPTS+=( -theme "$THEME_FILE" )
+  ROFI_COMMON_OPTS+=( -theme-str 'window {width: 12em; location: North East; x-offset: -110; y-offset: 195;} listview {lines: 6;}' )
+fi
 
-# Rofi CMD
-rofi_cmd() {
-    rofi -dmenu \
-        -p "$host" \
-        -mesg "Uptime: $uptime" \
-        -theme-str 'window {width: 12em; location: North East; x-offset: -110; y-offset: 220;} listview {lines: 6;}' \
-        -theme ${dir}/${theme}.rasi
+############################
+# Labels mit Nerd-Font-Glyphen
+# (Beispiele:          )
+############################
+LBL_LOCK="  Lock"
+LBL_LOGOUT="  Logout"
+LBL_SUSPEND="  Suspend"
+LBL_REBOOT="  Reboot"
+LBL_SHUTDOWN="  Shutdown"
+LBL_HIBERNATE="󰈨  Hibernate"
+
+# Confirm-Strings (Deutsch; gern auch mit Glyphen)
+LBL_YES="  Ja"
+LBL_NO="  Nein"
+
+############################
+# Hilfsfunktionen
+############################
+list_items() {
+  # Rein textbasiert (keine \0icon-Metadaten) – Glyphen sind Teil der Labels
+  printf "%s\n" "$LBL_LOCK"
+  printf "%s\n" "$LBL_LOGOUT"
+  printf "%s\n" "$LBL_SUSPEND"
+  printf "%s\n" "$LBL_REBOOT"
+  printf "%s\n" "$LBL_SHUTDOWN"
+  printf "%s\n" "$LBL_HIBERNATE"
 }
 
-# Confirmation CMD
-confirm_cmd() {
-    rofi -theme-str 'window {location: center; anchor: center; fullscreen: false; width: 250px;}' \
-        -theme-str 'mainbox {children: [ "message", "listview" ];}' \
-        -theme-str 'listview {columns: 2; lines: 1;}' \
-        -theme-str 'element-text {horizontal-align: 0.5;}' \
-        -theme-str 'textbox {horizontal-align: 0.5;}' \
-        -dmenu \
-        -p 'Confirmation' \
-        -mesg 'Are you Sure?' \
-        -theme ${dir}/${theme}.rasi
+# Klick-Release entprellen, damit das Bestätigungsfenster nicht sofort wieder verschwindet
+debounce_click() { sleep 0.2; }
+
+confirm_dialog() {
+  local message="$1"   # z.B. "Neustart ausführen?"
+  local opts=(
+    -dmenu
+    -i
+    -p "Bestätigen"
+    -mesg "$message"
+    -selected-row 0                # Sicher: standardmäßig "Nein"
+    -me-select-entry ''            # Linksklick soll nicht nur selektieren …
+    -me-accept-entry MousePrimary  # … sondern mit einem Klick bestätigen
+  )
+  # kompakte Overrides für den kleinen Dialog (optional)
+  local theme_overrides=(
+    -theme-str 'window { location: center; anchor: center; width: 280px; }'
+    -theme-str 'mainbox { children: [ "message", "listview" ]; }'
+    -theme-str 'listview { columns: 2; lines: 1; dynamic: false; }'
+    -theme-str 'element-text { horizontal-align: 0.5; }'
+    -theme-str 'textbox { horizontal-align: 0.5; }'
+  )
+  if [[ -f "$THEME_FILE" ]]; then
+    opts+=( -theme "$THEME_FILE" )
+  fi
+
+  debounce_click
+  printf "%s\n%s\n" "$LBL_NO" "$LBL_YES" \
+    | rofi "${opts[@]}" "${theme_overrides[@]}"
 }
 
-# Ask for confirmation
-confirm_exit() {
-    echo -e "$yes\n$no" | confirm_cmd
+main_menu() {
+  list_items | rofi "${ROFI_COMMON_OPTS[@]}"
 }
 
-# Pass variables to rofi dmenu
-run_rofi() {
-    echo -e "$lock\n$suspend\n$logout\n$reboot\n$shutdown" | rofi_cmd
-}
-
-# Execute Command
-run_cmd() {
-    selected="$(confirm_exit)"
-    if [[ "$selected" == "$yes" ]]; then
-        if [[ $1 == '--shutdown' ]]; then
-            systemctl poweroff
-        elif [[ $1 == '--reboot' ]]; then
-            systemctl reboot
-        elif [[ $1 == '--suspend' ]]; then
-            mpc -q pause
-            amixer set Master mute
-            systemctl suspend
-        elif [[ $1 == '--logout' ]]; then
-            if [[ "$DESKTOP_SESSION" == 'openbox' ]]; then
-                openbox --exit
-            elif [[ "$DESKTOP_SESSION" == 'bspwm' ]]; then
-                bspc quit
-            elif [[ "$DESKTOP_SESSION" == 'i3' ]]; then
-                i3-msg exit
-            elif [[ "$DESKTOP_SESSION" == 'plasma' ]]; then
-                qdbus org.kde.ksmserver /KSMServer logout 0 0 0
-            fi
-        fi
-    else
-        exit 0
-    fi
-}
-
-# Actions
-chosen="$(run_rofi)"
-case ${chosen} in
-    $shutdown)
-        run_cmd --shutdown
-        ;;
-    $reboot)
-        run_cmd --reboot
-        ;;
-    $lock)
-        if [[ -x '/usr/bin/betterlockscreen' ]]; then
-            betterlockscreen -l
-        elif [[ -x '/usr/bin/i3lock' ]]; then
-            i3lock
+action_for_choice() {
+  local choice="$1"
+  case "$choice" in
+    "$LBL_LOCK")     loginctl lock-session ;;
+    "$LBL_LOGOUT")
+        if command -v gnome-session-quit >/dev/null; then
+          gnome-session-quit --logout --no-prompt
+        elif command -v bspc >/dev/null; then
+          bspc quit
+        else
+          loginctl terminate-user "$(id -u)"
         fi
         ;;
-    $suspend)
-        run_cmd --suspend
-        ;;
-    $logout)
-        run_cmd --logout
-        ;;
-esac
+    "$LBL_SUSPEND")   systemctl suspend-then-hibernate ;;
+    "$LBL_REBOOT")    systemctl reboot ;;
+    "$LBL_SHUTDOWN")  systemctl poweroff ;;
+    "$LBL_HIBERNATE") systemctl hibernate ;;
+    *)               return 1 ;;
+  esac
+}
+
+human_action_name() {
+  case "$1" in
+    "$LBL_LOCK")      echo "Bildschirm sperren" ;;
+    "$LBL_LOGOUT")    echo "Abmelden" ;;
+    "$LBL_SUSPEND")   echo "Suspend ausführen" ;;
+    "$LBL_REBOOT")    echo "Neustart ausführen" ;;
+    "$LBL_SHUTDOWN")  echo "Herunterfahren ausführen" ;;
+    "$LBL_HIBERNATE") echo "Hibernate ausführen" ;;
+    *)               echo "$1" ;;
+  esac
+}
+
+run() {
+  local choice
+  choice="$(main_menu || true)"
+  [[ -z "${choice:-}" ]] && exit 0
+
+  local nice_name; nice_name="$(human_action_name "$choice")"
+  local answer
+  answer="$(confirm_dialog "$nice_name?")" || exit 1
+
+  if [[ "$answer" == "$LBL_YES" ]]; then
+    action_for_choice "$choice"
+  fi
+}
+
+run
