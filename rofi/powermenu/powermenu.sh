@@ -79,6 +79,35 @@ main_menu() {
   list_items | rofi "${ROFI_COMMON_OPTS[@]}"
 }
 
+# --- Medien sauber stoppen (robust, no-op wenn nicht vorhanden) ---
+mpc_fadeout_and_stop() {
+  command -v mpc >/dev/null || return 0
+  # sanft ausblenden, wenn Volume bekannt; sonst direkt stoppen
+  local vol
+  vol="$(mpc volume 2>/dev/null | awk '{print $2+0}' || echo "")"
+  if [[ -n "$vol" && "$vol" -gt 0 ]]; then
+    # auf ~0.6s ausblenden
+    for v in $(seq "$vol" -10 0); do mpc -q volume "$v"; sleep 0.06; done
+  fi
+  mpc -q stop
+}
+
+playerctl_pause_all() {
+  command -v playerctl >/dev/null || return 0
+  # alle MPRIS-Player pausieren (mpv, firefox, vlc, spotify, etc.)
+  playerctl --all-players pause 2>/dev/null || true
+}
+
+pre_hook() {
+  case "$1" in
+    "$LBL_LOGOUT")   mpc_fadeout_and_stop; playerctl_pause_all ;;
+    "$LBL_SUSPEND")  mpc_fadeout_and_stop; playerctl_pause_all ;;
+    "$LBL_REBOOT")   mpc_fadeout_and_stop; playerctl_pause_all ;;
+    "$LBL_SHUTDOWN") mpc_fadeout_and_stop; playerctl_pause_all ;;
+    *) : ;;
+  esac
+}
+
 action_for_choice() {
   local choice="$1"
   case "$choice" in
@@ -122,6 +151,7 @@ run() {
   answer="$(confirm_dialog "$nice_name?")" || exit 1
 
   if [[ "$answer" == "$LBL_YES" ]]; then
+    pre_hook "$choice"
     action_for_choice "$choice"
   fi
 }
