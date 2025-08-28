@@ -27,8 +27,10 @@ main() {
     # set DPMS Standby, Suspend, Off
     xset dpms 400 600 900
 
-    XSECURELOCK_DIM_TIME_MS=10000 xss-lock -n /usr/libexec/xsecurelock/dimmer -l -- xsecurelock &
-    xautolock -time 15 -locker "systemctl suspend-then-hibernate" -detectsleep &
+    XSECURELOCK_DIM_TIME_MS=10000 \
+        xss-lock -n /usr/libexec/xsecurelock/dimmer --transfer-sleep-lock -- xsecurelock &
+
+    xautolock -time 15 -detectsleep -locker "systemctl suspend-then-hibernate" &
 
     # compositor shall be invoked last to prevent glitches
     picom --config "$HOME/.config/picom/picom.conf" --daemon

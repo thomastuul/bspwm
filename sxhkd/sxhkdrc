@@ -19,13 +19,11 @@ super + shift + Return
     alacritty
 
 # quit bspwm
-super + shift + q
-    bspc {quit,wm -r}
-
-# restart bspwm
 super + shift + r
-    bspc wm -r; \
-    notify-send "bspwm neu gestartet"
+    bspc wm -r ;notify-send "bspwm neu gestartet"
+
+super + shift + q
+    pkill -15 -x brave 2>/dev/null; sleep 0.3; bspc quit
 
 # kill client
 super + shift + c
