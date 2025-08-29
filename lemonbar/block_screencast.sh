@@ -14,9 +14,11 @@ set -o errtrace     # Ensure the error trap handler is inherited
 source "$LEMONDIR/config.sh"
 
 if [ -f /tmp/screencastpid ]; then
-    icon="  "
+    icon=" 壘"
+    color_fg=$COLOR_SCREENCAST_FG
 else
-    icon=""
+    icon=" 壘"
+    color_fg=$Selection
 fi
 
-printf "%s" "%{B$COLOR_DEFAULT_BG}%{F$COLOR_SCREENCAST_FG}%{+u}$icon%{-u}%{F-}%{B-}"
+printf "%s" "%{B$COLOR_DEFAULT_BG}%{F$color_fg}%{+u}$icon%{-u}%{F-}%{B-}"

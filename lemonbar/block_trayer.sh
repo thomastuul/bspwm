@@ -17,7 +17,6 @@ MARGIN="${MARGIN:-4}"
 source "$LEMONDIR/config.sh"
 
 trayer_width() {
-    # Width of the trayer window
     width=1
     if [[ -n "$(pidof trayer)" ]]; then
         width=$(xprop -name "$PANEL_NAME" | grep 'program specified minimum size' | cut -d ' ' -f 5)

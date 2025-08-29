@@ -183,10 +183,10 @@ super + alt + {b, e, t}
     {brave-browser, thunderbird, thunar}
 
 super + alt + c
-    /bin/sh -c "~/.bin/camtoggle.sh"
+    /bin/sh -c "~/.config/bspwm/bin/camtoggle.sh"
 
 super + alt + s
-    /bin/sh -c "~/.bin/screencast.sh"
+    /bin/sh -c "~/.config/bspwm/bin/screencast.sh"
 
 XF86AudioRaiseVolume
     amixer set Master 2%+ > /dev/null;\
