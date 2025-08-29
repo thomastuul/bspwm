@@ -138,7 +138,6 @@ Print + ctrl + shift
     scrot -u "$HOME/Bilder/activewindow-%d-%m-%Y-%H-%M-%S.png" -e "xclip -selection c -t image/png < $f" && sleep 1; notify-send "Screenshot von Fenster abgelegt in ~/Bilder"
 
 # lock screen
-# lock screen
 ctrl + alt + l
     loginctl lock-session
 #

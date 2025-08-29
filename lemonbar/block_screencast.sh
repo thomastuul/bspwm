@@ -13,7 +13,7 @@ set -o errtrace     # Ensure the error trap handler is inherited
 
 source "$LEMONDIR/config.sh"
 
-if [ -f /tmp/screencastpid ]; then
+if [ -f "$XDG_RUNTIME_DIR/screencast.pid" ]; then
     icon=" 壘"
     color_fg=$COLOR_SCREENCAST_FG
 else

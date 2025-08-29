@@ -38,10 +38,10 @@ SIZE=$(xdpyinfo | grep 'dimensions:'|awk '{print $2}')
 # record screen to video file
 FILE="/home/thomas/Videos/screencast-$TIME.mkv"
 
-if [ -f /tmp/screencastpid ]; then
-    pid="$(cat /tmp/screencastpid)"
-    rm -f /tmp/screencastpid
-    killall ffmpeg
+if [ -f "$XDG_RUNTIME_DIR/screencast.pid" ]; then
+    pid="$(cat "$XDG_RUNTIME_DIR/screencast.pid")"
+    rm -f "$XDG_RUNTIME_DIR/screencast.pid"
+    kill "$pid"
     notify-send "Screencast unter ~/Videos abgelegt"
 else
     ffmpeg -r 30 -f x11grab -s $(xdpyinfo | grep 'dimensions:'|awk '{print $2}') -i :0.0 \
@@ -49,7 +49,7 @@ else
         -vcodec libx264 -pix_fmt yuv420p -preset ultrafast -crf 0 -threads 0 \
         -acodec pcm_s16le -y \
         "$FILE" &
-        echo $! > /tmp/screencastpid
+        echo $! > "$XDG_RUNTIME_DIR/screencast.pid"
 fi
 
 kill -RTMIN+11 "$(getPid)"
