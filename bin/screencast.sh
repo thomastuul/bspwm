@@ -11,7 +11,9 @@
 # signal number.
 
 getPid() {
-    PID=$(pgrep -f sighandler.sh)
+    if [ -f "$XDG_RUNTIME_DIR/sighandler.pid" ]; then
+        PID=$(cat "$XDG_RUNTIME_DIR/sighandler.pid")
+    fi
 
     echo $PID
 }

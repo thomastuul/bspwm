@@ -241,7 +241,7 @@ main() {
 
     # file for exchanging sighandler_pid to sxhkd
     if [[ -n "${XDG_RUNTIME_DIR:-}" ]]; then
-        echo "$sighandler_pid" > "$XDG_RUNTIME_DIR/lemonbar.pid"
+        echo "$sighandler_pid" > "$XDG_RUNTIME_DIR/sighandler.pid"
     fi
 
     lemonbar -p -a "$CLICKABLE_AREAS" \
