@@ -31,8 +31,12 @@ ICON_FULL=""
 ICON_PLUG=""
 ICON_BOLT=""
 
-# Find battery directories
+# Batterie-Verzeichnisse suchen
+shopt -s nullglob          # sorgt dafür, dass unaufgelöste Globs leer werden
 BAT_DIRS=( /sys/class/power_supply/BAT* )
+shopt -u nullglob          # wieder zurücksetzen
+
+# Find battery directories
 if (( ${#BAT_DIRS[@]} == 0 )); then
     # No battery found; likely desktop: show AC
     printf "%s\n" "%{B$BG_COLOR}%{F$FG_COLOR}%{+u} $ICON_PLUG AC %{-u}%{F-}%{B-}"
@@ -43,7 +47,6 @@ fi
 total_pct=0
 charging=false
 full=true
-discharging=false
 
 for bd in "${BAT_DIRS[@]}"; do
     if [[ -r "${bd}/capacity" ]]; then
@@ -64,7 +67,6 @@ for bd in "${BAT_DIRS[@]}"; do
         case "$st" in
             [Cc]harging) charging=true; full=false ;;
             [Ff]ull) full=true ;;
-            [Dd]ischarging) discharging=true; full=false ;;
             *) ;;
         esac
     fi
