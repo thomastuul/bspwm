@@ -11,17 +11,22 @@ set -o pipefail     # Use last non-zero exit code in a pipeline
 # Enable errtrace or the error trap handler will not work as expected
 set -o errtrace     # Ensure the error trap handler is inherited
 
-calculate() {
-  echo "scale=2; $*" | bc | awk '{printf "%2.1f", $0}'
-}
+PANEL_NAME="${PANEL_NAME:-panel}"
+MARGIN="${MARGIN:-4}"
 
+# shellcheck disable=SC1091
 source "$LEMONDIR/config.sh"
 
-LOADAVG=$(cut -d ' ' -f1 /proc/loadavg)
-NUM_CORES=$(nproc --all)
+trayer_width() {
+    width=1
+    if [[ -n "$(pidof trayer)" ]]; then
+        width=$(xprop -name "$PANEL_NAME" | grep 'program specified minimum size' | cut -d ' ' -f 5)
+    fi
+    printf "%s" "$(( width + MARGIN ))"
+}
 
-icon=""
-RESULT=$(calculate "$LOADAVG * 100")
-load=$(calculate "$RESULT / $NUM_CORES")
+trayer="%{F$COLOR_DEFAULT_FG}%{B$COLOR_DEFAULT_BG}%{O$(trayer_width)}%{B-}%{F-}"
 
-printf "%s" "%{A1:/usr/bin/alacritty -e sh -c btop:}%{B$COLOR_DEFAULT_BG}%{F$COLOR_SYS_FG}%{+u} $icon ${load}% %{-u}%{F-}%{B-}%{A}"
+printf "%s" "$trayer"
+
+# vim: syntax=bash

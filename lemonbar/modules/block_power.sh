@@ -11,13 +11,15 @@ set -o pipefail     # Use last non-zero exit code in a pipeline
 # Enable errtrace or the error trap handler will not work as expected
 set -o errtrace     # Ensure the error trap handler is inherited
 
+# shellcheck disable=SC1091
 source "$LEMONDIR/config.sh"
 
-name=""
-run="$HOME/.config/bspwm/rofi/launcher/launcher.sh"
+name=""
 
-launcher="%{A:$run:}%{F$COLOR_DEFAULT_FG}%{B$COLOR_DEFAULT_BG} ${name}$PADDING%{B-}%{F-}%{A}"
+run="$HOME/.config/bspwm/rofi/powermenu/powermenu.sh"
 
-printf "%s" "$launcher"
+power="%{A:${run}:}%{F$COLOR_DEFAULT_FG}%{B$COLOR_DEFAULT_BG}$PADDING${name}$PADDING%{B-}%{F-}%{A}"
+
+printf "%s" "$power"
 
 # vim: syntax=bash

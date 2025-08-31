@@ -11,21 +11,11 @@ set -o pipefail     # Use last non-zero exit code in a pipeline
 # Enable errtrace or the error trap handler will not work as expected
 set -o errtrace     # Ensure the error trap handler is inherited
 
-PANEL_NAME="${PANEL_NAME:-panel}"
-MARGIN="${MARGIN:-4}"
-
+# shellcheck disable=SC1091
 source "$LEMONDIR/config.sh"
 
-trayer_width() {
-    width=1
-    if [[ -n "$(pidof trayer)" ]]; then
-        width=$(xprop -name "$PANEL_NAME" | grep 'program specified minimum size' | cut -d ' ' -f 5)
-    fi
-    printf "%s" "$(( width + MARGIN ))"
-}
+Weather=$(/home/thomas/.config/bspwm/bin/sb-forecast.sh München)
 
-trayer="%{F$COLOR_DEFAULT_FG}%{B$COLOR_DEFAULT_BG}%{O$(trayer_width)}%{B-}%{F-}"
+run="notify-send \"Update vor $(/home/thomas/.config/bspwm/bin/sb-forecast.sh München age) min\""
 
-printf "%s" "$trayer"
-
-# vim: syntax=bash
+printf "%s\n" "%{A3:$run:}%{B$COLOR_DEFAULT_BG}%{F$COLOR_WEATHER_FG}%{+u} ${Weather}%{-u}%{F-}%{B-}%{A}"

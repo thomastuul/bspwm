@@ -11,14 +11,14 @@ set -o pipefail     # Use last non-zero exit code in a pipeline
 # Enable errtrace or the error trap handler will not work as expected
 set -o errtrace     # Ensure the error trap handler is inherited
 
+# shellcheck disable=SC1091
 source "$LEMONDIR/config.sh"
 
-if [ -f "$XDG_RUNTIME_DIR/screencast.pid" ]; then
-    icon=" 壘"
-    color_fg=$COLOR_SCREENCAST_FG
-else
-    icon=" 壘"
-    color_fg=$Selection
-fi
+name=""
+run="$HOME/.config/bspwm/rofi/launcher/launcher.sh"
 
-printf "%s" "%{B$COLOR_DEFAULT_BG}%{F$color_fg}%{+u}$icon%{-u}%{F-}%{B-}"
+launcher="%{A:$run:}%{F$COLOR_DEFAULT_FG}%{B$COLOR_DEFAULT_BG} ${name}$PADDING%{B-}%{F-}%{A}"
+
+printf "%s" "$launcher"
+
+# vim: syntax=bash
