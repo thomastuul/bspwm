@@ -136,14 +136,24 @@ sig_init() {
     screencast
     battery
     weather
+}
 
+render_line() {
+    printf "%s" \
+        "%{l}${launch_string}${ws_string}" \
+        "%{c}${title_string}" \
+        "%{r}${cast_string}${weather_string}${battery_string}${net_string}${mon_string}${vol_string}${cpu_string}${clock_string}${tray_string}${power_string}"
+}
+
+main () {
+    sig_init
     # disable termination at error as every signal from scheduler would terminate sighandler
     set +o errexit
     while true; do
-        printf "%s" "%{l}${launch_string}${ws_string}%{c}${title_string}%{r}${cast_string}${weather_string}${battery_string}${net_string}${mon_string}${vol_string}${cpu_string}${clock_string}${tray_string}${power_string}"
+        render_line
         wait -n "$scheduler_pid"
     done
     set -o errexit
 }
 
-sig_init
+main
