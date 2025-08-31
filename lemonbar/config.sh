@@ -65,7 +65,7 @@ COLOR_BATTERY_WARN_FG="$Yellow"
 COLOR_BATTERY_CRIT_FG="$Red"
 COLOR_BATTERY_CHARGING_FG="$Green"
 
-PADDING="  "
+PADDING=" "
 CLICKABLE_AREAS=30
 PANEL_WIDTH=$(xdpyinfo | awk '/dimensions/{print $2}' | cut -d 'x' -f 1)
 PANEL_HEIGHT=$(bspc config top_padding)
