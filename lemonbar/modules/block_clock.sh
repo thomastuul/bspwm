@@ -11,10 +11,17 @@ set -o pipefail     # Use last non-zero exit code in a pipeline
 # Enable errtrace or the error trap handler will not work as expected
 set -o errtrace     # Ensure the error trap handler is inherited
 
+# shellcheck disable=SC1091
 source "$LEMONDIR/config.sh"
 
-Weather=$(/home/thomas/.config/bspwm/bin/sb-forecast.sh München)
+Date() {
+    date=$(date "+%a %b %d")
+    printf "%s" "$date"
+}
 
-run="notify-send \"Update vor $(/home/thomas/.config/bspwm/bin/sb-forecast.sh München age) min\""
+Time() {
+    time=$(date "+%T")
+    printf "%s" "$time"
+}
 
-printf "%s\n" "%{A3:$run:}%{B$COLOR_DEFAULT_BG}%{F$COLOR_WEATHER_FG}%{+u} ${Weather}%{-u}%{F-}%{B-}%{A}"
+printf "%s\n" "%{B$COLOR_DEFAULT_BG}%{F$COLOR_CLOCK_FG}%{+u}  $(Date)  $(Time) %{-u}%{F-}%{B-}"
