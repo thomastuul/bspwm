@@ -36,7 +36,9 @@ bspc config top_padding 25
 bspc rule -a Gimp-2.10 desktop='^6' state=floating follow=on
 bspc rule -a Brave-browser desktop='^2'
 bspc rule -a thunderbird-default desktop='^5'
+bspc rule -a Evolution desktop='^5'
 bspc rule -a Thunar desktop='^3'
+bspc rule -a org.gnome.Nautilus desktop='^3'
 bspc rule -a KeePassXC state=floating center=true follow=on
 bspc rule -a Virt-manager desktop='^6' state=floating follow=on
 bspc rule -a TelegramDesktop desktop='^8'

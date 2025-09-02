@@ -178,8 +178,14 @@ super + ctrl + c
 super + ctrl + t
     "/home/thomas/.local/share/rofi/rofi-translate/rofi_trans"
 
-super + alt + {b, e, t}
-    {brave-browser, thunderbird, thunar}
+super + alt + b
+    ~/.config/bspwm/bin/app-launcher.sh browser
+
+super + alt + e
+    ~/.config/bspwm/bin/app-launcher.sh mail
+
+super + alt + t
+    ~/.config/bspwm/bin/app-launcher.sh file
 
 super + alt + c
     /bin/sh -c "~/.config/bspwm/bin/camtoggle.sh"
