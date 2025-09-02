@@ -1,5 +1,7 @@
 # shellcheck disable=2034
 
+TERMINAL=${TERMINAL:-alacritty}
+
 # Dracula color palette
 BGlighter="#424450"
 BGlight="#343746"

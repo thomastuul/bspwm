@@ -72,8 +72,7 @@ sig_init() {
     trap 'monitor "+" "$pid"'   RTMIN+7
     trap 'monitor "-" "$pid"'   RTMIN+8
     trap 'tray'                 RTMIN+9
-    trap 'network'              RTMIN+10
-    trap 'battery'              RTMIN+10
+    trap 'network; battery'     RTMIN+10
     trap 'screencast'           RTMIN+11
     trap 'weather'              RTMIN+12
 
@@ -111,8 +110,10 @@ main () {
     while true; do
         render_line
         sleep infinity &
-        # true neccessary here as every signal from scheduler would terminate sighandler
-        wait $! || true
+        spid=$!
+        wait "$spid" || true
+        kill "$spid" 2>/dev/null || true
+        #pkill -P "$$" -x sleep 2>/dev/null || true
     done
 }
 
