@@ -38,4 +38,4 @@ for eth in "${eth_adapter_list[@]}"; do
     fi
 done
 
-printf "%s" "%{A1:/usr/bin/alacritty -e nmtui:}%{A3:notify-send \"SSID\: $ssid\":}%{B$COLOR_DEFAULT_BG}%{F$COLOR_NETWORK_FG}%{+u} ${eth_string-} ${wlan_string-} %{-u}%{F-}%{B-}%{A}%{A}"
+printf "%s" "%{A1:/bin/sh -c 'setsid -f \"$TERMINAL\" -e nmtui >/dev/null 2>&1 &':}%{A3:notify-send \"SSID\: $ssid\":}%{B$COLOR_DEFAULT_BG}%{F$COLOR_NETWORK_FG}%{+u} ${eth_string-} ${wlan_string-} %{-u}%{F-}%{B-}%{A}%{A}"

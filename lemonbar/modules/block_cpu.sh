@@ -25,5 +25,4 @@ icon=""
 RESULT=$(calculate "$LOADAVG * 100")
 load=$(calculate "$RESULT / $NUM_CORES")
 
-printf "%s" "%{A1:/bin/sh -c 'setsid -f \"$TERMINAL\" -e btop >/dev/null 2>&1 &':}%{B$COLOR_DEFAULT_BG}%{F$COLOR_SYS_FG}%{+u} $icon ${load}% %{-u}%{F-}%{B-}%{A}"
-
+printf "%s" "%{A1:/bin/sh -c 'setsid -f \"$TERMINAL\" -e sh -c btop >/dev/null 2>&1 &':}%{B$COLOR_DEFAULT_BG}%{F$COLOR_SYS_FG}%{+u} $icon ${load}% %{-u}%{F-}%{B-}%{A}"
