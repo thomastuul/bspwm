@@ -23,7 +23,7 @@ while true; do
     # every second
     kill -RTMIN+3 "$sighandler_pid"
     # delay necessary as second kill-signal may drop
-    sleep 0.1
+    sleep 0.1 || true
     kill -RTMIN+4 "$sighandler_pid"
 
     # every 5 seconds
@@ -42,5 +42,5 @@ while true; do
     fi
 
     seconds=$((seconds+1))
-    sleep 1
+    sleep 1 || true
 done

@@ -25,7 +25,7 @@ script_trap_err() {
 
 # Send signal for update lemonbar workspaces at event desktop change
 get_ws_updates_changed_desktop() {
-    bspc subscribe desktop_focus | while read -r; do
+    stdbuf -oL -eL bspc subscribe desktop_focus | while read -r; do
         # shellcheck disable=SC2154
         kill -RTMIN+2 "$sighandler_pid"
     done
@@ -33,14 +33,14 @@ get_ws_updates_changed_desktop() {
 
 # Send signal for update lemonbar workspaces at event node transfer to different desktop
 get_ws_updates_node_transfer() {
-    bspc subscribe node_transfer | while read -r; do
+    stdbuf -oL -eL bspc subscribe node_transfer | while read -r; do
         kill -RTMIN+2 "$sighandler_pid"
     done
 }
 
 # Send signal for update lemonbar workspaces at layout change
 get_ws_updates_layout_change() {
-    bspc subscribe desktop_layout | while read -r; do
+    stdbuf -oL -eL bspc subscribe desktop_layout | while read -r; do
         kill -RTMIN+2 "$sighandler_pid"
     done
 }
@@ -51,13 +51,13 @@ get_trayer_updates() {
         sleep 1
     done
 
-    xprop -name panel -spy | grep --line-buffered 'program specified minimum size' | while IFS= read -r; do
+    stdbuf -oL -eL xprop -name panel -spy | grep --line-buffered 'program specified minimum size' | while IFS= read -r; do
         kill -RTMIN+9 "$sighandler_pid"
     done
 }
 
 get_new_node_updates() {
-    bspc subscribe node_add | while read -r; do
+    stdbuf -oL -eL bspc subscribe node_add | while read -r; do
         kill -RTMIN+2 "$sighandler_pid"
     done
 }
