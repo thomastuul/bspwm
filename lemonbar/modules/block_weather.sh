@@ -16,6 +16,9 @@ source "$LEMONDIR/config.sh"
 
 Weather=$(/home/thomas/.config/bspwm/bin/sb-forecast.sh München)
 
-run="notify-send \"Update vor $(/home/thomas/.config/bspwm/bin/sb-forecast.sh München age) min\""
+run_right="notify-send \"Update vor $(/home/thomas/.config/bspwm/bin/sb-forecast.sh München age) min\""
 
-printf "%s\n" "%{A3:$run:}%{B$COLOR_DEFAULT_BG}%{F$COLOR_WEATHER_FG}%{+u} ${Weather}%{-u}%{F-}%{B-}%{A}"
+# Left-click (Button 1): Terminal mit wttr.in
+run_left="$HOME/.config/bspwm/bin/open-wttr.sh &"
+
+printf "%s\n" "%{A1:$run_left:}%{A3:$run_right:}%{B$COLOR_DEFAULT_BG}%{F$COLOR_WEATHER_FG}%{+u} ${Weather}%{-u}%{F-}%{B-}%{A}%{A}"
