@@ -113,7 +113,6 @@ main () {
         spid=$!
         wait "$spid" || true
         kill "$spid" 2>/dev/null || true
-        #pkill -P "$$" -x sleep 2>/dev/null || true
     done
 }
 
