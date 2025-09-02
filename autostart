@@ -34,6 +34,9 @@ main() {
 
     # compositor shall be invoked last to prevent glitches
     picom --config "$HOME/.config/bspwm/picom/picom.conf" --daemon
+
+    # Individual size of apps which are floating
+    "$HOME/.config/bspwm/bin/float-resize-bspwm.sh" &
 }
 
 main
