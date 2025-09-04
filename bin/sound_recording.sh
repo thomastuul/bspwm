@@ -14,7 +14,7 @@ set -x
 
 TIME=$(date "+%d-%m-%Y-%H-%M-%S")
 MIC_NAME=""^hw:CARD=Microphone
-FILE="/home/thomas/Videos/soundrecording-$TIME.wav"
+FILE="$HOME/Videos/soundrecording-$TIME.wav"
 
 MIC=$(arecord -L | grep "$MIC_NAME")
 if [ -n $MIC ]; then

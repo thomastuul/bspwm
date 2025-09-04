@@ -6,7 +6,7 @@ set -Eeuo pipefail
 ############################
 # Pfade & Theme
 ############################
-SCRIPT_DIR="/home/thomas/.config/bspwm/rofi/themes"
+SCRIPT_DIR="$HOME/.config/bspwm/rofi/themes"
 THEME_FILE="${SCRIPT_DIR}/powermenu.rasi"
 
 # Gemeinsame Rofi-Optionen (ohne Icons – wir nutzen Glyphen in den Labels)

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# ~/.local/bin/app-launcher.sh
+# ~/.config/bspwm//bin/app-launcher.sh
 # Startet je Kategorie das erste verfügbare Programm.
 # Lint-clean für ShellCheck (bash).
 

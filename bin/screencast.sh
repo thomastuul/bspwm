@@ -36,7 +36,7 @@ fi
 # Get the window position and its size
 SIZE=$(xdpyinfo | grep 'dimensions:'|awk '{print $2}')
 # record screen to video file
-FILE="/home/thomas/Videos/screencast-$TIME.mkv"
+FILE="$HOME/Videos/screencast-$TIME.mkv"
 
 if [ -f "$XDG_RUNTIME_DIR/screencast.pid" ]; then
     pid="$(cat "$XDG_RUNTIME_DIR/screencast.pid")"

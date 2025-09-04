@@ -13,10 +13,10 @@ set -o errtrace     # Ensure the error trap handler is inherited
 
 # shellcheck disable=SC1091
 source "$LEMONDIR/config.sh"
-
-Weather=$(/home/thomas/.config/bspwm/bin/sb-forecast.sh München)
-
-run_right="notify-send \"Update vor $(/home/thomas/.config/bspwm/bin/sb-forecast.sh München age) min\""
+Weather="$("$HOME/.config/bspwm/bin/sb-forecast.sh" "München")"
+age_text="$("$HOME/.config/bspwm/bin/sb-forecast.sh" München age)"
+msg="Update vor ${age_text} min"
+run_right="notify-send $(printf %q "$msg")"
 
 # Left-click (Button 1): Terminal mit wttr.in
 run_left="$HOME/.config/bspwm/bin/open-wttr.sh &"
