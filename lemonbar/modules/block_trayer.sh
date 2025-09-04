@@ -12,7 +12,7 @@ set -o pipefail     # Use last non-zero exit code in a pipeline
 set -o errtrace     # Ensure the error trap handler is inherited
 
 PANEL_NAME="${PANEL_NAME:-panel}"
-MARGIN="${MARGIN:-4}"
+MARGIN="${MARGIN:-8}"
 
 # shellcheck disable=SC1091
 source "$LEMONDIR/config.sh"

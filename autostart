@@ -11,7 +11,7 @@ main() {
 
     xsetroot -cursor_name left_ptr &
 
-    xwallpaper --daemon --zoom "/home/thomas/Bilder/Wallpapers/back-erde.jpg" &>/dev/null
+    xwallpaper --daemon --zoom "/home/thomas/Bilder/Wallpaper/myWallpaper/leaf-dark-blue-droplets-zaf2d5wx8xzc22ah.jpg" &>/dev/null
 
     export DEBUG=no
     setsid "$HOME/.config/bspwm/lemonbar/start.sh" -l &
