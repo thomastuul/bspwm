@@ -39,7 +39,7 @@ trap_err() {
     return 0
 }
 
-trap trap_cleanup INT TERM QUIT EXIT HUP
+trap 'trap_cleanup' INT TERM QUIT EXIT HUP
 trap 'trap_err "${LINENO}/${BASH_LINENO}" "$?" "$BASH_COMMAND"'  ERR
 
 cpu()          { cpu_string="$("$LEMONDIR"/modules/block_cpu.sh)"; }
