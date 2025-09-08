@@ -54,25 +54,11 @@ mkfifo "$title_fifo"
 # OUTS: None
 activeWindow() {
     # endless loop, for xtmon see https://github.com/vimist/xtmon/tree/master
-    xtmon | while read -r line; do
+    "$LEMONDIR/xtmon.sh" | while read -r line; do
         sleep 0.05
-        if [[ $line =~ ^([^[:space:]]+)[[:space:]]+([^[:space:]]+)[[:space:]]*(.*) ]]; then
-            focus_title="${BASH_REMATCH[1]}"
-            window_title="${BASH_REMATCH[3]}"
-            if [[ "$focus_title" == "focus_changed" || "$focus_title" == "title_changed" || "$focus_title" == "initial_focus" ]]; then
-                # shellcheck disable=SC2154
-                kill -RTMIN+5 "$sighandler_pid"
-                if [[ -z "$window_title" ]]; then
-                    window_title="Desktop"
-                fi
-                if [ ${#window_title} -gt $max_length_title ]; then
-                    limited_title="${window_title:0:$max_length_title}"
-                else
-                    limited_title="$window_title"
-                fi
-                printf "%s\n" "%{B$COLOR_DEFAULT_BG}%{F$COLOR_FREE_FG}%{+u}$PADDING$limited_title$PADDING%{-u}%{F-}%{B-}" > "$title_fifo"
-            fi
-        fi
+        # shellcheck disable=SC2154
+        kill -RTMIN+5 "$sighandler_pid"
+        printf "%s\n" "%{B$COLOR_DEFAULT_BG}%{F$COLOR_FREE_FG}%{+u}$PADDING$line$PADDING%{-u}%{F-}%{B-}" > "$title_fifo"
     done
 }
 

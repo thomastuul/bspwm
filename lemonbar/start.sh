@@ -57,7 +57,7 @@ trap_exit() {
     fi
 
     kill -- -$$
-    wait
+    wait || true
 }
 
 # DESC: Exit script with the given message
@@ -252,7 +252,7 @@ main() {
     sighandler_pid="$sighandler_pid" tmp_dir="$tmp_dir" "$LEMONDIR/events.sh" &
 
     # wait for subprocesses to be finished except one fails
-    wait -n
+    wait -n || true
 }
 
 main "$@"
