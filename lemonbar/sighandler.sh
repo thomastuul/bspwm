@@ -19,9 +19,9 @@ log()  { printf '[sighandler] %s\n' "$*" >&2; }
 trap_cleanup() {
     trap - INT TERM QUIT EXIT HUP ERR
     kill "$scheduler_pid"
-    wait
+    wait || true
     kill "$BASHPID"
-    wait
+    wait || true
     log "cleanup"
 }
 
@@ -39,8 +39,8 @@ trap_err() {
     return 0
 }
 
-trap 'trap_cleanup' INT TERM QUIT EXIT HUP
-trap 'trap_err "${LINENO}/${BASH_LINENO}" "$?" "$BASH_COMMAND"'  ERR
+trap -- 'trap_cleanup' INT TERM QUIT EXIT HUP
+trap -- 'trap_err "${LINENO}/${BASH_LINENO}" "$?" "$BASH_COMMAND"'  ERR
 
 cpu()          { cpu_string="$("$LEMONDIR"/modules/block_cpu.sh)"; }
 clock()        { clock_string="$("$LEMONDIR"/modules/block_clock.sh)"; }
@@ -64,17 +64,17 @@ weather()      { weather_string="$("$LEMONDIR"/modules/block_weather.sh)"; }
 #       $3 (optional): Set to any value to not append a new line to the message
 # OUTS: None
 sig_init() {
-    trap 'wsindicator'          RTMIN+2
-    trap 'cpu'                  RTMIN+3
-    trap 'clock'                RTMIN+4
-    trap 'window_title'         RTMIN+5
-    trap 'volume "$pid"'        RTMIN+6
-    trap 'monitor "+" "$pid"'   RTMIN+7
-    trap 'monitor "-" "$pid"'   RTMIN+8
-    trap 'tray'                 RTMIN+9
-    trap 'network; battery'     RTMIN+10
-    trap 'screencast'           RTMIN+11
-    trap 'weather'              RTMIN+12
+    trap -- 'wsindicator'          RTMIN+2
+    trap -- 'cpu'                  RTMIN+3
+    trap -- 'clock'                RTMIN+4
+    trap -- 'window_title'         RTMIN+5
+    trap -- 'volume "$pid"'        RTMIN+6
+    trap -- 'monitor "+" "$pid"'   RTMIN+7
+    trap -- 'monitor "-" "$pid"'   RTMIN+8
+    trap -- 'tray'                 RTMIN+9
+    trap -- 'network; battery'     RTMIN+10
+    trap -- 'screencast'           RTMIN+11
+    trap -- 'weather'              RTMIN+12
 
     # own PID
     pid="$BASHPID"
