@@ -76,4 +76,5 @@ PANEL_VERTICAL_OFFSET=0
 PANEL_FONT="JetBrainsMono:style=Regular:size=9"
 PANEL_ICON_FONT="Hack Nerd Font Mono:style=Regular:size=11"
 UNDERLINE_HEIGHT=0
-PANEL_WM_NAME="panel"
+PANEL_WM_NAME="lemonbar"
+SYSTRAY_WM_NAME="panel" # not trayer!

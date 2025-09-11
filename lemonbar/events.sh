@@ -16,6 +16,8 @@ set -o pipefail     # Use last non-zero exit code in a pipeline
 # Enable errtrace or the error trap handler will not work as expected
 set -o errtrace     # Ensure the error trap handler is inherited
 
+source "${LEMONDIR}/config.sh"
+
 # DESC: Errorhandler
 # ARGS: $1: Line number of err occurence
 #       $2: Exit status code
@@ -56,7 +58,7 @@ get_trayer_updates() {
         sleep 1
     done
 
-    stdbuf -oL -eL xprop -name "$PANEL_WM_NAME" -spy | grep --line-buffered 'program specified minimum size' | while IFS= read -r; do
+    stdbuf -oL -eL xprop -name "$SYSTRAY_WM_NAME" -spy | grep --line-buffered 'program specified minimum size' | while IFS= read -r; do
         kill -RTMIN+9 "$sighandler_pid"
     done
 }
