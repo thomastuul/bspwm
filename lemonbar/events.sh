@@ -60,6 +60,9 @@ get_trayer_updates() {
 
     stdbuf -oL -eL xprop -name "$SYSTRAY_WM_NAME" -spy | grep --line-buffered 'program specified minimum size' | while IFS= read -r; do
         kill -RTMIN+9 "$sighandler_pid"
+        sleep 0.05
+        # often an app disappears from workspace too if it is gone from systray
+        kill -RTMIN+2 "$sighandler_pid"
     done
 }
 

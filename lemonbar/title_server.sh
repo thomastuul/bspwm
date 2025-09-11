@@ -12,7 +12,6 @@ set -o pipefail     # Use last non-zero exit code in a pipeline
 set -o errtrace     # Ensure the error trap handler is inherited
 
 source "$LEMONDIR/config.sh"
-readonly max_length_title=45
 
 # DESC: Remove FIFO
 # ARGS: None
@@ -34,7 +33,7 @@ trap_cleanup() {
 trap_err() {
     local parent_lineno="$1"
     local code="$2"
-    if [[ ${2:-} -eq 143 ]]; then return 0; fi
+    if [[ ${2:-} -eq 143 ]]; then return 0; fi # xtmon.sh ends with 143 at stop
     local commands="$3"
     echo "Error exit status $code, at file $0 on or near line $parent_lineno: $commands"
 }
@@ -54,12 +53,14 @@ mkfifo "$title_fifo"
 # ARGS: None
 # OUTS: None
 activeWindow() {
-    # endless loop, for xtmon see https://github.com/vimist/xtmon/tree/master
+    # endless loop, for original xtmon see https://github.com/vimist/xtmon/tree/master
+    # I'm using my selfmade clone in bash
     "$LEMONDIR/xtmon.sh" | while read -r line; do
         sleep 0.05
+        truncated=$(echo "$line" | awk -v m="$TITLE_MAX_LENGHT" '{print substr($0,1,m)}')
         # shellcheck disable=SC2154
         kill -RTMIN+5 "$sighandler_pid"
-        printf "%s\n" "%{B$COLOR_DEFAULT_BG}%{F$COLOR_FREE_FG}%{+u}$PADDING$line$PADDING%{-u}%{F-}%{B-}" > "$title_fifo"
+        printf "%s\n" "%{B$COLOR_DEFAULT_BG}%{F$COLOR_FREE_FG}%{+u}$PADDING$truncated$PADDING%{-u}%{F-}%{B-}" > "$title_fifo"
     done
 }
 

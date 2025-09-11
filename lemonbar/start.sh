@@ -8,7 +8,7 @@ fi
 set -o errexit      # Exit on most errors (see the manual)
 set -o nounset      # Disallow expansion of unset variables
 set -o pipefail     # Use last non-zero exit code in a pipeline
-shopt -s lastpipe || true
+shopt -s lastpipe || true # Don't use subshell after pipe and never fail
 # Enable errtrace or the error trap handler will not work as expected
 set -o errtrace     # Ensure the error trap handler is inherited
 

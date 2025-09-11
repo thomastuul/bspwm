@@ -78,3 +78,4 @@ PANEL_ICON_FONT="Hack Nerd Font Mono:style=Regular:size=11"
 UNDERLINE_HEIGHT=0
 PANEL_WM_NAME="lemonbar"
 SYSTRAY_WM_NAME="panel" # not trayer!
+TITLE_MAX_LENGHT=45
