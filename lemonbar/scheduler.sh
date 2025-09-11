@@ -11,6 +11,13 @@ set -o pipefail     # Use last non-zero exit code in a pipeline
 # Enable errtrace or the error trap handler will not work as expected
 set -o errtrace     # Ensure the error trap handler is inherited
 
+# Signal-Plan:
+# RTMIN+3  = CPU   (1s)
+# RTMIN+4  = Uhr   (1s)
+# RTMIN+5  = Titel (on change)
+# RTMIN+10 = Netz/Batt (10s)
+# RTMIN+12 = Wetter (60s)
+
 sighandler_pid="$1"
 
 dummy() {

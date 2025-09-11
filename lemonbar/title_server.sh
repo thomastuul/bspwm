@@ -34,6 +34,7 @@ trap_cleanup() {
 trap_err() {
     local parent_lineno="$1"
     local code="$2"
+    if [[ ${2:-} -eq 143 ]]; then return 0; fi
     local commands="$3"
     echo "Error exit status $code, at file $0 on or near line $parent_lineno: $commands"
 }

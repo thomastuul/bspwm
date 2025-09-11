@@ -1,5 +1,10 @@
 #!/usr/bin/env bash
 
+trap 'kill $(jobs -pr) 2>/dev/null' EXIT
+trap 'kill $(jobs -pr) 2>/dev/null; exit 0' INT TERM HUP
+
+export LC_ALL=C
+
 # Enable xtrace if the DEBUG environment variable is set
 if [[ ${DEBUG-} =~ ^1|yes|true$ ]]; then
     set -o xtrace       # Trace the execution of the script (debug)
@@ -51,7 +56,7 @@ get_trayer_updates() {
         sleep 1
     done
 
-    stdbuf -oL -eL xprop -name panel -spy | grep --line-buffered 'program specified minimum size' | while IFS= read -r; do
+    stdbuf -oL -eL xprop -name "$PANEL_WM_NAME" -spy | grep --line-buffered 'program specified minimum size' | while IFS= read -r; do
         kill -RTMIN+9 "$sighandler_pid"
     done
 }

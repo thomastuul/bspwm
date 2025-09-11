@@ -8,6 +8,7 @@ fi
 set -o errexit      # Exit on most errors (see the manual)
 set -o nounset      # Disallow expansion of unset variables
 set -o pipefail     # Use last non-zero exit code in a pipeline
+shopt -s lastpipe || true
 # Enable errtrace or the error trap handler will not work as expected
 set -o errtrace     # Ensure the error trap handler is inherited
 
@@ -226,6 +227,7 @@ main() {
     log_init
     lock_init user
 
+    # shellcheck disable=SC1091
     source "$LEMONDIR/config.sh"
 
     # create named pipe
@@ -247,12 +249,14 @@ main() {
     lemonbar -p -a "$CLICKABLE_AREAS" \
         -g "$PANEL_WIDTH"x"$PANEL_HEIGHT"+"$PANEL_HORIZONTAL_OFFSET"+"$PANEL_VERTICAL_OFFSET" \
         -f "$PANEL_FONT" -f "$PANEL_ICON_FONT" -F "$COLOR_DEFAULT_FG" -B "$COLOR_PANEL_BG" \
-        -u "$UNDERLINE_HEIGHT" -n "$PANEL_WM_NAME" < "$fifo" | sh &
+        -u "$UNDERLINE_HEIGHT" -n "$PANEL_WM_NAME" < "$fifo" | bash &
 
     sighandler_pid="$sighandler_pid" tmp_dir="$tmp_dir" "$LEMONDIR/events.sh" &
 
     # wait for subprocesses to be finished except one fails
-    wait -n || true
+    while true; do
+      wait -n || break
+    done
 }
 
 main "$@"

@@ -38,7 +38,7 @@ dur_to_seconds() {
     m)    echo $((num*60)) ;;
     h)    echo $((num*3600)) ;;
     d)    echo $((num*86400)) ;;
-    *)    die "Unbekannte Zeiteinheit in --age: $d" ;;
+    *)    echo 14400  # fallback 4h on unknown unit ;;
   esac
 }
 
