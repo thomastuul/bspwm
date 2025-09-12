@@ -52,11 +52,6 @@ trap_exit() {
         fi
     fi
 
-    # Remove script execution lock
-    if [[ -d ${script_lock-} ]]; then
-        rmdir "$script_lock"
-    fi
-
     kill -- -$$
     wait || true
 }
@@ -101,6 +96,11 @@ trap_cleanup() {
 
     if [[ -e "${tmp_dir-}" ]]; then
         rm -rf "$tmp_dir"
+    fi
+
+    # Remove script execution lock
+    if [[ -d ${script_lock-} ]]; then
+        rmdir "$script_lock"
     fi
 
     printf "%s stopped\n" "$0"
@@ -212,9 +212,11 @@ init() {
 # ARGS: $@ (optional): Arguments provided to the script
 # OUTS: None
 main() {
-    trap 'trap_err "${LINENO}/${BASH_LINENO}" "$?" "$BASH_COMMAND"'  ERR
-    trap trap_exit                                                   EXIT
-    trap trap_cleanup                                                INT TERM QUIT HUP PIPE
+    trap 'trap_err "${LINENO}/${BASH_LINENO}" "$?" "$BASH_COMMAND"' ERR
+    trap 'trap_cleanup; trap_exit'                                  EXIT
+    trap 'trap_cleanup; exit 130'                                   INT
+    trap 'trap_cleanup; exit 143'                                   TERM
+    trap 'trap_cleanup; exit 0'                                     QUIT HUP PIPE
 
     tmp_dir=""
     fifo=""
