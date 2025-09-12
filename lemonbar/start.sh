@@ -52,7 +52,11 @@ trap_exit() {
         fi
     fi
 
-    kill -- -$$
+    # terminate entire process group
+    kill -TERM -- -$$ 2>/dev/null || true
+    sleep 0.2
+    kill -KILL -- -$$ 2>/dev/null || true
+
     wait || true
 }
 
@@ -89,18 +93,24 @@ exit_handler() {
 trap_cleanup() {
     trap - TERM
 
-    # FIFO (pipe) must be removed AFTER terminating sighandler
-    if [[ -e "${fifo-}" ]]; then
-        rm "$fifo"
+    # PID-Datei entfernen
+    if [ -n "${XDG_RUNTIME_DIR:-}" ]; then
+        rm -f "$XDG_RUNTIME_DIR/sighandler.pid"
     fi
 
-    if [[ -e "${tmp_dir-}" ]]; then
+    # FIFO entfernen
+    if [ -n "${fifo:-}" ] && [ -e "$fifo" ]; then
+        rm -f "$fifo"
+    fi
+
+    # tmp_dir entfernen
+    if [ -n "${tmp_dir:-}" ] && [ -d "$tmp_dir" ]; then
         rm -rf "$tmp_dir"
     fi
 
-    # Remove script execution lock
-    if [[ -d ${script_lock-} ]]; then
-        rmdir "$script_lock"
+    # Lock-Verzeichnis entfernen
+    if [ -n "${script_lock:-}" ] && [ -d "$script_lock" ]; then
+        rmdir "$script_lock" 2>/dev/null || true
     fi
 
     printf "%s stopped\n" "$0"
@@ -213,7 +223,7 @@ init() {
 # OUTS: None
 main() {
     trap 'trap_err "${LINENO}/${BASH_LINENO}" "$?" "$BASH_COMMAND"' ERR
-    trap 'trap_cleanup; trap_exit'                                  EXIT
+    trap 'trap_exit; trap_cleanup'                                  EXIT
     trap 'trap_cleanup; exit 130'                                   INT
     trap 'trap_cleanup; exit 143'                                   TERM
     trap 'trap_cleanup; exit 0'                                     QUIT HUP PIPE
