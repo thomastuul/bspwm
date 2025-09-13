@@ -93,7 +93,7 @@ start_if_executable() { # $1=path, $2...=args
 kill_pidfile "$XDG_RUNTIME_DIR/lemonbar.pid"
 kill_pidfile "$XDG_RUNTIME_DIR/trayer.pid"
 
-find /tmp -maxdepth 1 -type d -name "start.sh.${UID}.lock" -mmin +1 -user "$UID" -exec rmdir {} + 2>/dev/null || true
+#find /tmp -maxdepth 1 -type d -name "start.sh.${UID}.lock" -mmin +1 -user "$UID" -exec rmdir {} + 2>/dev/null || true
 
 # Defensive stop of typical session daemons
 for p in sxhkd dunst picom xautolock nextcloud; do
