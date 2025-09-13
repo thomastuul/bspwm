@@ -96,6 +96,7 @@ trap_cleanup() {
     # PID-Datei entfernen
     if [ -n "${XDG_RUNTIME_DIR:-}" ]; then
         rm -f "$XDG_RUNTIME_DIR/sighandler.pid"
+        rm -f "$XDG_RUNTIME_DIR/start.sh.pid"
     fi
 
     # FIFO entfernen
@@ -106,11 +107,6 @@ trap_cleanup() {
     # tmp_dir entfernen
     if [ -n "${tmp_dir:-}" ] && [ -d "$tmp_dir" ]; then
         rm -rf "$tmp_dir"
-    fi
-
-    # Lock-Verzeichnis entfernen
-    if [ -n "${script_lock:-}" ] && [ -d "$script_lock" ]; then
-        rmdir "$script_lock" 2>/dev/null || true
     fi
 
     printf "%s stopped\n" "$0"
@@ -168,29 +164,59 @@ log_init() {
     fi
 }
 
-# DESC: Acquire script lock
-# ARGS: $1 (optional): Scope of script execution lock (system or user)
-# OUTS: $script_lock: Path to the directory indicating we have the script lock
-# NOTE: This lock implementation is extremely simple but should be reliable
-#       across all platforms. It does *not* support locking a script with
-#       symlinks or multiple hardlinks as there's no portable way of doing so.
-#       If the lock was acquired it's automatically released on script exit.
+# DESC: Acquire script lock via PID file in XDG_RUNTIME_DIR
+# ARGS: none
+# OUTS: $script_lock: Path to the PID file that represents the lock
+# NOTE: Uses O_EXCL-style creation (noclobber) to avoid races.
 lock_init() {
-    local lock_dir
-    if [[ $1 = 'system' ]]; then
-        lock_dir="$TMPDIR/$script_name.lock"
-    elif [[ $1 = 'user' ]]; then
-        lock_dir="$TMPDIR/$script_name.$UID.lock"
-    else
-        exit_handler 'Missing or invalid argument to lock_init()!' 2
+    : "${XDG_RUNTIME_DIR:="/run/user/$UID"}"
+
+    if [[ ! -d $XDG_RUNTIME_DIR || ! -w $XDG_RUNTIME_DIR ]]; then
+        printf 'Runtime dir not usable: %s\n' "$XDG_RUNTIME_DIR" >&2
+        return 2
     fi
 
-    if mkdir "$lock_dir" 2> /dev/null; then
-        readonly script_lock="$lock_dir"
-        printf "%s\n" "Acquired script lock: $script_lock"
-    else
-        exit_handler "Unable to acquire script lock: $lock_dir" 1
+    local pid_file="$XDG_RUNTIME_DIR/start.sh.pid"
+    local old_pid
+
+    # Try to create atomically (noclobber) and write PID in one step
+    if ( set -o noclobber; printf '%s\n' "$$" >"$pid_file" ) 2>/dev/null; then
+        chmod 600 -- "$pid_file" 2>/dev/null || true
+        script_lock="$pid_file"
+        trap 'rm -f -- "$script_lock"' EXIT
+        return 0
     fi
+
+    # PID file exists: check if stale
+    if [[ -r "$pid_file" ]]; then
+        old_pid="$(<"$pid_file")"
+        if [[ "$old_pid" =~ ^[0-9]+$ ]]; then
+            if kill -0 "$old_pid" 2>/dev/null; then
+                printf 'Unable to acquire lock: %s (pid=%s)\nLOCKBUSY (200)\n' \
+                       "$pid_file" "$old_pid" >&2
+                return 200
+            else
+                rm -f -- "$pid_file"
+                if ( set -o noclobber; printf '%s\n' "$$" >"$pid_file" ) 2>/dev/null; then
+                    chmod 600 -- "$pid_file" 2>/dev/null || true
+                    script_lock="$pid_file"
+                    trap 'rm -f -- "$script_lock"' EXIT
+                    return 0
+                fi
+            fi
+        else
+            rm -f -- "$pid_file"
+            if ( set -o noclobber; printf '%s\n' "$$" >"$pid_file" ) 2>/dev/null; then
+                chmod 600 -- "$pid_file" 2>/dev/null || true
+                script_lock="$pid_file"
+                trap 'rm -f -- "$script_lock"' EXIT
+                return 0
+            fi
+        fi
+    fi
+
+    printf 'Unable to acquire script lock: %s\n' "$pid_file" >&2
+    return 200
 }
 
 # DESC: Generic script initialisation
