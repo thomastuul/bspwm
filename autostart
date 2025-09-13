@@ -14,7 +14,7 @@ set -o pipefail
 ###############################################################################
 # Environment and paths
 ###############################################################################
-: "${XDG_RUNTIME_DIR:="/run/user/$(id -u)"}"
+: "${XDG_RUNTIME_DIR:="/run/user/$UID"}"
 
 LEMONBAR_START="$HOME/.config/bspwm/lemonbar/start.sh"
 TRAYER_START="$HOME/.config/bspwm/trayer/start_trayer.sh"
@@ -90,10 +90,8 @@ start_if_executable() { # $1=path, $2...=args
 # Pre-clean: kill leftovers to avoid grabs and double-daemons
 ###############################################################################
 # Known PID files from your setup
-kill_pidfile "$XDG_RUNTIME_DIR/lemonbar.pid"
+kill_pidfile "$XDG_RUNTIME_DIR/start.sh.pid"
 kill_pidfile "$XDG_RUNTIME_DIR/trayer.pid"
-
-#find /tmp -maxdepth 1 -type d -name "start.sh.${UID}.lock" -mmin +1 -user "$UID" -exec rmdir {} + 2>/dev/null || true
 
 # Defensive stop of typical session daemons
 for p in sxhkd dunst picom xautolock nextcloud; do
