@@ -1,44 +1,171 @@
 #!/usr/bin/env bash
+#set -x
+# Purpose: Start bspwm session daemons exactly once, clean up leftovers, avoid duplicates.
+# Notes:
+#   - Uses XDG_RUNTIME_DIR for lock and PID files.
+#   - Kills old instances of typical session daemons.
+#   - Starts each component only if not already running.
+#   - Works across repeated bspwm restarts (bspc wm -r).
 
-main() {
-    sxhkd -c "$HOME/.config/bspwm/sxhkd/sxhkdrc" &
+set -o errexit
+set -o nounset
+set -o pipefail
 
-    dunst -config "$HOME/.config/bspwm/dunst/dunstrc" &
+###############################################################################
+# Environment and paths
+###############################################################################
+: "${XDG_RUNTIME_DIR:="/run/user/$(id -u)"}"
 
-    blueman-applet &
+LEMONBAR_START="$HOME/.config/bspwm/lemonbar/start.sh"
+TRAYER_START="$HOME/.config/bspwm/trayer/start_trayer.sh"
+CONKY_START="$HOME/.config/conky/start-conky"
+SXHKD_RC="$HOME/.config/bspwm/sxhkd/sxhkdrc"
+DUNST_CONF="$HOME/.config/bspwm/dunst/dunstrc"
+PICOM_CONF="$HOME/.config/bspwm/picom/picom.conf"
+WALLPAPER="$HOME/Bilder/Wallpaper/Background.jpg"
 
-    nextcloud --background &
+###############################################################################
+# Single-instance lock for this script
+###############################################################################
+#exec 9>"$XDG_RUNTIME_DIR/autostart.lock"
+#if ! flock -n 9; then
+     #Another autostart is active; exit quietly.
+    #exit 0
+#fi
 
-    xsetroot -cursor_name left_ptr &
-
-    xwallpaper --daemon --zoom "$HOME/Bilder/Wallpaper/Background.jpg" &>/dev/null
-
-    export DEBUG=no
-    setsid "$HOME/.config/bspwm/lemonbar/start.sh" -l &
-    sleep 0.2
-    "$HOME/.config/bspwm/trayer/start_trayer.sh" &
-
-    "$HOME/.config/conky/start-conky" &
-
-    # activate screensaver after 5 minutes
-    xset s 300 10 &
-    # activate DPMS
-    xset +dpms
-    # set DPMS Standby, Suspend, Off
-    xset dpms 400 600 900
-
-    XSECURELOCK_DIM_TIME_MS=10000 \
-        xss-lock -n /usr/libexec/xsecurelock/dimmer --transfer-sleep-lock -- xsecurelock &
-
-    xautolock -time 15 -detectsleep -locker "systemctl suspend-then-hibernate" &
-
-    # compositor shall be invoked last to prevent glitches
-    picom --config "$HOME/.config/bspwm/picom/picom.conf" --daemon
-
-    # Individual size of apps which are floating
-    "$HOME/.config/bspwm/bin/float-resize-bspwm.sh" &
+###############################################################################
+# Helpers
+###############################################################################
+wait_until_gone() { # $1=pid, $2=timeout seconds
+    local pid="$1" timeout_s="${2:-2}" i=0
+    while kill -0 "$pid" 2>/dev/null; do
+        (( i * 50 >= timeout_s * 1000 )) && break
+        sleep 0.05
+        i=$((i + 1))
+    done
 }
 
-main
+kill_pidfile() { # $1=pidfile path
+    local pf="$1" pid
+    [[ -r "$pf" ]] || return 0
+    pid="$(cat "$pf" 2>/dev/null || true)"
+    [[ -n "${pid:-}" && "$pid" =~ ^[0-9]+$ ]] || { rm -f -- "$pf"; return 0; }
+    if kill -0 "$pid" 2>/dev/null; then
+        kill "$pid" 2>/dev/null || true
+        wait_until_gone "$pid" 2
+        if kill -0 "$pid" 2>/dev/null; then
+            kill -9 "$pid" 2>/dev/null || true
+            wait_until_gone "$pid" 1
+        fi
+    fi
+    rm -f -- "$pf"
+}
 
-# vim: syntax=bash
+stop_by_name() { # $1=exact process name
+    # Stop all user-owned processes with that exact name.
+    pkill -x -u "$UID" -- "$1" 2>/dev/null || true
+}
+
+is_running() { # $1=exact process name
+    pgrep -x -u "$UID" -- "$1" >/dev/null 2>&1
+}
+
+start_once() { # $1=proc name to check with pgrep -x, $2...=command to start (argv)
+    local pname="$1"; shift
+    if is_running "$pname"; then
+        return 0
+    fi
+    # Start in background detached from current shell job-control expectations.
+    "$@" &
+}
+
+start_if_executable() { # $1=path, $2...=args
+    local bin="$1"; shift
+    if [[ -x "$bin" ]]; then
+        "$bin" "$@" &
+    fi
+}
+
+###############################################################################
+# Pre-clean: kill leftovers to avoid grabs and double-daemons
+###############################################################################
+# Known PID files from your setup
+kill_pidfile "$XDG_RUNTIME_DIR/lemonbar.pid"
+kill_pidfile "$XDG_RUNTIME_DIR/trayer.pid"
+
+find /tmp -maxdepth 1 -type d -name "start.sh.${UID}.lock" -mmin +1 -user "$UID" -exec rmdir {} + 2>/dev/null || true
+
+# Defensive stop of typical session daemons
+for p in sxhkd dunst picom xautolock nextcloud; do
+    stop_by_name "$p"
+done
+
+# Give the kernel a moment to reap processes
+sleep 0.2
+
+###############################################################################
+# Session bootstrap
+###############################################################################
+# Basic X defaults
+xsetroot -cursor_name left_ptr || true
+if [[ -r "$WALLPAPER" ]]; then
+    xwallpaper --daemon --zoom "$WALLPAPER" >/dev/null 2>&1 || true
+fi
+
+# Hotkeys
+if [[ -r "$SXHKD_RC" ]]; then
+    start_once sxhkd sxhkd -c "$SXHKD_RC"
+else
+    start_once sxhkd sxhkd
+fi
+
+# Notifications
+if [[ -r "$DUNST_CONF" ]]; then
+    start_once dunst dunst -config "$DUNST_CONF"
+else
+    start_once dunst dunst
+fi
+
+# Panel (runs its own supervision and PID handling)
+if [[ -x "$LEMONBAR_START" ]]; then
+    # Use setsid to decouple from this controlling terminal/session.
+    setsid "$LEMONBAR_START" -l >/dev/null 2>&1 &
+fi
+
+# System tray
+start_if_executable "$TRAYER_START"
+
+# Conky (optional)
+start_if_executable "$CONKY_START"
+
+# Cloud client
+start_once nextcloud nextcloud --background
+
+# Compositor: start once by process name (selection checks are unreliable via xprop)
+if ! pgrep -x -u "$UID" picom >/dev/null 2>&1; then
+    if [[ -r "$PICOM_CONF" ]]; then
+        start_once picom picom --config "$PICOM_CONF" --daemon
+    else
+        start_once picom picom --daemon
+    fi
+fi
+
+# Screen power management
+xset +dpms || true
+xset s 300 10 || true
+xset dpms 400 600 900 || true
+
+# Locker helpers
+# xss-lock supervises the locker and integrates with system sleep
+if command -v xss-lock >/dev/null 2>&1; then
+    XSECURELOCK_DIM_TIME_MS="${XSECURELOCK_DIM_TIME_MS:-10000}" \
+    xss-lock -n /usr/libexec/xsecurelock/dimmer --transfer-sleep-lock -- xsecurelock >/dev/null 2>&1 &
+fi
+
+# Start xautolock only once
+start_once xautolock xautolock -time 15 -detectsleep -locker 'systemctl suspend-then-hibernate'
+
+###############################################################################
+# Done
+###############################################################################
+exit 0
