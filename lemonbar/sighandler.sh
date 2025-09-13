@@ -18,8 +18,6 @@ log()  { printf '[sighandler] %s\n' "$*" >&2; }
 # OUTS: None
 trap_cleanup() {
     trap - INT TERM QUIT EXIT HUP ERR
-    kill "$scheduler_pid"
-    wait || true
     kill "$BASHPID"
     wait || true
     log "cleanup"

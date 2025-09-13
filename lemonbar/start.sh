@@ -96,7 +96,7 @@ trap_cleanup() {
     # PID-Datei entfernen
     if [ -n "${XDG_RUNTIME_DIR:-}" ]; then
         rm -f "$XDG_RUNTIME_DIR/sighandler.pid"
-        rm -f "$XDG_RUNTIME_DIR/start.sh.pid"
+        rm -f "$script_lock"
     fi
 
     # FIFO entfernen
@@ -183,7 +183,6 @@ lock_init() {
     if ( set -o noclobber; printf '%s\n' "$$" >"$pid_file" ) 2>/dev/null; then
         chmod 600 -- "$pid_file" 2>/dev/null || true
         script_lock="$pid_file"
-        trap 'rm -f -- "$script_lock"' EXIT
         return 0
     fi
 
@@ -200,7 +199,6 @@ lock_init() {
                 if ( set -o noclobber; printf '%s\n' "$$" >"$pid_file" ) 2>/dev/null; then
                     chmod 600 -- "$pid_file" 2>/dev/null || true
                     script_lock="$pid_file"
-                    trap 'rm -f -- "$script_lock"' EXIT
                     return 0
                 fi
             fi
@@ -209,7 +207,6 @@ lock_init() {
             if ( set -o noclobber; printf '%s\n' "$$" >"$pid_file" ) 2>/dev/null; then
                 chmod 600 -- "$pid_file" 2>/dev/null || true
                 script_lock="$pid_file"
-                trap 'rm -f -- "$script_lock"' EXIT
                 return 0
             fi
         fi
