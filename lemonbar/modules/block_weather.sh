@@ -1,23 +1,23 @@
 #!/usr/bin/env bash
 #
-# block_weather.sh — einheitliches Wetter-Modul für Lemonbar/BSPWM
+# block_weather.sh — unified weather module for Lemonbar/BSPWM
 #
 # Features
-# - JSON-Parsen: Regenwahrscheinlichkeit (max. der nächsten ~24h in 3h-Schritten), min/max Tages-Temp (°C)
-# - Caching in ~/.cache: JSON und PNG (3-Tages-Vorschau)
-# - Parameter:
-#     --location, -l  Ort (Default: "München")
-#     --age, -a       maximales Cache-Alter (Default: "4h")
-#     --language, -L  Sprache (Default: "de")
-#     --print-age     Alter des JSON-Caches in Minuten ausgeben
-#     --open          3-Tage-Vorschau (PNG) öffnen
-#     --lemonbar      Ausgabe formatiert für Lemonbar (Farben, Klicks)
-#     --help, -h      Hilfe
+# - JSON parsing: precipitation probability (max of next ~24h in 3h steps), min/max daily temperature (°C)
+# - Caching in ~/.cache: JSON and PNG (3-day forecast)
+# - Parameters:
+#     --location, -l  location (default: "München")
+#     --age, -a       max cache age (default: "4h")
+#     --language, -L  language (default: "de")
+#     --print-age     print age of JSON cache in minutes
+#     --open          3-day forecast (PNG) open
+#     --lemonbar      output formatted for Lemonbar (colors, clicks)
+#     --help, -h      help
 # -----------------------------------------------------------------------------
-
 set -o errexit -o nounset -o pipefail
-
+# shellcheck disable=SC1091
 source "$LEMONDIR/config.sh"
+
 
 DEFAULT_LOCATION="${DEFAULT_LOCATION:-München}"
 DEFAULT_LANG="${WEATHER_LANG:-de}"
@@ -214,6 +214,7 @@ MAX="${REST#*|}"
 # ---- Ausgabe ----------------------------------------------------------------
 
 run_left="$0 --open -l $LOCATION -L $LANG -a $MAX_AGE_STR"
-run_right="notify-send \"Update vor $($0 --print-age -l $LOCATION -a $MAX_AGE_STR) min\""
+run_right="notify-send \"Update vor $("$0" --print-age -l "$LOCATION" -a "$MAX_AGE_STR") min\""
+
 
 printf "%s\n" "%{A1:$run_left:}%{A3:$run_right:}%{B$COLOR_DEFAULT_BG}%{F$COLOR_WEATHER_FG}%{+u} 爫${RAIN}%% ${MIN}° ${MAX}° %{-u}%{F-}%{B-}%{A}%{A}"
