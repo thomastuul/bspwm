@@ -12,6 +12,7 @@ shopt -s lastpipe || true # Don't use subshell after pipe and never fail
 # Enable errtrace or the error trap handler will not work as expected
 set -o errtrace     # Ensure the error trap handler is inherited
 
+
 # DESC: Errorhandler
 # ARGS: $1: If only param -> Exit status code
 #           else line number of err occurence.
@@ -189,8 +190,6 @@ logging() {
 # OUTS: $script_lock: Path to the PID file that represents the lock
 # NOTE: Uses O_EXCL-style creation (noclobber) to avoid races.
 lock_init() {
-    : "${XDG_RUNTIME_DIR:="/run/user/$UID"}"
-
     if [[ ! -d $XDG_RUNTIME_DIR || ! -w $XDG_RUNTIME_DIR ]]; then
         printf 'Runtime dir not usable: %s\n' "$XDG_RUNTIME_DIR" >&2
         return 2
@@ -259,6 +258,16 @@ init() {
     export XDG_CONFIG_HOME="${XDG_CONFIG_HOME:-$HOME/.config}"
     export TMPDIR="${TMPDIR:-/tmp}"
     export LEMONDIR="${XDG_CONFIG_HOME}/bspwm/lemonbar"
+    export BASH_ENV="$LEMONDIR/lib/logging_env.sh"
+    export XDG_RUNTIME_DIR="${XDG_RUNTIME_DIR:-/run/user/$UID}"
+    LOG_FILE="$TMPDIR/lemonbar.$(date +'%F_%H-%M-%S').log"
+    export LOG_FILE
+    # shellcheck disable=SC1090
+    if [[ -r "$BASH_ENV" ]]; then
+        . "$BASH_ENV"
+    else
+        echo "logging_env.sh not found at: $BASH_ENV" >&2
+    fi
 }
 
 # DESC: Main control flow
