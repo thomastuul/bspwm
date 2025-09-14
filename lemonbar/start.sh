@@ -34,6 +34,7 @@ trap_err() {
         local parent_lineno="$1"
         local code="$2"
         local commands="$3"
+        logging "ERROR at line $parent_lineno: $commands" "$code"
         echo "Error exit status $code (SIG$(kill -l "$code" 2>/dev/null)), at file $0 on or near line $parent_lineno: $commands"
     fi
 }
@@ -42,6 +43,9 @@ trap_err() {
 # ARGS: None
 # OUTS: None
 trap_exit() {
+    local ec=$?
+    logging "EXIT" "$ec"
+
     cd "$orig_cwd"
 
     # Output debug data if in Cron mode
@@ -96,7 +100,9 @@ trap_cleanup() {
     # PID-Datei entfernen
     if [ -n "${XDG_RUNTIME_DIR:-}" ]; then
         rm -f "$XDG_RUNTIME_DIR/sighandler.pid"
-        rm -f "$script_lock"
+        if [ -n "${script_lock-}" ] && [ -e "${script_lock-}" ]; then
+            rm -f -- "$script_lock"
+        fi
     fi
 
     # FIFO entfernen
@@ -133,6 +139,8 @@ parse_params() {
         shift
         case $param in
             -h | --help)
+                # Disable EXIT trap so help does not trigger cleanup
+                trap - EXIT
                 usage
                 exit 0
                 ;;
@@ -162,6 +170,18 @@ log_init() {
             BASH_XTRACEFD="5"
         fi
     fi
+}
+
+# DESC: Structured logger. Format: TIMESTAMP | SCRIPT | MESSAGE | RC
+# ARGS: $1 message; $2 return code (optional, default 0)
+logging() {
+    local msg="${1-}"
+    local rc="${2-0}"
+    local ts
+    ts="$(date +'%F %T')"
+    # script_name is set in init(); fall back to basename of $0
+    local name="${script_name:-$(basename -- "${0:-start.sh}")}"
+    [[ -n ${log_file-} ]] && printf '%s | %s | %s | %s\n' "$ts" "$name" "$msg" "$rc" >>"$log_file"
 }
 
 # DESC: Acquire script lock via PID file in XDG_RUNTIME_DIR
