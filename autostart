@@ -66,17 +66,38 @@ stop_by_name() { # $1=exact process name
     pkill -x -u "$UID" -- "$1" 2>/dev/null || true
 }
 
-is_running() { # $1=exact process name
-    pgrep -x -u "$UID" -- "$1" >/dev/null 2>&1
-}
-
-start_once() { # $1=proc name to check with pgrep -x, $2...=command to start (argv)
-    local pname="$1"; shift
-    if is_running "$pname"; then
-        return 0
+# DESC: Start a command once per user session using a pidfile keyed by full argv
+# ARGS: $@  Command with all parameters
+# RET:  0 if already running or started successfully; 2 on bad usage
+start_once() {
+    # Require a command
+    if [[ $# -eq 0 ]]; then
+        return 2
     fi
-    # Start in background detached from current shell job-control expectations.
+
+    # Ensure XDG_RUNTIME_DIR exists for this user
+    : "${XDG_RUNTIME_DIR:="/run/user/$(id -u)"}"
+    mkdir -p -- "$XDG_RUNTIME_DIR"
+
+    # Build a unique key from command + args, then hash it for a safe filename
+    local base key hash pidfile oldpid
+    base="$(basename -- "$1")"
+    key="$(printf '%q ' "$@")"
+    hash="$(printf '%s' "$key" | sha256sum | awk '{print $1}')"
+    pidfile="$XDG_RUNTIME_DIR/${base}.${hash}.pid"
+
+    # If pidfile exists and PID alive: do nothing
+    if [[ -f "$pidfile" ]]; then
+        oldpid="$(<"$pidfile")"
+        if [[ "$oldpid" =~ ^[0-9]+$ ]] && kill -0 "$oldpid" 2>/dev/null; then
+            return 0
+        fi
+        rm -f -- "$pidfile"
+    fi
+
+    # Start and record PID
     "$@" &
+    printf '%s\n' "$!" >"$pidfile"
 }
 
 start_if_executable() { # $1=path, $2...=args
@@ -112,16 +133,16 @@ fi
 
 # Hotkeys
 if [[ -r "$SXHKD_RC" ]]; then
-    start_once sxhkd sxhkd -c "$SXHKD_RC"
+    start_once sxhkd -c "$SXHKD_RC"
 else
-    start_once sxhkd sxhkd
+    start_once sxhkd
 fi
 
 # Notifications
 if [[ -r "$DUNST_CONF" ]]; then
-    start_once dunst dunst -config "$DUNST_CONF"
+    start_once dunst -config "$DUNST_CONF"
 else
-    start_once dunst dunst
+    start_once dunst
 fi
 
 # Panel (runs its own supervision and PID handling)
@@ -138,16 +159,7 @@ start_if_executable "$TRAYER_START"
 start_if_executable "$CONKY_START"
 
 # Cloud client
-start_once nextcloud nextcloud --background
-
-# Compositor: start once by process name (selection checks are unreliable via xprop)
-if ! pgrep -x -u "$UID" picom >/dev/null 2>&1; then
-    if [[ -r "$PICOM_CONF" ]]; then
-        start_once picom picom --config "$PICOM_CONF" --daemon
-    else
-        start_once picom picom --daemon
-    fi
-fi
+start_once nextcloud --background
 
 # Screen power management
 xset +dpms || true
@@ -162,7 +174,20 @@ if command -v xss-lock >/dev/null 2>&1; then
 fi
 
 # Start xautolock only once
-start_once xautolock xautolock -time 15 -detectsleep -locker 'systemctl suspend-then-hibernate'
+start_once xautolock -time 15 -detectsleep -locker 'systemctl suspend-then-hibernate'
+
+# Individual size of apps which are floating
+start_once "$HOME/.config/bspwm/bin/float-resize-bspwm.sh"
+
+# Compositor: start once by process name (selection checks are unreliable via xprop)
+# compositor shall be invoked last to prevent glitches
+if ! pgrep -x -u "$UID" picom >/dev/null 2>&1; then
+    if [[ -r "$PICOM_CONF" ]]; then
+        start_once picom --config "$PICOM_CONF" --daemon
+    else
+        start_once picom --daemon
+    fi
+fi
 
 ###############################################################################
 # Done
