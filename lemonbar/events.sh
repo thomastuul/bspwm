@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-trap 'kill $(jobs -pr) 2>/dev/null' EXIT
+_trap_add EXIT 'kill $(jobs -pr) 2>/dev/null'
 trap 'kill $(jobs -pr) 2>/dev/null; exit 0' INT TERM HUP
 
 export LC_ALL=C
@@ -17,18 +17,6 @@ set -o pipefail     # Use last non-zero exit code in a pipeline
 set -o errtrace     # Ensure the error trap handler is inherited
 
 source "${LEMONDIR}/config.sh"
-
-# DESC: Errorhandler
-# ARGS: $1: Line number of err occurence
-#       $2: Exit status code
-#       $3: invoked command
-# OUTS: None
-script_trap_err() {
-    local parent_lineno="$1"
-    local code="$2"
-    local commands="$3"
-    echo "Error exit status $code, at file $0 on or near line $parent_lineno: $commands"
-}
 
 # Send signal for update lemonbar workspaces at event desktop change
 get_ws_updates_changed_desktop() {
@@ -71,8 +59,6 @@ get_new_node_updates() {
         kill -RTMIN+2 "$sighandler_pid"
     done
 }
-
-trap 'script_trap_err "${LINENO}/${BASH_LINENO}" "$?" "$BASH_COMMAND"'  ERR
 
 get_ws_updates_changed_desktop &
 get_ws_updates_node_transfer &

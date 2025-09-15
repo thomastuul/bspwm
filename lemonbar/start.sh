@@ -14,13 +14,11 @@ set -o errtrace     # Ensure the error trap handler is inherited
 
 
 # DESC: Errorhandler
-# ARGS: $1: If only param -> Exit status code
-#           else line number of err occurence.
+# ARGS: $1: line number of err occurence.
 #       $2: Exit status code
 #       $3: invoked command
 # OUTS: None
 trap_err() {
-    local exit_code=1
     # Disable the error trap handler to prevent potential recursion
     trap - ERR
 
@@ -28,16 +26,11 @@ trap_err() {
     set +o errexit
     set +o pipefail
 
-    if [[ $# -eq 1 ]] && [[ ${1-} =~ ^[0-9]+$ ]]; then
-        exit_code="$1"
-        exit "$exit_code"
-    else
-        local parent_lineno="$1"
-        local code="$2"
-        local commands="$3"
-        logging "ERROR at line $parent_lineno: $commands" "$code"
-        echo "Error exit status $code (SIG$(kill -l "$code" 2>/dev/null)), at file $0 on or near line $parent_lineno: $commands"
-    fi
+    local loc="$1" rc="${2:-1}" cmd="${3:-}"
+    local line="${loc%%/*}"           # LINENO extrahieren
+    log_err "${line:-0}" "$rc"        # strukturiertes Fehler-Log
+    # optional Zusatzinfo:
+    log_info "cmd=${cmd}"
 }
 
 # DESC: Exithandler
@@ -45,17 +38,9 @@ trap_err() {
 # OUTS: None
 trap_exit() {
     local ec=$?
-    logging "EXIT" "$ec"
+    log_info "EXIT" "$ec"
 
     cd "$orig_cwd"
-
-    # Output debug data if in Cron mode
-    if [[ -n ${log-} ]]; then
-        # Restore original file output descriptors
-        if [[ -n ${log_file-} ]]; then
-            exec 1>&3 2>&4
-        fi
-    fi
 
     # terminate entire process group
     kill -TERM -- -$$ 2>/dev/null || true
@@ -155,36 +140,6 @@ parse_params() {
     done
 }
 
-# DESC: Initialise log mode
-# ARGS: None
-# OUTS: $log_file: Path to the file stdout & stderr was redirected to
-log_init() {
-    if [[ -n ${log-} ]]; then
-        log_file="$TMPDIR/lemonbar.$(date +"%Y_%m_%d_%I_%M_%S").log"
-        readonly log_file
-        # Redirect all output to a temporary file
-        touch "$log_file"
-        exec 3>&1 4>&2 1> "$log_file" 2>&1
-        # redirect xtrace to file
-        if [[ ${DEBUG-} =~ ^1|yes|true$ ]]; then
-            exec 5> "$TMPDIR/lemonbar.debug.$(date +"%Y_%m_%d_%I_%M_%S").log"
-            BASH_XTRACEFD="5"
-        fi
-    fi
-}
-
-# DESC: Structured logger. Format: TIMESTAMP | SCRIPT | MESSAGE | RC
-# ARGS: $1 message; $2 return code (optional, default 0)
-logging() {
-    local msg="${1-}"
-    local rc="${2-0}"
-    local ts
-    ts="$(date +'%F %T')"
-    # script_name is set in init(); fall back to basename of $0
-    local name="${script_name:-$(basename -- "${0:-start.sh}")}"
-    [[ -n ${log_file-} ]] && printf '%s | %s | %s | %s\n' "$ts" "$name" "$msg" "$rc" >>"$log_file"
-}
-
 # DESC: Acquire script lock via PID file in XDG_RUNTIME_DIR
 # ARGS: none
 # OUTS: $script_lock: Path to the PID file that represents the lock
@@ -261,8 +216,9 @@ init() {
     export BASH_ENV="$LEMONDIR/lib/logging_env.sh"
     export XDG_RUNTIME_DIR="${XDG_RUNTIME_DIR:-/run/user/$UID}"
 
-    # auto-bootstrap für dieses Skript und nicht-interaktive Kind-Shells
-    export LOGGING_ENV_AUTO=1
+    # auto-bootstrap für dieses Skript und nicht-interaktive Kind-Shells (hier
+    # deaktiviert)
+    export LOGGING_ENV_AUTO=0
 
     # Log im Runtime-Dir führen
     LOG_FILE="$TMPDIR/lemonbar.$(date +'%F_%H-%M-%S').log"
@@ -270,6 +226,7 @@ init() {
 
     # shellcheck disable=SC1090
     if [[ -r "$BASH_ENV" ]]; then
+        # shellcheck source=lib/logging_env.sh
         source "$BASH_ENV"
     else
         echo "logging_env.sh not found at: $BASH_ENV" >&2
@@ -294,7 +251,6 @@ main() {
 
     tmp_dir=$(mktemp -p "$TMPDIR" -d lemonbar.XXXX)
 
-    log_init
     lock_init user
 
     # shellcheck disable=SC1091
@@ -308,7 +264,7 @@ main() {
     fi
     mkfifo "$fifo"
 
-    tmp_dir="$tmp_dir" "$LEMONDIR/sighandler.sh" > "$fifo" &
+    tmp_dir="$tmp_dir" LOGGING_ENV_AUTO=1 "$LEMONDIR/sighandler.sh" > "$fifo" &
     sighandler_pid=$!
 
     # file for exchanging sighandler_pid to sxhkd
@@ -321,7 +277,7 @@ main() {
         -f "$PANEL_FONT" -f "$PANEL_ICON_FONT" -F "$COLOR_DEFAULT_FG" -B "$COLOR_PANEL_BG" \
         -u "$UNDERLINE_HEIGHT" -n "$PANEL_WM_NAME" < "$fifo" | bash &
 
-    sighandler_pid="$sighandler_pid" tmp_dir="$tmp_dir" "$LEMONDIR/events.sh" &
+    sighandler_pid="$sighandler_pid" tmp_dir="$tmp_dir" LOGGING_ENV_AUTO=1 "$LEMONDIR/events.sh" &
 
     # wait for subprocesses to be finished except one fails
     while true; do

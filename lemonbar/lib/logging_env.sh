@@ -3,19 +3,13 @@
 # Purpose: Minimal logging bootstrap for lemonbar scripts.
 # Behavior: Provides log_init(), log_info(), log_err(), and trap installation
 #           without clobbering existing traps. 24h timestamps. Writes to
-#           $XDG_RUNTIME_DIR by default.
+#           $TMPDIR by default.
 # Usage:
 #   source "${LEMONDIR}/lib/logging_env.sh"
 #   LOGGING_ENV_AUTO=1  # optional auto-bootstrap
 #   log_init            # or call explicitly
 #   install_logging_traps
 # ------------------------------------------------------------------------------
-
-# Default runtime dir
-if [[ -z "${XDG_RUNTIME_DIR:-}" ]]; then
-    XDG_RUNTIME_DIR="/run/user/$(id -u)"
-fi
-export XDG_RUNTIME_DIR
 
 # Default temp dir
 if [[ -z "${TMPDIR:-}" ]]; then
@@ -64,7 +58,7 @@ _trap_add() {
 # Initialize logging. Opens FD 3 for appends. Idempotent.
 log_init() {
     # Create parent dir if needed
-    mkdir -p -- "$XDG_RUNTIME_DIR"
+    mkdir -p -- "$TMPDIR"
 
     # Touch file before opening FD to avoid race warnings
     : >"$LOG_FILE"

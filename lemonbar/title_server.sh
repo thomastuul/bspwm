@@ -25,21 +25,19 @@ trap_cleanup() {
 }
 
 # DESC: Errorhandler
-# ARGS: $1: If only param -> Exit status code
-#           else line number of err occurence.
-#       $2: Exit status code
-#       $3: invoked command
+# ARGS: $1: Exit status code
 # OUTS: None
 trap_err() {
-    local parent_lineno="$1"
-    local code="$2"
-    if [[ ${2:-} -eq 143 ]]; then return 0; fi # xtmon.sh ends with 143 at stop
-    local commands="$3"
-    echo "Error exit status $code, at file $0 on or near line $parent_lineno: $commands"
+    local code="$1"
+    if [[ ${code:-} -eq 143 ]]; then return 0; fi # xtmon.sh ends with 143 at stop
 }
 
-trap 'trap_cleanup' INT TERM QUIT EXIT
-trap 'trap_err "${LINENO}/${BASH_LINENO}" "$?" "$BASH_COMMAND"'  ERR
+_trap_add EXIT 'trap_cleanup'
+_trap_add INT  'trap_cleanup; exit 130'
+_trap_add TERM 'trap_cleanup; exit 143'
+_trap_add QUIT 'trap_cleanup; exit 0'
+# shellcheck disable=SC2016
+_trap_add ERR 'ec=$?; trap_err "$ec"'
 
 # create named pipe
 # shellcheck disable=SC2154
