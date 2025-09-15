@@ -260,11 +260,17 @@ init() {
     export LEMONDIR="${XDG_CONFIG_HOME}/bspwm/lemonbar"
     export BASH_ENV="$LEMONDIR/lib/logging_env.sh"
     export XDG_RUNTIME_DIR="${XDG_RUNTIME_DIR:-/run/user/$UID}"
+
+    # auto-bootstrap für dieses Skript und nicht-interaktive Kind-Shells
+    export LOGGING_ENV_AUTO=1
+
+    # Log im Runtime-Dir führen
     LOG_FILE="$TMPDIR/lemonbar.$(date +'%F_%H-%M-%S').log"
     export LOG_FILE
+
     # shellcheck disable=SC1090
     if [[ -r "$BASH_ENV" ]]; then
-        . "$BASH_ENV"
+        source "$BASH_ENV"
     else
         echo "logging_env.sh not found at: $BASH_ENV" >&2
     fi

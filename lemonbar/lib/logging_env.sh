@@ -1,40 +1,129 @@
-#!/usr/bin/env bash
-# Unified, structured logging for all lemonbar scripts.
-# Format je Zeile: "YYYY-MM-DD HH:MM:SS | SCRIPT | MESSAGE | RC"
-# Erwartet: LOG_FILE ist exportiert. BASH_ENV zeigt auf diese Datei.
+# shellcheck shell=bash
+# --- logging_env.sh -----------------------------------------------------------
+# Purpose: Minimal logging bootstrap for lemonbar scripts.
+# Behavior: Provides log_init(), log_info(), log_err(), and trap installation
+#           without clobbering existing traps. 24h timestamps. Writes to
+#           $XDG_RUNTIME_DIR by default.
+# Usage:
+#   source "${LEMONDIR}/lib/logging_env.sh"
+#   LOGGING_ENV_AUTO=1  # optional auto-bootstrap
+#   log_init            # or call explicitly
+#   install_logging_traps
+# ------------------------------------------------------------------------------
 
-set -Eeuo pipefail
-shopt -s inherit_errexit 2>/dev/null || true
+# Default runtime dir
+if [[ -z "${XDG_RUNTIME_DIR:-}" ]]; then
+    XDG_RUNTIME_DIR="/run/user/$(id -u)"
+fi
+export XDG_RUNTIME_DIR
 
-# Skriptname für Kind-Shells ableiten
-__lb_script_name="${script_name:-$(basename -- "${BASH_SOURCE[1]:-${0:-unknown}}")}"
+# Default temp dir
+if [[ -z "${TMPDIR:-}" ]]; then
+    TMPDIR="/tmp"
+fi
+export TMPDIR
 
-# Logdatei muss vom Parent kommen
-: "${LOG_FILE:?LOG_FILE must be exported by parent}"
+# Script name for log lines
+if [[ -z "${script_name:-}" ]]; then
+    script_name="$(basename "$0")"
+fi
 
-# Manueller Logger: logging "message" [rc]
-logging() {
-    local msg="${1-}" rc="${2-0}" ts
-    ts="$(date +'%F %T')"
-    printf '%s | %s | %s | %s\n' "$ts" "$__lb_script_name" "$msg" "$rc" >>"$LOG_FILE"
+# Default log file
+if [[ -z "${LOG_FILE:-}" ]]; then
+    LOG_FILE="$TMPDIR/lemonbar.$(date +'%F_%H-%M-%S').log"
+fi
+export LOG_FILE
+
+# ---- internal helpers --------------------------------------------------------
+
+_ts() {
+    # 24h timestamp
+    date +'%F %T'
 }
 
-# stdout/stderr zeilenweise formatieren; stdout=>RC=0, stderr=>RC=1
-exec 1> >(
-    awk -v n="$__lb_script_name" -v f="$LOG_FILE" '{
-        t=strftime("%F %T");
-        msg=length($0)?$0:" ";
-        printf "%s | %s | %s | 0\n", t, n, msg >> f; fflush(f);
-    }'
-)
-exec 2> >(
-    awk -v n="$__lb_script_name" -v f="$LOG_FILE" '{
-        t=strftime("%F %T");
-        msg=length($0)?$0:" ";
-        printf "%s | %s | %s | 1\n", t, n, msg >> f; fflush(f);
-    }'
-)
+# Append a command to an existing trap for a signal without overwriting it
+_trap_add() {
+    # $1: SIGNAL, $2...: command to append
+    local sig="$1"
+    shift
+    local add cmd existing
+    add="$*"
 
-# Fehler- und Exit-Traps
-trap 'logging "ERROR at line ${LINENO:-?}: ${BASH_COMMAND:-?}" "$?"' ERR
-trap 'rc=$?; logging "EXIT" "$rc"; exit "$rc"' EXIT
+    # shellcheck disable=SC2046
+    existing="$(trap -p "$sig" | awk -F"'" '{print $2}')"
+    if [[ -n "$existing" ]]; then
+        cmd="$existing; $add"
+    else
+        cmd="$add"
+    fi
+    trap -- "$cmd" "$sig"
+}
+
+# ---- public API --------------------------------------------------------------
+
+# Initialize logging. Opens FD 3 for appends. Idempotent.
+log_init() {
+    # Create parent dir if needed
+    mkdir -p -- "$XDG_RUNTIME_DIR"
+
+    # Touch file before opening FD to avoid race warnings
+    : >"$LOG_FILE"
+
+    # Open append FD if not already open
+    if ! { true >&3; } 2>/dev/null; then
+        # shellcheck disable=SC3033
+        exec 3>>"$LOG_FILE"
+    fi
+
+    # Header line
+    printf '%s\t%s\t%s\t%s\n' "$(_ts)" "$script_name" "log_init" "0" >&3
+}
+
+# Generic writer
+_log_write() {
+    # $1 level, $2 message, $3 rc
+    local lvl msg rc
+    lvl="$1"
+    msg="$2"
+    rc="${3:-0}"
+
+    # Ensure FD 3 exists if someone forgot log_init
+    if ! { true >&3; } 2>/dev/null; then
+        log_init
+    fi
+
+    printf '%s\t%s\t%s\t%s\n' "$(_ts)" "$script_name" "$lvl: $msg" "$rc" >&3
+}
+
+# Info message
+log_info() {
+    # $1 message, [$2 rc]
+    _log_write "INFO" "${1:-}" "${2:-0}"
+}
+
+# Error message with line number and return code
+log_err() {
+    # $1 lineno, [$2 rc]
+    local ln rc
+    ln="${1:-0}"
+    rc="${2:-1}"
+    _log_write "ERROR" "line=$ln" "$rc"
+}
+
+# Install ERR/EXIT traps alongside any existing handlers.
+install_logging_traps() {
+    # ERR: capture $? at trap entry, then log with $LINENO
+    # shellcheck disable=SC2016
+    _trap_add ERR 'ec=$?; log_err "$LINENO" "$ec"'
+
+    # EXIT: log final rc and close FD 3 if open
+    # shellcheck disable=SC2016
+    _trap_add EXIT 'ec=$?; log_info "exit" "$ec"; { true >&3; } 2>/dev/null && exec 3>&-'
+}
+
+# Optional automatic bootstrap if explicitly enabled by caller
+# Example: LOGGING_ENV_AUTO=1 before sourcing or after.
+if [[ "${LOGGING_ENV_AUTO:-0}" = "1" ]]; then
+    log_init
+    install_logging_traps
+fi
