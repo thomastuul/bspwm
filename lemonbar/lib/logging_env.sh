@@ -68,9 +68,6 @@ log_init() {
     # shellcheck disable=SC3033
     exec 3>>"$LOG_FILE"
   fi
-
-  # Header line
-  printf '%s\t%s\t%s\t%s\n' "$(_ts)" "$script_name" "log_init" "0" >&3
 }
 
 # Generic writer
@@ -91,8 +88,10 @@ _log_write() {
 
 # Info message
 log_info() {
-  # $1 message, [$2 rc]
-  _log_write "INFO" "${1:-}" "${2:-0}"
+    case "${LOG_INFO:-0}" in
+        1|yes|true|on) _log_write "INFO" "${1:-}" "${2:-0}" ;;
+        *) : ;;  # quiet
+    esac
 }
 
 # Error message with line number and return code
@@ -112,7 +111,7 @@ install_logging_traps() {
 
   # EXIT: log final rc and close FD 3 if open
   # shellcheck disable=SC2016
-  _trap_add EXIT 'ec=$?; log_info "exit" "$ec"; { true >&3; } 2>/dev/null && exec 3>&-'
+  _trap_add EXIT 'ec=$?; case "${LOG_INFO:-0}" in 1|yes|true|on) log_info "exit" "$ec";; esac; { true >&3; } 2>/dev/null && exec 3>&-'
 }
 
 # Optional automatic bootstrap if explicitly enabled by caller

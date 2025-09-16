@@ -249,6 +249,13 @@ main() {
     init "$@"
     parse_params "$@"
 
+    # -l/--log schaltet INFO-Logs frei, sonst nur ERR
+    if [[ -n ${log-} ]]; then
+        export LOG_INFO=1
+    else
+        export LOG_INFO=0
+    fi
+
     tmp_dir=$(mktemp -p "$TMPDIR" -d lemonbar.XXXX)
 
     lock_init user

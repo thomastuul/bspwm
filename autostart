@@ -148,7 +148,7 @@ fi
 # Panel (runs its own supervision and PID handling)
 if [[ -x "$LEMONBAR_START" ]]; then
     # Use setsid to decouple from this controlling terminal/session.
-    setsid "$LEMONBAR_START" -l >/dev/null 2>&1 &
+    setsid "$LEMONBAR_START" >/dev/null 2>&1 &
     sleep 0.2
 fi
 
