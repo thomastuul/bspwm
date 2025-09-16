@@ -3,7 +3,7 @@
 set -o errexit      # Exit on most errors (see the manual)
 set -o nounset      # Disallow expansion of unset variables
 set -o pipefail     # Use last non-zero exit code in a pipeline
-set -o errtrace
+#set -o errtrace
 
 # Enable xtrace if the DEBUG environment variable is set
 if [[ ${DEBUG-} =~ ^1|yes|true$ ]]; then
@@ -22,7 +22,7 @@ trap_cleanup() {
 }
 
 # shellcheck disable=SC2016
-_trap_add ERR  'ec=$?; log_err "$LINENO" "$ec"'
+#_trap_add ERR  'ec=$?; log_err "$LINENO" "$ec"'
 _trap_add EXIT 'trap_cleanup'
 _trap_add INT  'trap_cleanup; exit 130'
 _trap_add TERM 'trap_cleanup; exit 143'
@@ -66,8 +66,7 @@ sig_init() {
     # own PID
     pid="$BASHPID"
 
-    "$LEMONDIR"/scheduler.sh "$pid" &
-    scheduler_pid="$!"
+    LOGGING_ENV_AUTO=1 "$LEMONDIR"/scheduler.sh "$pid" &
 
     # init
     window_title
