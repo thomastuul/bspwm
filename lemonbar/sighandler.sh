@@ -3,44 +3,31 @@
 set -o errexit      # Exit on most errors (see the manual)
 set -o nounset      # Disallow expansion of unset variables
 set -o pipefail     # Use last non-zero exit code in a pipeline
-# errtrace must not set here because wait throws errors at every
-# reception of a signal
+set -o errtrace     # Ensure the error trap handler is inherited
 
 # Enable xtrace if the DEBUG environment variable is set
 if [[ ${DEBUG-} =~ ^1|yes|true$ ]]; then
     set -o xtrace       # Trace the execution of the script (debug)
 fi
 
-log()  { printf '[sighandler] %s\n' "$*" >&2; }
-
 # DESC: Terminate subprocesses
 # ARGS: None
 # OUTS: None
 trap_cleanup() {
+    # prevent reentrancy
     trap - INT TERM QUIT EXIT HUP ERR
-    kill "$scheduler_pid"
-    wait || true
     kill "$BASHPID"
     wait || true
-    log "cleanup"
+    log_info "cleanup"
 }
 
-# DESC: Errorhandler
-# ARGS: $1: If only param -> Exit status code
-#           else line number of err occurence.
-#       $2: Exit status code
-#       $3: invoked command
-# OUTS: None
-trap_err() {
-    local parent_lineno="${1:-?}"
-    local code="${2:-?}"
-    local cmd="${3:-?}"
-    log "ERROR code=${code} at line ${parent_lineno}: ${cmd}"
-    return 0
-}
-
-trap -- 'trap_cleanup' INT TERM QUIT EXIT HUP
-trap -- 'trap_err "${LINENO}/${BASH_LINENO}" "$?" "$BASH_COMMAND"'  ERR
+# shellcheck disable=SC2016
+#_trap_add ERR  'ec=$?; log_err "$LINENO" "$ec"'
+_trap_add EXIT 'trap_cleanup'
+_trap_add INT  'trap_cleanup; exit 130'
+_trap_add TERM 'trap_cleanup; exit 143'
+_trap_add QUIT 'trap_cleanup; exit 0'
+_trap_add HUP  'trap_cleanup; exit 0'
 
 cpu()          { cpu_string="$("$LEMONDIR"/modules/block_cpu.sh)"; }
 clock()        { clock_string="$("$LEMONDIR"/modules/block_clock.sh)"; }
@@ -79,8 +66,7 @@ sig_init() {
     # own PID
     pid="$BASHPID"
 
-    "$LEMONDIR"/scheduler.sh "$pid" &
-    scheduler_pid="$!"
+    LOGGING_ENV_AUTO=1 "$LEMONDIR"/scheduler.sh "$pid" &
 
     # init
     window_title

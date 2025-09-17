@@ -11,16 +11,16 @@ set -o pipefail     # Use last non-zero exit code in a pipeline
 # Enable errtrace or the error trap handler will not work as expected
 set -o errtrace     # Ensure the error trap handler is inherited
 
-PANEL_NAME="${PANEL_NAME:-panel}"
-MARGIN="${MARGIN:-4}"
-
 # shellcheck disable=SC1091
 source "$LEMONDIR/config.sh"
+
+MARGIN="${MARGIN:-4}"
+SYSTRAY_WM_NAME="${SYSTRAY_WM_NAME:-panel}"
 
 trayer_width() {
     width=1
     if [[ -n "$(pidof trayer)" ]]; then
-        width=$(xprop -name "$PANEL_NAME" | grep 'program specified minimum size' | cut -d ' ' -f 5)
+        width=$(xprop -name "$SYSTRAY_WM_NAME" | grep 'program specified minimum size' | cut -d ' ' -f 5)
     fi
     printf "%s" "$(( width + MARGIN ))"
 }

@@ -1,5 +1,10 @@
 #!/usr/bin/env bash
 
+_trap_add EXIT 'kill $(jobs -pr) 2>/dev/null'
+trap 'kill $(jobs -pr) 2>/dev/null; exit 0' INT TERM HUP
+
+export LC_ALL=C
+
 # Enable xtrace if the DEBUG environment variable is set
 if [[ ${DEBUG-} =~ ^1|yes|true$ ]]; then
     set -o xtrace       # Trace the execution of the script (debug)
@@ -11,17 +16,7 @@ set -o pipefail     # Use last non-zero exit code in a pipeline
 # Enable errtrace or the error trap handler will not work as expected
 set -o errtrace     # Ensure the error trap handler is inherited
 
-# DESC: Errorhandler
-# ARGS: $1: Line number of err occurence
-#       $2: Exit status code
-#       $3: invoked command
-# OUTS: None
-script_trap_err() {
-    local parent_lineno="$1"
-    local code="$2"
-    local commands="$3"
-    echo "Error exit status $code, at file $0 on or near line $parent_lineno: $commands"
-}
+source "${LEMONDIR}/config.sh"
 
 # Send signal for update lemonbar workspaces at event desktop change
 get_ws_updates_changed_desktop() {
@@ -51,8 +46,11 @@ get_trayer_updates() {
         sleep 1
     done
 
-    stdbuf -oL -eL xprop -name panel -spy | grep --line-buffered 'program specified minimum size' | while IFS= read -r; do
+    stdbuf -oL -eL xprop -name "$SYSTRAY_WM_NAME" -spy | grep --line-buffered 'program specified minimum size' | while IFS= read -r; do
         kill -RTMIN+9 "$sighandler_pid"
+        sleep 0.05
+        # often an app disappears from workspace too if it is gone from systray
+        kill -RTMIN+2 "$sighandler_pid"
     done
 }
 
@@ -61,8 +59,6 @@ get_new_node_updates() {
         kill -RTMIN+2 "$sighandler_pid"
     done
 }
-
-trap 'script_trap_err "${LINENO}/${BASH_LINENO}" "$?" "$BASH_COMMAND"'  ERR
 
 get_ws_updates_changed_desktop &
 get_ws_updates_node_transfer &
