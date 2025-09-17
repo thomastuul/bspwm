@@ -3,7 +3,7 @@
 set -o errexit      # Exit on most errors (see the manual)
 set -o nounset      # Disallow expansion of unset variables
 set -o pipefail     # Use last non-zero exit code in a pipeline
-#set -o errtrace
+set -o errtrace     # Ensure the error trap handler is inherited
 
 # Enable xtrace if the DEBUG environment variable is set
 if [[ ${DEBUG-} =~ ^1|yes|true$ ]]; then
