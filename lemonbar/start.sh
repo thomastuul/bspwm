@@ -2,16 +2,15 @@
 
 # Enable xtrace if the DEBUG environment variable is set
 if [[ ${DEBUG-} =~ ^1|yes|true$ ]]; then
-    set -o xtrace       # Trace the execution of the script (debug)
+    set -o xtrace # Trace the execution of the script (debug)
 fi
 
-set -o errexit      # Exit on most errors (see the manual)
-set -o nounset      # Disallow expansion of unset variables
-set -o pipefail     # Use last non-zero exit code in a pipeline
+set -o errexit            # Exit on most errors (see the manual)
+set -o nounset            # Disallow expansion of unset variables
+set -o pipefail           # Use last non-zero exit code in a pipeline
 shopt -s lastpipe || true # Don't use subshell after pipe and never fail
 # Enable errtrace or the error trap handler will not work as expected
-set -o errtrace     # Ensure the error trap handler is inherited
-
+set -o errtrace # Ensure the error trap handler is inherited
 
 # DESC: Errorhandler
 # ARGS: $1: line number of err occurence.
@@ -27,8 +26,8 @@ trap_err() {
     set +o pipefail
 
     local loc="$1" rc="${2:-1}" cmd="${3:-}"
-    local line="${loc%%/*}"           # LINENO extrahieren
-    log_err "${line:-0}" "$rc"        # strukturiertes Fehler-Log
+    local line="${loc%%/*}"    # LINENO extrahieren
+    log_err "${line:-0}" "$rc" # strukturiertes Fehler-Log
     # optional Zusatzinfo:
     log_info "cmd=${cmd}"
 }
@@ -108,7 +107,7 @@ trap_cleanup() {
 # ARGS: None
 # OUTS: None
 usage() {
-    cat << EOF
+    cat <<EOF
 Usage:
      -h|--help                  Displays this help
      -l|--log                   Run silently unless we encounter an error
@@ -124,18 +123,18 @@ parse_params() {
         param="$1"
         shift
         case $param in
-            -h | --help)
-                # Disable EXIT trap so help does not trigger cleanup
-                trap - EXIT
-                usage
-                exit 0
-                ;;
-            -l | --log)
-                log=true
-                ;;
-            *)
-                exit_handler "Invalid parameter was provided: $param" 1
-                ;;
+        -h | --help)
+            # Disable EXIT trap so help does not trigger cleanup
+            trap - EXIT
+            usage
+            exit 0
+            ;;
+        -l | --log)
+            log=true
+            ;;
+        *)
+            exit_handler "Invalid parameter was provided: $param" 1
+            ;;
         esac
     done
 }
@@ -154,7 +153,10 @@ lock_init() {
     local old_pid
 
     # Try to create atomically (noclobber) and write PID in one step
-    if ( set -o noclobber; printf '%s\n' "$$" >"$pid_file" ) 2>/dev/null; then
+    if (
+        set -o noclobber
+        printf '%s\n' "$$" >"$pid_file"
+    ) 2>/dev/null; then
         chmod 600 -- "$pid_file" 2>/dev/null || true
         script_lock="$pid_file"
         return 0
@@ -166,11 +168,14 @@ lock_init() {
         if [[ "$old_pid" =~ ^[0-9]+$ ]]; then
             if kill -0 "$old_pid" 2>/dev/null; then
                 printf 'Unable to acquire lock: %s (pid=%s)\nLOCKBUSY (200)\n' \
-                       "$pid_file" "$old_pid" >&2
+                    "$pid_file" "$old_pid" >&2
                 return 200
             else
                 rm -f -- "$pid_file"
-                if ( set -o noclobber; printf '%s\n' "$$" >"$pid_file" ) 2>/dev/null; then
+                if (
+                    set -o noclobber
+                    printf '%s\n' "$$" >"$pid_file"
+                ) 2>/dev/null; then
                     chmod 600 -- "$pid_file" 2>/dev/null || true
                     script_lock="$pid_file"
                     return 0
@@ -178,7 +183,10 @@ lock_init() {
             fi
         else
             rm -f -- "$pid_file"
-            if ( set -o noclobber; printf '%s\n' "$$" >"$pid_file" ) 2>/dev/null; then
+            if (
+                set -o noclobber
+                printf '%s\n' "$$" >"$pid_file"
+            ) 2>/dev/null; then
                 chmod 600 -- "$pid_file" 2>/dev/null || true
                 script_lock="$pid_file"
                 return 0
@@ -238,10 +246,10 @@ init() {
 # OUTS: None
 main() {
     trap 'trap_err "${LINENO}/${BASH_LINENO}" "$?" "$BASH_COMMAND"' ERR
-    trap 'trap_exit; trap_cleanup'                                  EXIT
-    trap 'trap_cleanup; exit 130'                                   INT
-    trap 'trap_cleanup; exit 143'                                   TERM
-    trap 'trap_cleanup; exit 0'                                     QUIT HUP PIPE
+    trap 'trap_exit; trap_cleanup' EXIT
+    trap 'trap_cleanup; exit 130' INT
+    trap 'trap_cleanup; exit 143' TERM
+    trap 'trap_cleanup; exit 0' QUIT HUP PIPE
 
     tmp_dir=""
     fifo=""
@@ -267,28 +275,28 @@ main() {
     fifo="${tmp_dir}/lemonbar.fifo"
     readonly fifo
     if [[ -e "$fifo" ]]; then
-        rm "$fifo"
+        rm -f "$fifo"
     fi
-    mkfifo "$fifo"
+    mkfifo -m 600 "$fifo"
 
-    tmp_dir="$tmp_dir" LOGGING_ENV_AUTO=1 "$LEMONDIR/sighandler.sh" > "$fifo" &
+    tmp_dir="$tmp_dir" LOGGING_ENV_AUTO=1 "$LEMONDIR/sighandler.sh" >"$fifo" &
     sighandler_pid=$!
 
     # file for exchanging sighandler_pid to sxhkd
     if [[ -n "${XDG_RUNTIME_DIR:-}" ]]; then
-        echo "$sighandler_pid" > "$XDG_RUNTIME_DIR/sighandler.pid"
+        echo "$sighandler_pid" >"$XDG_RUNTIME_DIR/sighandler.pid"
     fi
 
     lemonbar -p -a "$CLICKABLE_AREAS" \
         -g "$PANEL_WIDTH"x"$PANEL_HEIGHT"+"$PANEL_HORIZONTAL_OFFSET"+"$PANEL_VERTICAL_OFFSET" \
         -f "$PANEL_FONT" -f "$PANEL_ICON_FONT" -F "$COLOR_DEFAULT_FG" -B "$COLOR_PANEL_BG" \
-        -u "$UNDERLINE_HEIGHT" -n "$PANEL_WM_NAME" < "$fifo" | bash &
+        -u "$UNDERLINE_HEIGHT" -n "$PANEL_WM_NAME" <"$fifo" | bash || true &
 
     sighandler_pid="$sighandler_pid" tmp_dir="$tmp_dir" LOGGING_ENV_AUTO=1 "$LEMONDIR/events.sh" &
 
     # wait for subprocesses to be finished except one fails
     while true; do
-      wait -n || break
+        wait -n || break
     done
 }
 
