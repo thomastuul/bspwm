@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
-_trap_add EXIT 'kill $(jobs -pr) 2>/dev/null'
-trap 'kill $(jobs -pr) 2>/dev/null; exit 0' INT TERM HUP
+_trap_add EXIT 'kill $(jobs -pr) 2>/dev/null || true'
+trap 'kill $(jobs -pr) 2>/dev/null || true; exit 0' INT TERM HUP
 
 export LC_ALL=C
 

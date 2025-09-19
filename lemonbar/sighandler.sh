@@ -10,6 +10,13 @@ if [[ ${DEBUG-} =~ ^1|yes|true$ ]]; then
     set -o xtrace       # Trace the execution of the script (debug)
 fi
 
+: "${LEMONDIR:="$(cd -- "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"}"
+# shellcheck disable=SC1091
+source "$LEMONDIR/lib/logging_env.sh"
+
+log_init
+install_logging_traps
+
 # DESC: Terminate subprocesses
 # ARGS: None
 # OUTS: None
