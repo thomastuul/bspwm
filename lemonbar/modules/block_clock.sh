@@ -11,6 +11,7 @@ set -o pipefail     # Use last non-zero exit code in a pipeline
 # Enable errtrace or the error trap handler will not work as expected
 set -o errtrace     # Ensure the error trap handler is inherited
 
+LEMONDIR="${LEMONDIR:-"$(cd -- "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"}"
 # shellcheck disable=SC1091
 source "$LEMONDIR/config.sh"
 

@@ -18,7 +18,9 @@ title_fifo="${tmp_dir}/lemonbar_title.fifo"
 if [[ ! -p "$title_fifo" ]]; then
     printf ""
 else
-    read -t 0.1 -r line < "$title_fifo"
+    if ! read -t 0.1 -r line <"$title_fifo"; then
+        exit 0   # FIFO zu → regulär beenden
+    fi
     printf "%s" "$line"
 fi
 

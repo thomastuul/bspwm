@@ -20,7 +20,7 @@ trap_cleanup() {
     # Disable the termination trap handler to prevent potential recursion
     trap - TERM
     if [[ -e "$title_fifo" ]]; then
-        rm "$title_fifo"
+        rm -f "$title_fifo"
     fi
 }
 
@@ -43,9 +43,9 @@ _trap_add ERR 'ec=$?; trap_err "$ec"'
 # shellcheck disable=SC2154
 title_fifo="${tmp_dir}/lemonbar_title.fifo"
 if [[ -e "$title_fifo" ]]; then
-    rm "$title_fifo"
+    rm -f "$title_fifo"
 fi
-mkfifo "$title_fifo"
+mkfifo -m 600 "$title_fifo"
 
 # DESC: Get title of active window
 # ARGS: None
