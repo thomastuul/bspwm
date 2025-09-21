@@ -18,7 +18,6 @@ set -o errexit -o nounset -o pipefail
 # shellcheck disable=SC1091
 source "$LEMONDIR/config.sh"
 
-
 DEFAULT_LOCATION="${DEFAULT_LOCATION:-München}"
 DEFAULT_LANG="${WEATHER_LANG:-de}"
 DEFAULT_MAX_AGE="${WEATHER_MAX_AGE:-4h}"
