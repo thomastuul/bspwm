@@ -293,14 +293,13 @@ main() {
     if [[ -n "${XDG_RUNTIME_DIR:-}" ]]; then
         echo "$sighandler_pid" >"$XDG_RUNTIME_DIR/sighandler.pid"
     fi
-set -x
+
     sighandler_pid="$sighandler_pid" tmp_dir="$tmp_dir" LOGGING_ENV_AUTO=1 "$LEMONDIR/events.sh" &
 
     # wait for subprocesses to be finished except one fails
     while true; do
         wait -n || break
     done
-set +x
 }
 
 main "$@"

@@ -23,9 +23,8 @@ title_fifo="${tmp_dir}/lemonbar_title.fifo"
 trap_cleanup() {
     # Disable the termination trap handler to prevent potential recursion
     trap - TERM
-    if [[ -e "$title_fifo" ]]; then
-        rm -f "$title_fifo"
-    fi
+    exec 3>&- 2>/dev/null || true
+    rm -f -- "$title_fifo" 2>/dev/null || true
 }
 
 # DESC: Errorhandler
@@ -44,10 +43,13 @@ _trap_add QUIT 'trap_cleanup; exit 0'
 _trap_add ERR 'ec=$?; trap_err "$ec"'
 
 # create named pipe
-if [[ -e "$title_fifo" ]]; then
-    rm -f "$title_fifo"
+title_fifo="${tmp_dir}/lemonbar_title.fifo"
+if [[ -e "$title_fifo" && ! -p "$title_fifo" ]]; then
+    rm -f -- "$title_fifo"
 fi
-mkfifo -m 600 "$title_fifo"
+[[ -p "$title_fifo" ]] || mkfifo -m 600 -- "$title_fifo"
+# Keep FIFO open to avoid blocking on open()
+exec 3<>"$title_fifo"
 
 # DESC: Check if given PID variable is a valid, running process
 # ARGS: $1 (string) PID value to check
@@ -83,8 +85,8 @@ activeWindow() {
         sleep 0.05
         truncated=$(echo "$line" | awk -v m="$TITLE_MAX_LENGHT" '{print substr($0,1,m)}')
         # shellcheck disable=SC2154
-        kill -RTMIN+5 "$sighandler_pid"
         printf "%s\n" "%{B$COLOR_DEFAULT_BG}%{F$COLOR_FREE_FG}%{+u}$PADDING$truncated$PADDING%{-u}%{F-}%{B-}" > "$title_fifo"
+        kill -RTMIN+5 "$sighandler_pid"
     done
 }
 
