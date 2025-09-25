@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 
+#source "$LEMONDIR/lib/logging_env.sh"
+
 _trap_add EXIT 'kill $(jobs -pr) 2>/dev/null || true'
 trap 'kill $(jobs -pr) 2>/dev/null || true; exit 0' INT TERM HUP
 
@@ -17,6 +19,30 @@ set -o pipefail     # Use last non-zero exit code in a pipeline
 set -o errtrace     # Ensure the error trap handler is inherited
 
 source "${LEMONDIR}/config.sh"
+
+# DESC: Check if given PID variable is a valid, running process
+# ARGS: $1 (string) PID value to check
+# OUTS: 0 if valid PID of running process, 1 otherwise
+check_pid() {
+    local pid="$1"
+
+    # must be a non-empty string of digits
+    [[ "$pid" =~ ^[0-9]+$ ]] || return 1
+
+    # test if process exists
+    if kill -0 "$pid" 2>/dev/null; then
+        return 0
+    fi
+
+    return 1
+}
+
+if check_pid "$sighandler_pid"; then
+    echo "PID $sighandler_pid ist gültig und Prozess läuft"
+else
+    echo "PID $sighandler_pid ungültig oder Prozess existiert nicht"
+    exit 1
+fi
 
 # Send signal for update lemonbar workspaces at event desktop change
 get_ws_updates_changed_desktop() {
@@ -43,12 +69,17 @@ get_ws_updates_layout_change() {
 get_trayer_updates() {
     # wait until trayer has started
     while ! pidof trayer > /dev/null; do
-        sleep 1
+        sleep 0.1
     done
 
+    #while ! pidof "$sighandler_pid" > /dev/null; do
+        #sleep 0.1
+    #done
+
     stdbuf -oL -eL xprop -name "$SYSTRAY_WM_NAME" -spy | grep --line-buffered 'program specified minimum size' | while IFS= read -r; do
+        #sleep 0.02
         kill -RTMIN+9 "$sighandler_pid"
-        sleep 0.05
+        sleep 0.02
         # often an app disappears from workspace too if it is gone from systray
         kill -RTMIN+2 "$sighandler_pid"
     done

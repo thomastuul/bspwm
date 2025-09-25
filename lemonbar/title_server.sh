@@ -12,6 +12,10 @@ set -o pipefail     # Use last non-zero exit code in a pipeline
 set -o errtrace     # Ensure the error trap handler is inherited
 
 source "$LEMONDIR/config.sh"
+#source "$LEMONDIR/lib/logging_env.sh"
+
+# shellcheck disable=SC2154
+title_fifo="${tmp_dir}/lemonbar_title.fifo"
 
 # DESC: Remove FIFO
 # ARGS: None
@@ -40,12 +44,34 @@ _trap_add QUIT 'trap_cleanup; exit 0'
 _trap_add ERR 'ec=$?; trap_err "$ec"'
 
 # create named pipe
-# shellcheck disable=SC2154
-title_fifo="${tmp_dir}/lemonbar_title.fifo"
 if [[ -e "$title_fifo" ]]; then
     rm -f "$title_fifo"
 fi
 mkfifo -m 600 "$title_fifo"
+
+# DESC: Check if given PID variable is a valid, running process
+# ARGS: $1 (string) PID value to check
+# OUTS: 0 if valid PID of running process, 1 otherwise
+check_pid() {
+    local pid="$1"
+
+    # must be a non-empty string of digits
+    [[ "$pid" =~ ^[0-9]+$ ]] || return 1
+
+    # test if process exists
+    if kill -0 "$pid" 2>/dev/null; then
+        return 0
+    fi
+
+    return 1
+}
+
+if [[ -n "${sighandler_pid-}" ]] && check_pid "$sighandler_pid"; then
+    echo "PID $sighandler_pid ist gültig und Prozess läuft"
+else
+    echo "PID sighandler_pid ungültig oder Prozess existiert nicht"
+    exit 1
+fi
 
 # DESC: Get title of active window
 # ARGS: None
