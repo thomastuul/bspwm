@@ -72,10 +72,6 @@ get_trayer_updates() {
         sleep 0.1
     done
 
-    #while ! pidof "$sighandler_pid" > /dev/null; do
-        #sleep 0.1
-    #done
-
     stdbuf -oL -eL xprop -name "$SYSTRAY_WM_NAME" -spy | grep --line-buffered 'program specified minimum size' | while IFS= read -r; do
         sleep 0.02
         kill -RTMIN+9 "$sighandler_pid"
@@ -96,6 +92,3 @@ get_ws_updates_node_transfer &
 get_ws_updates_layout_change &
 get_trayer_updates &
 get_new_node_updates &
-
-# shellcheck disable=SC2154
-tmp_dir="$tmp_dir" sighandler_pid="$sighandler_pid" "$LEMONDIR/title_server.sh"

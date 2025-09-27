@@ -266,7 +266,10 @@ main() {
 
     tmp_dir=$(mktemp -p "$TMPDIR" -d lemonbar.XXXX)
 
-    lock_init user
+    if ! lock_init user; then
+        rc=$?   # Returncode of lock_init
+        exit "$rc"
+    fi
 
     # shellcheck disable=SC1091
     source "$LEMONDIR/config.sh"
@@ -295,6 +298,9 @@ main() {
     fi
 
     sighandler_pid="$sighandler_pid" tmp_dir="$tmp_dir" LOGGING_ENV_AUTO=1 "$LEMONDIR/events.sh" &
+
+    # shellcheck disable=SC2154
+    tmp_dir="$tmp_dir" sighandler_pid="$sighandler_pid" "$LEMONDIR/title_server.sh" &
 
     # wait for subprocesses to be finished except one fails
     while true; do
