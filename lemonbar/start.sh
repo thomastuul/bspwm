@@ -300,7 +300,7 @@ main() {
     sighandler_pid="$sighandler_pid" tmp_dir="$tmp_dir" LOGGING_ENV_AUTO=1 "$LEMONDIR/events.sh" &
 
     # shellcheck disable=SC2154
-    tmp_dir="$tmp_dir" sighandler_pid="$sighandler_pid" "$LEMONDIR/title_server.sh" &
+    tmp_dir="$tmp_dir" sighandler_pid="$sighandler_pid" LOGGING_ENV_AUTO=1 "$LEMONDIR/title_server.sh"
 
     # wait for subprocesses to be finished except one fails
     while true; do
