@@ -35,21 +35,28 @@ _ts() {
     date +'%F %T'
 }
 
-# Append a command to an existing trap for a signal without overwriting it
+# DESC: Append a handler to an existing trap
+# ARGS: $1 = signal (e.g. EXIT, ERR, INT), $2+ = handler
 _trap_add() {
-    # $1: SIGNAL, $2...: command to append
-    local sig="$1"
-    shift
-    local add cmd existing
-    add="$*"
+    local sig add existing cmd _pf
 
-    # shellcheck disable=SC2046
-    existing="$(trap -p "$sig" | awk -F"'" '{print $2}')"
-    if [[ -n "$existing" ]]; then
-        cmd="$existing; $add"
+    [[ $# -ge 2 ]] || return 2
+    sig=$1
+    shift
+    add=$*
+
+    # Variante mit lokalem pipefail-Bypass
+    _pf=$(set -o | awk '/pipefail/ {print $2}')
+    set +o pipefail
+    existing="$(trap -p "$sig" | awk -F"'" 'NR==1{print $2}')"
+    [[ "$_pf" == on ]] && set -o pipefail
+
+    if [[ -n "${existing:-}" ]]; then
+        cmd="${existing}; ${add}"
     else
-        cmd="$add"
+        cmd="${add}"
     fi
+
     trap -- "$cmd" "$sig"
 }
 

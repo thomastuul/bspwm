@@ -266,7 +266,10 @@ main() {
 
     tmp_dir=$(mktemp -p "$TMPDIR" -d lemonbar.XXXX)
 
-    lock_init user
+    if ! lock_init user; then
+        rc=$?   # Returncode of lock_init
+        exit "$rc"
+    fi
 
     # shellcheck disable=SC1091
     source "$LEMONDIR/config.sh"
@@ -279,6 +282,13 @@ main() {
     fi
     mkfifo -m 600 "$fifo"
 
+    # fifo-reader, starting first
+    lemonbar -p -a "$CLICKABLE_AREAS" \
+        -g "$PANEL_WIDTH"x"$PANEL_HEIGHT"+"$PANEL_HORIZONTAL_OFFSET"+"$PANEL_VERTICAL_OFFSET" \
+        -f "$PANEL_FONT" -f "$PANEL_ICON_FONT" -F "$COLOR_DEFAULT_FG" -B "$COLOR_PANEL_BG" \
+        -u "$UNDERLINE_HEIGHT" -n "$PANEL_WM_NAME" <"$fifo" | bash || true &
+
+    # fifo-writer, starting after reader
     tmp_dir="$tmp_dir" LOGGING_ENV_AUTO=1 "$LEMONDIR/sighandler.sh" >"$fifo" &
     sighandler_pid=$!
 
@@ -287,12 +297,10 @@ main() {
         echo "$sighandler_pid" >"$XDG_RUNTIME_DIR/sighandler.pid"
     fi
 
-    lemonbar -p -a "$CLICKABLE_AREAS" \
-        -g "$PANEL_WIDTH"x"$PANEL_HEIGHT"+"$PANEL_HORIZONTAL_OFFSET"+"$PANEL_VERTICAL_OFFSET" \
-        -f "$PANEL_FONT" -f "$PANEL_ICON_FONT" -F "$COLOR_DEFAULT_FG" -B "$COLOR_PANEL_BG" \
-        -u "$UNDERLINE_HEIGHT" -n "$PANEL_WM_NAME" <"$fifo" | bash || true &
-
     sighandler_pid="$sighandler_pid" tmp_dir="$tmp_dir" LOGGING_ENV_AUTO=1 "$LEMONDIR/events.sh" &
+
+    # shellcheck disable=SC2154
+    tmp_dir="$tmp_dir" sighandler_pid="$sighandler_pid" LOGGING_ENV_AUTO=1 "$LEMONDIR/title_server.sh"
 
     # wait for subprocesses to be finished except one fails
     while true; do
