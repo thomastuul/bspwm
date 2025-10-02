@@ -1,24 +1,41 @@
 #!/usr/bin/env bash
 
-#source "$LEMONDIR/lib/logging_env.sh"
-
-_trap_add EXIT 'kill $(jobs -pr) 2>/dev/null || true'
-trap 'kill $(jobs -pr) 2>/dev/null || true; exit 0' INT TERM HUP
-
 export LC_ALL=C
 
 # Enable xtrace if the DEBUG environment variable is set
 if [[ ${DEBUG-} =~ ^1|yes|true$ ]]; then
-    set -o xtrace       # Trace the execution of the script (debug)
+    set -o xtrace # Trace the execution of the script (debug)
 fi
 
-set -o errexit      # Exit on most errors (see the manual)
-set -o nounset      # Disallow expansion of unset variables
-set -o pipefail     # Use last non-zero exit code in a pipeline
+set -o errexit  # Exit on most errors (see the manual)
+set -o nounset  # Disallow expansion of unset variables
+set -o pipefail # Use last non-zero exit code in a pipeline
 # Enable errtrace or the error trap handler will not work as expected
-set -o errtrace     # Ensure the error trap handler is inherited
+set -o errtrace # Ensure the error trap handler is inherited
 
 source "${LEMONDIR}/config.sh"
+# shellcheck disable=SC1090
+if [[ -n "${BASH_ENV:-}" && -r "$BASH_ENV" ]]; then
+    # shellcheck source=lib/logging_env.sh
+    source "$BASH_ENV"
+else
+    exit 1
+fi
+
+trap_exit() {
+    kill "$(jobs -pr)" 2>/dev/null || true
+}
+
+trap 'trap_exit' EXIT
+trap 'trap_exit; exit 0' INT TERM HUP
+
+# check parameter count
+if [[ $# -lt 1 ]]; then
+    echo "Usage: $0 <sighandler_pid>" >&2
+    exit 1
+fi
+
+sighandler_pid=$1
 
 # DESC: Check if given PID variable is a valid, running process
 # ARGS: $1 (string) PID value to check
@@ -68,7 +85,7 @@ get_ws_updates_layout_change() {
 
 get_trayer_updates() {
     # wait until trayer has started
-    while ! pidof trayer > /dev/null; do
+    while ! pidof trayer >/dev/null; do
         sleep 0.1
     done
 

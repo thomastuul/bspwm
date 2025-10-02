@@ -1,20 +1,20 @@
 #!/usr/bin/env bash
 
-set -o errexit      # Exit on most errors (see the manual)
-set -o nounset      # Disallow expansion of unset variables
-set -o pipefail     # Use last non-zero exit code in a pipeline
-set -o errtrace     # Ensure the error trap handler is inherited
+set -o errexit  # Exit on most errors (see the manual)
+set -o nounset  # Disallow expansion of unset variables
+set -o pipefail # Use last non-zero exit code in a pipeline
+set -o errtrace # Ensure the error trap handler is inherited
 
 # Enable xtrace if the DEBUG environment variable is set
 if [[ ${DEBUG-} =~ ^1|yes|true$ ]]; then
-    set -o xtrace       # Trace the execution of the script (debug)
+    set -o xtrace # Trace the execution of the script (debug)
 fi
 
-# shellcheck disable=SC1091
-source "$LEMONDIR/lib/logging_env.sh"
-
-log_init
-install_logging_traps
+# shellcheck disable=SC1090
+if [[ -r "${BASH_ENV:-}" ]]; then
+    # shellcheck source=lib/logging_env.sh
+    source "$BASH_ENV"
+fi
 
 # DESC: Terminate subprocesses
 # ARGS: None
@@ -27,28 +27,21 @@ trap_cleanup() {
     log_info "cleanup"
 }
 
-# shellcheck disable=SC2016
-#_trap_add ERR  'ec=$?; log_err "$LINENO" "$ec"'
-_trap_add EXIT 'trap_cleanup'
-_trap_add INT  'trap_cleanup; exit 130'
-_trap_add TERM 'trap_cleanup; exit 143'
-_trap_add QUIT 'trap_cleanup; exit 0'
-_trap_add HUP  'trap_cleanup; exit 0'
+trap 'trap_cleanup' EXIT INT TERM QUIT HUP
 
-cpu()          { cpu_string="$("$LEMONDIR"/modules/block_cpu.sh)"; }
-clock()        { clock_string="$("$LEMONDIR"/modules/block_clock.sh)"; }
-wsindicator()  { ws_string="$("$LEMONDIR"/modules/block_wsindicator.sh)"; }
-# shellcheck disable=SC2154
-window_title() { title_string="$(tmp_dir="$tmp_dir" "$LEMONDIR"/modules/block_title_client.sh)"; }
-launcher()     { launch_string="$("$LEMONDIR"/modules/block_launcher.sh)"; }
-power()        { power_string="$("$LEMONDIR"/modules/block_power.sh)"; }
-volume()       { vol_string="$("$LEMONDIR"/modules/block_volume.sh "$1")"; }
-monitor()      { mon_string="$("$LEMONDIR"/modules/block_brightness.sh "$1" "$2")"; }
-tray()         { tray_string="$("$LEMONDIR"/modules/block_trayer.sh)"; }
-network()      { net_string="$("$LEMONDIR"/modules/block_network.sh)"; }
-battery()      { battery_string="$("$LEMONDIR"/modules/block_battery.sh)"; }
-screencast()   { cast_string="$("$LEMONDIR"/modules/block_screencast.sh)"; }
-weather()      { weather_string="$("$LEMONDIR"/modules/block_weather.sh)"; }
+cpu() { cpu_string="$("$LEMONDIR"/modules/block_cpu.sh)"; }
+clock() { clock_string="$("$LEMONDIR"/modules/block_clock.sh)"; }
+wsindicator() { ws_string="$("$LEMONDIR"/modules/block_wsindicator.sh)"; }
+window_title() { title_string="$("$LEMONDIR"/modules/block_title_client.sh)"; }
+launcher() { launch_string="$("$LEMONDIR"/modules/block_launcher.sh)"; }
+power() { power_string="$("$LEMONDIR"/modules/block_power.sh)"; }
+volume() { vol_string="$("$LEMONDIR"/modules/block_volume.sh "$1")"; }
+monitor() { mon_string="$("$LEMONDIR"/modules/block_brightness.sh "$1" "$2")"; }
+tray() { tray_string="$("$LEMONDIR"/modules/block_trayer.sh)"; }
+network() { net_string="$("$LEMONDIR"/modules/block_network.sh)"; }
+battery() { battery_string="$("$LEMONDIR"/modules/block_battery.sh)"; }
+screencast() { cast_string="$("$LEMONDIR"/modules/block_screencast.sh)"; }
+weather() { weather_string="$("$LEMONDIR"/modules/block_weather.sh)"; }
 
 # DESC: Initialize signals, print lemonbar strings
 # ARGS: $1 (required): Message to print (defaults to a green foreground)
@@ -57,17 +50,16 @@ weather()      { weather_string="$("$LEMONDIR"/modules/block_weather.sh)"; }
 #       $3 (optional): Set to any value to not append a new line to the message
 # OUTS: None
 sig_init() {
-    trap -- 'wsindicator'          RTMIN+2
-    trap -- 'cpu'                  RTMIN+3
-    trap -- 'clock'                RTMIN+4
-    trap -- 'window_title'         RTMIN+5
-    trap -- 'volume "$pid"'        RTMIN+6
-    trap -- 'monitor "+" "$pid"'   RTMIN+7
-    trap -- 'monitor "-" "$pid"'   RTMIN+8
-    trap -- 'tray'                 RTMIN+9
-    trap -- 'network; battery'     RTMIN+10
-    trap -- 'screencast'           RTMIN+11
-    trap -- 'weather'              RTMIN+12
+    trap -- 'wsindicator' RTMIN+2
+    trap -- 'cpu; clock' RTMIN+3
+    trap -- 'window_title' RTMIN+5
+    trap -- 'volume "$pid"' RTMIN+6
+    trap -- 'monitor "+" "$pid"' RTMIN+7
+    trap -- 'monitor "-" "$pid"' RTMIN+8
+    trap -- 'tray' RTMIN+9
+    trap -- 'network; battery' RTMIN+10
+    trap -- 'screencast' RTMIN+11
+    trap -- 'weather' RTMIN+12
 
     # own PID
     pid="$BASHPID"
@@ -97,7 +89,7 @@ render_line() {
         "%{r}${cast_string}${weather_string}${battery_string}${net_string}${mon_string}${vol_string}${cpu_string}${clock_string}${tray_string}${power_string}"
 }
 
-main () {
+main() {
     sig_init
     while true; do
         render_line

@@ -2,21 +2,28 @@
 
 # Enable xtrace if the DEBUG environment variable is set
 if [[ ${DEBUG-} =~ ^1|yes|true$ ]]; then
-    set -o xtrace       # Trace the execution of the script (debug)
+    set -o xtrace # Trace the execution of the script (debug)
 fi
 
-set -o errexit      # Exit on most errors (see the manual)
-set -o nounset      # Disallow expansion of unset variables
-set -o pipefail     # Use last non-zero exit code in a pipeline
+set -o errexit  # Exit on most errors (see the manual)
+set -o nounset  # Disallow expansion of unset variables
+set -o pipefail # Use last non-zero exit code in a pipeline
 # Enable errtrace or the error trap handler will not work as expected
-set -o errtrace     # Ensure the error trap handler is inherited
+set -o errtrace # Ensure the error trap handler is inherited
+
+# shellcheck disable=SC1090
+if [[ -r "$BASH_ENV" ]]; then
+    # shellcheck source=lib/logging_env.sh
+    source "$BASH_ENV"
+else
+    echo "logging_env.sh not found at: $BASH_ENV" >&2
+fi
 
 # Signal-Plan:
-# RTMIN+3  = CPU   (1s)
-# RTMIN+4  = Uhr   (1s)
-# RTMIN+5  = Titel (on change)
+# RTMIN+3  = CPU/Uhr   (1s)
+# RTMIN+5  = Titel     (on change)
 # RTMIN+10 = Netz/Batt (10s)
-# RTMIN+12 = Wetter (60s)
+# RTMIN+12 = Wetter    (60s)
 
 sighandler_pid="$1"
 
@@ -29,9 +36,6 @@ seconds=0
 while true; do
     # every second
     kill -RTMIN+3 "$sighandler_pid"
-    # delay necessary as second kill-signal may drop
-    sleep 0.1 || true
-    kill -RTMIN+4 "$sighandler_pid"
 
     # every 5 seconds
     if [[ $((seconds % 5)) -eq 0 ]]; then
@@ -48,6 +52,6 @@ while true; do
         kill -RTMIN+12 "$sighandler_pid"
     fi
 
-    seconds=$((seconds+1))
+    seconds=$((seconds + 1))
     sleep 1 || true
 done

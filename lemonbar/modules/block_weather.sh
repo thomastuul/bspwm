@@ -17,6 +17,13 @@
 set -o errexit -o nounset -o pipefail
 # shellcheck disable=SC1091
 source "$LEMONDIR/config.sh"
+# shellcheck disable=SC1090
+if [[ -n "${BASH_ENV:-}" && -r "$BASH_ENV" ]]; then
+    # shellcheck source=../lib/logging_env.sh
+    source "$BASH_ENV"
+else
+    exit 1
+fi
 
 DEFAULT_LOCATION="${DEFAULT_LOCATION:-München}"
 DEFAULT_LANG="${WEATHER_LANG:-de}"
@@ -26,67 +33,85 @@ WTTR_BASE="${WTTRURL:-https://wttr.in}"
 XDG_CACHE_HOME="${XDG_CACHE_HOME:-$HOME/.cache}"
 CACHE_PREFIX="${WEATHERREPORT:-$XDG_CACHE_HOME/weather}"
 
-die() { printf '%s\n' "block_weather: $*" >&2; exit 1; }
+die() {
+    printf '%s\n' "block_weather: $*" >&2
+    exit 1
+}
 
 dur_to_seconds() {
-  local d="${1:-}"; [[ -z "$d" ]] && { echo 0; return; }
-  if [[ "$d" =~ ^[0-9]+$ ]]; then echo "$d"; return; fi
-  local num unit; num="${d//[!0-9]/}"; unit="${d//[0-9]/}"
-  case "$unit" in
-    s|'') echo "$num" ;;
-    m)    echo $((num*60)) ;;
-    h)    echo $((num*3600)) ;;
-    d)    echo $((num*86400)) ;;
-    *)    echo 14400  # fallback 4h on unknown unit ;;
-  esac
+    local d="${1:-}"
+    [[ -z "$d" ]] && {
+        echo 0
+        return
+    }
+    if [[ "$d" =~ ^[0-9]+$ ]]; then
+        echo "$d"
+        return
+    fi
+    local num unit
+    num="${d//[!0-9]/}"
+    unit="${d//[0-9]/}"
+    case "$unit" in
+    s | '') echo "$num" ;;
+    m) echo $((num * 60)) ;;
+    h) echo $((num * 3600)) ;;
+    d) echo $((num * 86400)) ;;
+    *) echo 14400 ;; # fallback 4h on unknown unit ;;
+    esac
 }
 
 slugify() { printf '%s' "$1" | tr ' /' '__'; }
 url_loc() { printf '%s' "$1" | sed 's/ /+/g'; }
 
 file_age_minutes() {
-  local f="$1"
-  [[ -f "$f" ]] || { echo 1e9; return; }
-  local now ts
-  now="$(date +%s)"
-  ts="$(stat -c %Y -- "$f" 2>/dev/null || stat -f %m -- "$f")"
-  local diff=$(( now - ts ))
-  echo $(( diff / 60 ))
+    local f="$1"
+    [[ -f "$f" ]] || {
+        echo 1e9
+        return
+    }
+    local now ts
+    now="$(date +%s)"
+    ts="$(stat -c %Y -- "$f" 2>/dev/null || stat -f %m -- "$f")"
+    local diff=$((now - ts))
+    echo $((diff / 60))
 }
 
 is_fresh() {
-  local f="$1" max_age_sec="$2"
-  [[ -f "$f" ]] || return 1
-  local now ts; now="$(date +%s)"
-  ts="$(stat -c %Y -- "$f" 2>/dev/null || stat -f %m -- "$f")"
-  (( (now - ts) <= max_age_sec ))
+    local f="$1" max_age_sec="$2"
+    [[ -f "$f" ]] || return 1
+    local now ts
+    now="$(date +%s)"
+    ts="$(stat -c %Y -- "$f" 2>/dev/null || stat -f %m -- "$f")"
+    (((now - ts) <= max_age_sec))
 }
 
 fetch_json_if_needed() {
-  local loc="$1" lang="$2" max_age_sec="$3" json_path="$4"
-  if ! is_fresh "$json_path" "$max_age_sec"; then
-    mkdir -p -- "$(dirname -- "$json_path")"
-    local enc_loc; enc_loc="$(url_loc "$loc")"
-    curl -fsSL "${WTTR_BASE}/${enc_loc}?format=j1&lang=${lang}" \
-      -o "$json_path.tmp"
-    mv -f -- "$json_path.tmp" "$json_path"
-  fi
+    local loc="$1" lang="$2" max_age_sec="$3" json_path="$4"
+    if ! is_fresh "$json_path" "$max_age_sec"; then
+        mkdir -p -- "$(dirname -- "$json_path")"
+        local enc_loc
+        enc_loc="$(url_loc "$loc")"
+        curl -fsSL "${WTTR_BASE}/${enc_loc}?format=j1&lang=${lang}" \
+            -o "$json_path.tmp"
+        mv -f -- "$json_path.tmp" "$json_path"
+    fi
 }
 
 fetch_png_if_needed() {
-  local loc="$1" lang="$2" max_age_sec="$3" png_path="$4"
-  if ! is_fresh "$png_path" "$max_age_sec"; then
-    mkdir -p -- "$(dirname -- "$png_path")"
-    local enc_loc; enc_loc="$(url_loc "$loc")"
-    local url="https://v2.wttr.in/${enc_loc}.png?lang=${lang}&m&2"
-    curl -fsSL "$url" -o "$png_path.tmp"
-    mv -f -- "$png_path.tmp" "$png_path"
-  fi
+    local loc="$1" lang="$2" max_age_sec="$3" png_path="$4"
+    if ! is_fresh "$png_path" "$max_age_sec"; then
+        mkdir -p -- "$(dirname -- "$png_path")"
+        local enc_loc
+        enc_loc="$(url_loc "$loc")"
+        local url="https://v2.wttr.in/${enc_loc}.png?lang=${lang}&m&2"
+        curl -fsSL "$url" -o "$png_path.tmp"
+        mv -f -- "$png_path.tmp" "$png_path"
+    fi
 }
 
 parse_with_jq() {
-  local json="$1"
-  jq -r '
+    local json="$1"
+    jq -r '
     .weather[0] as $w
     | [$w.hourly[].chanceofrain | tonumber] | max as $maxR
     | "\($maxR)|\($w.mintempC)|\($w.maxtempC)"
@@ -94,8 +119,8 @@ parse_with_jq() {
 }
 
 parse_with_awk() {
-  local json="$1"
-  awk '
+    local json="$1"
+    awk '
     BEGIN {
       maxRain=0; mint=""; maxt=""; count=0; limit=8;
     }
@@ -126,14 +151,14 @@ parse_with_awk() {
 }
 
 open_png_viewer() {
-  local png="$1"
-  if command -v sxiv >/dev/null 2>&1; then
-    nohup sxiv -a "$png" >/dev/null 2>&1 &
-  elif command -v feh >/dev/null 2>&1; then
-    nohup feh "$png" >/dev/null 2>&1 &
-  else
-    nohup xdg-open "$png" >/dev/null 2>&1 &
-  fi
+    local png="$1"
+    if command -v sxiv >/dev/null 2>&1; then
+        nohup sxiv -a "$png" >/dev/null 2>&1 &
+    elif command -v feh >/dev/null 2>&1; then
+        nohup feh "$png" >/dev/null 2>&1 &
+    else
+        nohup xdg-open "$png" >/dev/null 2>&1 &
+    fi
 }
 
 LOCATION="$DEFAULT_LOCATION"
@@ -143,7 +168,7 @@ DO_OPEN=0
 DO_PRINT_AGE=0
 
 print_help() {
-  cat <<EOF
+    cat <<EOF
 Usage: $(basename "$0") [OPTIONS]
 
 Optionen:
@@ -158,17 +183,38 @@ EOF
 }
 
 while [[ $# -gt 0 ]]; do
-  case "$1" in
-    -l|--location)  LOCATION="${2:-}"; shift 2 ;;
-    -a|--age)       MAX_AGE_STR="${2:-}"; shift 2 ;;
-    -L|--language)  LANG="${2:-}"; shift 2 ;;
-    --open)         DO_OPEN=1; shift ;;
-    --print-age)    DO_PRINT_AGE=1; shift ;;
-    -h|--help)      print_help; exit 0 ;;
-    --)             shift; break ;;
-    -*)             die "Unbekannte Option: $1" ;;
-    *)              die "Unerwartetes Argument: $1" ;;
-  esac
+    case "$1" in
+    -l | --location)
+        LOCATION="${2:-}"
+        shift 2
+        ;;
+    -a | --age)
+        MAX_AGE_STR="${2:-}"
+        shift 2
+        ;;
+    -L | --language)
+        LANG="${2:-}"
+        shift 2
+        ;;
+    --open)
+        DO_OPEN=1
+        shift
+        ;;
+    --print-age)
+        DO_PRINT_AGE=1
+        shift
+        ;;
+    -h | --help)
+        print_help
+        exit 0
+        ;;
+    --)
+        shift
+        break
+        ;;
+    -*) die "Unbekannte Option: $1" ;;
+    *) die "Unerwartetes Argument: $1" ;;
+    esac
 done
 
 [[ -n "$LOCATION" ]] || die "Leerer Ort übergeben"
@@ -179,26 +225,29 @@ slug="$(slugify "$LOCATION")"
 JSON_CACHE="${CACHE_PREFIX}_${slug}.json"
 PNG_CACHE="${CACHE_PREFIX}_${slug}_3days.png"
 
-if (( DO_PRINT_AGE )); then
-  if [[ -f "$JSON_CACHE" ]]; then
-    file_age_minutes "$JSON_CACHE"; exit 0
-  else
-    echo 1e9; exit 0
-  fi
+if ((DO_PRINT_AGE)); then
+    if [[ -f "$JSON_CACHE" ]]; then
+        file_age_minutes "$JSON_CACHE"
+        exit 0
+    else
+        echo 1e9
+        exit 0
+    fi
 fi
 
-if (( DO_OPEN )); then
-  fetch_png_if_needed "$LOCATION" "$LANG" "$MAX_AGE_SEC" "$PNG_CACHE"
-  open_png_viewer "$PNG_CACHE"; exit 0
+if ((DO_OPEN)); then
+    fetch_png_if_needed "$LOCATION" "$LANG" "$MAX_AGE_SEC" "$PNG_CACHE"
+    open_png_viewer "$PNG_CACHE"
+    exit 0
 fi
 
 fetch_json_if_needed "$LOCATION" "$LANG" "$MAX_AGE_SEC" "$JSON_CACHE"
 
 if command -v jq >/dev/null 2>&1; then
-  RAIN_MINMAX="$(parse_with_jq "$JSON_CACHE" 2>/dev/null || true)"
+    RAIN_MINMAX="$(parse_with_jq "$JSON_CACHE" 2>/dev/null || true)"
 fi
 if [[ -z "${RAIN_MINMAX:-}" ]]; then
-  RAIN_MINMAX="$(parse_with_awk "$JSON_CACHE")"
+    RAIN_MINMAX="$(parse_with_awk "$JSON_CACHE")"
 fi
 
 RAIN="${RAIN_MINMAX%%|*}"
@@ -207,13 +256,12 @@ MIN="${REST%%|*}"
 MAX="${REST#*|}"
 
 [[ -n "${RAIN:-}" ]] || RAIN="0"
-[[ -n "${MIN:-}"  ]] || MIN="?"
-[[ -n "${MAX:-}"  ]] || MAX="?"
+[[ -n "${MIN:-}" ]] || MIN="?"
+[[ -n "${MAX:-}" ]] || MAX="?"
 
 # ---- Ausgabe ----------------------------------------------------------------
 
 run_left="$0 --open -l $LOCATION -L $LANG -a $MAX_AGE_STR"
 run_right="notify-send \"Update vor $("$0" --print-age -l "$LOCATION" -a "$MAX_AGE_STR") min\""
-
 
 printf "%s\n" "%{A1:$run_left:}%{A3:$run_right:}%{B$COLOR_DEFAULT_BG}%{F$COLOR_WEATHER_FG}%{+u} 爫${RAIN}%% ${MIN}° ${MAX}° %{-u}%{F-}%{B-}%{A}%{A}"
