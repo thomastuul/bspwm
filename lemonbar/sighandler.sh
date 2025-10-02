@@ -51,8 +51,7 @@ weather() { weather_string="$("$LEMONDIR"/modules/block_weather.sh)"; }
 # OUTS: None
 sig_init() {
     trap -- 'wsindicator' RTMIN+2
-    trap -- 'cpu' RTMIN+3
-    trap -- 'clock' RTMIN+4
+    trap -- 'cpu; clock' RTMIN+3
     trap -- 'window_title' RTMIN+5
     trap -- 'volume "$pid"' RTMIN+6
     trap -- 'monitor "+" "$pid"' RTMIN+7
