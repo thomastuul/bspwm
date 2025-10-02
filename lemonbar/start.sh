@@ -224,9 +224,9 @@ init() {
     export BASH_ENV="$LEMONDIR/lib/logging_env.sh"
     export XDG_RUNTIME_DIR="${XDG_RUNTIME_DIR:-/run/user/$UID}"
 
-    # auto-bootstrap für dieses Skript und nicht-interaktive Kind-Shells (hier
-    # deaktiviert)
-    export LOGGING_ENV_AUTO=0
+    # auto-bootstrap für dieses Skript und nicht-interaktive Kind-Shells
+    export LOGGING_ENV_AUTO=1
+    export LOG_INFO=0
 
     # Log im Runtime-Dir führen
     LOG_FILE="$TMPDIR/lemonbar.$(date +'%F_%H-%M-%S').log"
@@ -255,19 +255,24 @@ main() {
     fifo=""
 
     init "$@"
+    log_info "Initializing Lemonbar"
     parse_params "$@"
 
     # -l/--log schaltet INFO-Logs frei, sonst nur ERR
-    if [[ -n ${log-} ]]; then
-        export LOG_INFO=1
+    if [[ ${log:-} == "true" ]]; then
+        if [[ ${LOG_INFO:-0} -eq 0 ]]; then
+            export LOG_INFO=0
+        fi
     else
-        export LOG_INFO=0
+        if [[ ${LOG_INFO:-0} -eq 1 ]]; then
+            export LOG_INFO=1
+        fi
     fi
 
     tmp_dir=$(mktemp -p "$TMPDIR" -d lemonbar.XXXX)
 
     if ! lock_init user; then
-        rc=$?   # Returncode of lock_init
+        rc=$? # Returncode of lock_init
         exit "$rc"
     fi
 
@@ -288,8 +293,9 @@ main() {
         -f "$PANEL_FONT" -f "$PANEL_ICON_FONT" -F "$COLOR_DEFAULT_FG" -B "$COLOR_PANEL_BG" \
         -u "$UNDERLINE_HEIGHT" -n "$PANEL_WM_NAME" <"$fifo" | bash || true &
 
+    export tmp_dir
     # fifo-writer, starting after reader
-    tmp_dir="$tmp_dir" LOGGING_ENV_AUTO=1 "$LEMONDIR/sighandler.sh" >"$fifo" &
+    LOGGING_ENV_AUTO=1 "$LEMONDIR/sighandler.sh" >"$fifo" &
     sighandler_pid=$!
 
     # file for exchanging sighandler_pid to sxhkd
@@ -297,10 +303,8 @@ main() {
         echo "$sighandler_pid" >"$XDG_RUNTIME_DIR/sighandler.pid"
     fi
 
-    sighandler_pid="$sighandler_pid" tmp_dir="$tmp_dir" LOGGING_ENV_AUTO=1 "$LEMONDIR/events.sh" &
-
-    # shellcheck disable=SC2154
-    tmp_dir="$tmp_dir" sighandler_pid="$sighandler_pid" LOGGING_ENV_AUTO=1 "$LEMONDIR/title_server.sh"
+    LOGGING_ENV_AUTO=1 "$LEMONDIR/events.sh" "$sighandler_pid" &
+    LOGGING_ENV_AUTO=1 "$LEMONDIR/title_server.sh" "$sighandler_pid" &
 
     # wait for subprocesses to be finished except one fails
     while true; do

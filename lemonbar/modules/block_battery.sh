@@ -14,6 +14,13 @@ set -o errtrace
 
 # shellcheck disable=SC1091
 source "${LEMONDIR}/config.sh"
+# shellcheck disable=SC1090
+if [[ -n "${BASH_ENV:-}" && -r "$BASH_ENV" ]]; then
+    # shellcheck source=../lib/logging_env.sh
+    source "$BASH_ENV"
+else
+    exit 1
+fi
 
 # Colors (with sensible fallbacks)
 BG_COLOR="${COLOR_DEFAULT_BG:-#000000}"
@@ -32,12 +39,12 @@ ICON_PLUG=""
 ICON_BOLT=""
 
 # Batterie-Verzeichnisse suchen
-shopt -s nullglob          # sorgt dafür, dass unaufgelöste Globs leer werden
-BAT_DIRS=( /sys/class/power_supply/BAT* )
-shopt -u nullglob          # wieder zurücksetzen
+shopt -s nullglob # sorgt dafür, dass unaufgelöste Globs leer werden
+BAT_DIRS=(/sys/class/power_supply/BAT*)
+shopt -u nullglob # wieder zurücksetzen
 
 # Find battery directories
-if (( ${#BAT_DIRS[@]} == 0 )); then
+if ((${#BAT_DIRS[@]} == 0)); then
     # No battery found; likely desktop: show AC
     printf "%s\n" "%{B$BG_COLOR}%{F$FG_COLOR}%{+u} $ICON_PLUG AC %{-u}%{F-}%{B-}"
     exit 0
@@ -50,46 +57,54 @@ full=true
 
 for bd in "${BAT_DIRS[@]}"; do
     if [[ -r "${bd}/capacity" ]]; then
-        read -r c < "${bd}/capacity"
+        read -r c <"${bd}/capacity"
     elif [[ -r "${bd}/charge_now" && -r "${bd}/charge_full" ]]; then
-        read -r now < "${bd}/charge_now"
-        read -r full_chg < "${bd}/charge_full"
+        read -r now <"${bd}/charge_now"
+        read -r full_chg <"${bd}/charge_full"
         # Avoid division by zero
-        (( full_chg == 0 )) && full_chg=1
-        c=$(( now * 100 / full_chg ))
+        ((full_chg == 0)) && full_chg=1
+        c=$((now * 100 / full_chg))
     else
         c=0
     fi
-    total_pct=$(( total_pct + c ))
+    total_pct=$((total_pct + c))
 
     if [[ -r "${bd}/status" ]]; then
-        read -r st < "${bd}/status"
+        read -r st <"${bd}/status"
         case "$st" in
-            [Cc]harging) charging=true; full=false ;;
-            [Ff]ull) full=true ;;
-            *) ;;
+        [Cc]harging)
+            charging=true
+            full=false
+            ;;
+        [Ff]ull) full=true ;;
+        *) ;;
         esac
     fi
 done
 
-pct=$(( total_pct / ${#BAT_DIRS[@]} ))
+pct=$((total_pct / ${#BAT_DIRS[@]}))
 
 # Choose icon based on percentage
 battery_icon="$ICON_EMPTY"
-if   (( pct >= 95 )); then battery_icon="$ICON_FULL"
-elif (( pct >= 75 )); then battery_icon="$ICON_THREEQ"
-elif (( pct >= 50 )); then battery_icon="$ICON_HALF"
-elif (( pct >= 25 )); then battery_icon="$ICON_QUARTER"
-else                       battery_icon="$ICON_EMPTY"
+if ((pct >= 95)); then
+    battery_icon="$ICON_FULL"
+elif ((pct >= 75)); then
+    battery_icon="$ICON_THREEQ"
+elif ((pct >= 50)); then
+    battery_icon="$ICON_HALF"
+elif ((pct >= 25)); then
+    battery_icon="$ICON_QUARTER"
+else
+    battery_icon="$ICON_EMPTY"
 fi
 
 # Choose color based on thresholds and charging state
 color="$FG_COLOR"
 if "$charging"; then
     color="$CHAR_COLOR_CHARGING"
-elif (( pct <= 10 )); then
+elif ((pct <= 10)); then
     color="$CRIT_COLOR"
-elif (( pct <= 20 )); then
+elif ((pct <= 20)); then
     color="$WARN_COLOR"
 fi
 

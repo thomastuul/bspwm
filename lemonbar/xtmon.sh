@@ -8,14 +8,22 @@
 set -o errexit -o nounset -o pipefail
 export LC_ALL=C
 
+# shellcheck disable=SC1090
+if [[ -r "$BASH_ENV" ]]; then
+    # shellcheck source=lib/logging_env.sh
+    source "$BASH_ENV"
+else
+    echo "logging_env.sh not found at: $BASH_ENV" >&2
+fi
+
 err() { printf '%s\n' "xtmon: $*" >&2; }
 have() { command -v "$1" >/dev/null 2>&1; }
 
 get_active_wid() {
     # _NET_ACTIVE_WINDOW(WINDOW): window id # 0x04000007
-    xprop -root _NET_ACTIVE_WINDOW 2>/dev/null \
-        | awk -F'#' 'NR==1{gsub(/[[:space:]]/, "", $2); print $2}'
-    }
+    xprop -root _NET_ACTIVE_WINDOW 2>/dev/null |
+        awk -F'#' 'NR==1{gsub(/[[:space:]]/, "", $2); print $2}'
+}
 
 read_title_once() {
     # $1 = WID
@@ -54,9 +62,9 @@ start_title_watcher() {
                 LAST_TITLE=$title
             fi
         done < <(xprop -spy -id "$wid" _NET_WM_NAME WM_NAME 2>/dev/null)
-        ) &
-        TITLE_WATCHER_PID=$!
-    }
+    ) &
+    TITLE_WATCHER_PID=$!
+}
 
 stop_title_watcher() {
     if [ -n "${TITLE_WATCHER_PID:-}" ] && kill -0 "$TITLE_WATCHER_PID" 2>/dev/null; then

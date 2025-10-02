@@ -2,20 +2,35 @@
 
 # Enable xtrace if the DEBUG environment variable is set
 if [[ ${DEBUG-} =~ ^1|yes|true$ ]]; then
-    set -o xtrace       # Trace the execution of the script (debug)
+    set -o xtrace # Trace the execution of the script (debug)
 fi
 
 #set -o errexit      # Exit on most errors (see the manual)
-set -o nounset      # Disallow expansion of unset variables
-set -o pipefail     # Use last non-zero exit code in a pipeline
+set -o nounset  # Disallow expansion of unset variables
+set -o pipefail # Use last non-zero exit code in a pipeline
 # Enable errtrace or the error trap handler will not work as expected
-set -o errtrace     # Ensure the error trap handler is inherited
+set -o errtrace # Ensure the error trap handler is inherited
 
-#source "$LEMONDIR/lib/logging_env.sh"
 source "$LEMONDIR/config.sh"
 
+# shellcheck disable=SC1090
+if [[ -r "$BASH_ENV" ]]; then
+    # shellcheck source=lib/logging_env.sh
+    source "$BASH_ENV"
+else
+    echo "logging_env.sh not found at: $BASH_ENV" >&2
+fi
+
+# check parameter count
+if [[ $# -lt 1 ]]; then
+    echo "Usage: $0 <sighandler_pid>" >&2
+    exit 1
+fi
+
+sighandler_pid=$1
+
 # shellcheck disable=SC2154
-title_fifo="${tmp_dir}/lemonbar_title.fifo"
+title_fifo="$tmp_dir/lemonbar_title.fifo"
 
 # DESC: Remove FIFO
 # ARGS: None
@@ -36,12 +51,7 @@ trap_err() {
     if [[ ${code:-} -eq 143 ]]; then return 0; fi # xtmon.sh ends with 143 at stop
 }
 
-_trap_add EXIT 'trap_cleanup'
-_trap_add INT  'trap_cleanup; exit 130'
-_trap_add TERM 'trap_cleanup; exit 143'
-_trap_add QUIT 'trap_cleanup; exit 0'
-# shellcheck disable=SC2016
-_trap_add ERR 'ec=$?; trap_err "$ec"'
+trap 'trap_cleanup' EXIT INT TERM QUIT HUP
 
 # create named pipe
 if [[ -e "$title_fifo" ]]; then
