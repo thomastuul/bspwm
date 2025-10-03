@@ -84,7 +84,7 @@ else
 fi
 
 if command -v xdotool >/dev/null; then
-    xdotool getactivewindow getwindowname >"$title_fifo"
+    xdotool getactivewindow getwindowname >"$title_fifo" || true
 fi
 
 # DESC: Get title of active window

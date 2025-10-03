@@ -21,6 +21,13 @@ else
     exit 1
 fi
 
+# ensure that trayer is on top of lemonbar
+if command -v xdotool >/dev/null 2>&1; then
+    if xdotool search --class trayer >/dev/null 2>&1; then
+        xdotool search --class trayer windowraise
+    fi
+fi
+
 MARGIN="${MARGIN:-4}"
 SYSTRAY_WM_NAME="${SYSTRAY_WM_NAME:-panel}"
 

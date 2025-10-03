@@ -45,9 +45,9 @@ stop_old_trayer
 color="0x${Background#\#}"
 
 trayer --edge top --align right --SetDockType true \
- --SetPartialStrut true --expand true --transparent true \
- --alpha 1.0 --tint "$color" --widthtype request  \
- --width 3 --height "$PANEL_HEIGHT" --distancefrom right --distance 35 &
+    --SetPartialStrut true --expand true --transparent true \
+    --alpha 1.0 --tint "$color" --widthtype request \
+    --width 3 --height "$PANEL_HEIGHT" --distancefrom right --distance 35 &
 
 trayer_pid=$!
 printf '%s\n' "$trayer_pid" >"$pidfile"

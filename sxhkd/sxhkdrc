@@ -172,7 +172,7 @@ super + ctrl + s
 
 # show/copy clipboard
 super + ctrl + c
-    rofi -modi "clipboard:~/.local/bin/greenclip print" -show clipboard -run-command '{cmd}'
+    rofi -modi "clipboard:~/.local/share/greenclip/greenclip print" -show clipboard -run-command '{cmd}'
 
 # rofi-translate (using translate-shell)
 super + ctrl + t
