@@ -29,8 +29,8 @@ WALLPAPER="$HOME/Bilder/Wallpaper/Background.jpg"
 ###############################################################################
 #exec 9>"$XDG_RUNTIME_DIR/autostart.lock"
 #if ! flock -n 9; then
-     #Another autostart is active; exit quietly.
-    #exit 0
+#Another autostart is active; exit quietly.
+#exit 0
 #fi
 
 ###############################################################################
@@ -39,7 +39,7 @@ WALLPAPER="$HOME/Bilder/Wallpaper/Background.jpg"
 wait_until_gone() { # $1=pid, $2=timeout seconds
     local pid="$1" timeout_s="${2:-2}" i=0
     while kill -0 "$pid" 2>/dev/null; do
-        (( i * 50 >= timeout_s * 1000 )) && break
+        ((i * 50 >= timeout_s * 1000)) && break
         sleep 0.05
         i=$((i + 1))
     done
@@ -49,7 +49,10 @@ kill_pidfile() { # $1=pidfile path
     local pf="$1" pid
     [[ -r "$pf" ]] || return 0
     pid="$(cat "$pf" 2>/dev/null || true)"
-    [[ -n "${pid:-}" && "$pid" =~ ^[0-9]+$ ]] || { rm -f -- "$pf"; return 0; }
+    [[ -n "${pid:-}" && "$pid" =~ ^[0-9]+$ ]] || {
+        rm -f -- "$pf"
+        return 0
+    }
     if kill -0 "$pid" 2>/dev/null; then
         kill "$pid" 2>/dev/null || true
         wait_until_gone "$pid" 2
@@ -101,7 +104,8 @@ start_once() {
 }
 
 start_if_executable() { # $1=path, $2...=args
-    local bin="$1"; shift
+    local bin="$1"
+    shift
     if [[ -x "$bin" ]]; then
         "$bin" "$@" &
     fi
@@ -170,7 +174,7 @@ xset dpms 400 600 900 || true
 # xss-lock supervises the locker and integrates with system sleep
 if command -v xss-lock >/dev/null 2>&1; then
     XSECURELOCK_DIM_TIME_MS="${XSECURELOCK_DIM_TIME_MS:-10000}" \
-    xss-lock -n /usr/libexec/xsecurelock/dimmer --transfer-sleep-lock -- xsecurelock >/dev/null 2>&1 &
+        xss-lock -n /usr/libexec/xsecurelock/dimmer --transfer-sleep-lock -- xsecurelock >/dev/null 2>&1 &
 fi
 
 # Start xautolock only once
