@@ -22,8 +22,12 @@ fi
 trap_cleanup() {
     # prevent reentrancy
     trap - INT TERM QUIT EXIT HUP ERR
-    kill "$BASHPID"
-    wait || true
+    # nur Kindprozesse beenden, niemals die eigene Shell
+    if [[ -n ${spid-} ]]; then
+        kill "$spid" 2>/dev/null || true
+    fi
+    pkill -P "$$" 2>/dev/null || true
+    wait 2>/dev/null || true
     log_info "cleanup"
 }
 
