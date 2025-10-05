@@ -21,6 +21,7 @@ source "$LEMONDIR/config.sh"
 if [[ -n "${BASH_ENV:-}" && -r "$BASH_ENV" ]]; then
     # shellcheck source=../lib/logging_env.sh
     source "$BASH_ENV"
+
 else
     exit 1
 fi
@@ -66,7 +67,7 @@ url_loc() { printf '%s' "$1" | sed 's/ /+/g'; }
 file_age_minutes() {
     local f="$1"
     [[ -f "$f" ]] || {
-        echo 1e9
+        echo 1000000000
         return
     }
     local now ts
@@ -91,10 +92,24 @@ fetch_json_if_needed() {
         mkdir -p -- "$(dirname -- "$json_path")"
         local enc_loc
         enc_loc="$(url_loc "$loc")"
-        curl -fsSL "${WTTR_BASE}/${enc_loc}?format=j1&lang=${lang}" \
-            -o "$json_path.tmp"
-        mv -f -- "$json_path.tmp" "$json_path"
+        # tolerant: bei Fehler kein Exit, keine Ausgabe
+        if curl -fsSL --max-time 1 "${WTTR_BASE}/${enc_loc}?format=j1&lang=${lang}" \
+            -o "$json_path.tmp" 2>/dev/null; then
+            mv -f -- "$json_path.tmp" "$json_path"
+        else
+            rm -f -- "$json_path.tmp" 2>/dev/null || true
+            return 1
+        fi
     fi
+}
+
+format_minutes_hm() {
+    # $1: minutes (integer). Prints "Hh Mmin"
+    local m="${1:-0}"
+    if [[ "$m" -lt 0 ]]; then m=0; fi
+    local h=$((m / 60))
+    local mm=$((m % 60))
+    printf '%dh %dmin' "$h" "$mm"
 }
 
 fetch_png_if_needed() {
@@ -104,7 +119,11 @@ fetch_png_if_needed() {
         local enc_loc
         enc_loc="$(url_loc "$loc")"
         local url="https://v2.wttr.in/${enc_loc}.png?lang=${lang}&m&2"
-        curl -fsSL "$url" -o "$png_path.tmp"
+        # Try download. Do not exit the script on failure.
+        if ! curl -fsSL --max-time 1 "$url" -o "$png_path.tmp"; then
+            rm -f -- "$png_path.tmp" 2>/dev/null || true
+            return 1
+        fi
         mv -f -- "$png_path.tmp" "$png_path"
     fi
 }
@@ -227,10 +246,11 @@ PNG_CACHE="${CACHE_PREFIX}_${slug}_3days.png"
 
 if ((DO_PRINT_AGE)); then
     if [[ -f "$JSON_CACHE" ]]; then
-        file_age_minutes "$JSON_CACHE"
+        m="$(file_age_minutes "$JSON_CACHE")"
+        format_minutes_hm "$m"
         exit 0
     else
-        echo 1e9
+        format_minutes_hm 1e9
         exit 0
     fi
 fi
@@ -241,7 +261,12 @@ if ((DO_OPEN)); then
     exit 0
 fi
 
-fetch_json_if_needed "$LOCATION" "$LANG" "$MAX_AGE_SEC" "$JSON_CACHE"
+if ! fetch_json_if_needed "$LOCATION" "$LANG" "$MAX_AGE_SEC" "$JSON_CACHE"; then
+    exit 0
+fi
+if ! fetch_png_if_needed "$LOCATION" "$LANG" "$MAX_AGE_SEC" "$PNG_CACHE"; then
+    exit 0
+fi
 
 if command -v jq >/dev/null 2>&1; then
     RAIN_MINMAX="$(parse_with_jq "$JSON_CACHE" 2>/dev/null || true)"
@@ -262,6 +287,6 @@ MAX="${REST#*|}"
 # ---- Ausgabe ----------------------------------------------------------------
 
 run_left="$0 --open -l $LOCATION -L $LANG -a $MAX_AGE_STR"
-run_right="notify-send \"Update vor $("$0" --print-age -l "$LOCATION" -a "$MAX_AGE_STR") min\""
+run_right="notify-send \"Update vor $("$0" --print-age -l \"$LOCATION\" -a \"$MAX_AGE_STR\")\""
 
 printf "%s\n" "%{A1:$run_left:}%{A3:$run_right:}%{B$COLOR_DEFAULT_BG}%{F$COLOR_WEATHER_FG}%{+u} 爫${RAIN}%% ${MIN}° ${MAX}° %{-u}%{F-}%{B-}%{A}%{A}"
