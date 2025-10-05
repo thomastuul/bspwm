@@ -20,11 +20,10 @@ else
 fi
 
 # Signal-Plan:
-# RTMIN+3  = CPU/Uhr   (1s)
-# RTMIN+5  = Titel     (on change)
-# RTMIN+10 = Netz/Batt (10s)
-# RTMIN+12 = Wetter    (60s)
-
+# SIGRTMIN+3  = CPU/Uhr   (1s)
+# SIGRTMIN+5  = Titel     (on change)
+# SIGRTMIN+10 = Netz/Batt (10s)
+# SIGRTMIN+12 = Wetter    (60s)
 sighandler_pid="$1"
 
 dummy() {
@@ -35,7 +34,7 @@ seconds=0
 
 while true; do
     # every second
-    kill -RTMIN+3 "$sighandler_pid"
+    kill -s SIGRTMIN+3 "$sighandler_pid"
 
     # every 5 seconds
     if [[ $((seconds % 5)) -eq 0 ]]; then
@@ -44,12 +43,14 @@ while true; do
 
     # every 10 seconds
     if [[ $((seconds % 10)) -eq 0 ]]; then
-        kill -RTMIN+10 "$sighandler_pid"
+        sleep 0.05
+        kill -s SIGRTMIN+10 "$sighandler_pid"
     fi
 
     # every 60 seconds
     if [[ $((seconds % 60)) -eq 0 ]]; then
-        kill -RTMIN+12 "$sighandler_pid"
+        sleep 0.05
+        kill -s SIGRTMIN+12 "$sighandler_pid"
     fi
 
     seconds=$((seconds + 1))

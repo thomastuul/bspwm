@@ -195,18 +195,18 @@ super + alt + s
 
 XF86AudioRaiseVolume
     amixer set Master 2%+ > /dev/null;\
-    [ -f "$XDG_RUNTIME_DIR/sighandler.pid" ] && kill -RTMIN+6 $(cat "$XDG_RUNTIME_DIR/sighandler.pid")
+    [ -f "$XDG_RUNTIME_DIR/sighandler.pid" ] && kill -s SIGRTMIN+6 $(cat "$XDG_RUNTIME_DIR/sighandler.pid")
 
 XF86AudioLowerVolume
     amixer set Master 2%- > /dev/null;\
-    [ -f "$XDG_RUNTIME_DIR/sighandler.pid" ] && kill -RTMIN+6 $(cat "$XDG_RUNTIME_DIR/sighandler.pid")
+    [ -f "$XDG_RUNTIME_DIR/sighandler.pid" ] && kill -s SIGRTMIN+6 $(cat "$XDG_RUNTIME_DIR/sighandler.pid")
 
 XF86AudioMute
     amixer set Master toggle > /dev/null;\
-    [ -f "$XDG_RUNTIME_DIR/sighandler.pid" ] && kill -RTMIN+6 $(cat "$XDG_RUNTIME_DIR/sighandler.pid")
+    [ -f "$XDG_RUNTIME_DIR/sighandler.pid" ] && kill -s SIGRTMIN+6 $(cat "$XDG_RUNTIME_DIR/sighandler.pid")
 
 XF86MonBrightnessUp
-    [ -f "$XDG_RUNTIME_DIR/sighandler.pid" ] && kill -RTMIN+7 $(cat "$XDG_RUNTIME_DIR/sighandler.pid")
+    [ -f "$XDG_RUNTIME_DIR/sighandler.pid" ] && kill -s SIGRTMIN+7 $(cat "$XDG_RUNTIME_DIR/sighandler.pid")
 
 XF86MonBrightnessDown
-    [ -f "$XDG_RUNTIME_DIR/sighandler.pid" ] && kill -RTMIN+8 $(cat "$XDG_RUNTIME_DIR/sighandler.pid")
+    [ -f "$XDG_RUNTIME_DIR/sighandler.pid" ] && kill -s SIGRTMIN+8 $(cat "$XDG_RUNTIME_DIR/sighandler.pid")

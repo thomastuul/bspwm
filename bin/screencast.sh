@@ -52,4 +52,4 @@ else
         echo $! > "$XDG_RUNTIME_DIR/screencast.pid"
 fi
 
-kill -RTMIN+11 "$(getPid)"
+kill -s SIGRTMIN+11 "$(getPid)"

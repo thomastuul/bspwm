@@ -54,16 +54,16 @@ weather() { weather_string="$("$LEMONDIR"/modules/block_weather.sh)"; }
 #       $3 (optional): Set to any value to not append a new line to the message
 # OUTS: None
 sig_init() {
-    trap -- 'wsindicator' RTMIN+2
-    trap -- 'cpu; clock' RTMIN+3
-    trap -- 'window_title' RTMIN+5
-    trap -- 'volume "$pid"' RTMIN+6
-    trap -- 'monitor "+" "$pid"' RTMIN+7
-    trap -- 'monitor "-" "$pid"' RTMIN+8
-    trap -- 'tray' RTMIN+9
-    trap -- 'network; battery' RTMIN+10
-    trap -- 'screencast' RTMIN+11
-    trap -- 'weather' RTMIN+12
+    trap -- 'wsindicator' SIGRTMIN+2
+    trap -- 'cpu; clock' SIGRTMIN+3
+    trap -- 'window_title' SIGRTMIN+5
+    trap -- 'volume "$pid"' SIGRTMIN+6
+    trap -- 'monitor "+" "$pid"' SIGRTMIN+7
+    trap -- 'monitor "-" "$pid"' SIGRTMIN+8
+    trap -- 'tray' SIGRTMIN+9
+    trap -- 'network; battery' SIGRTMIN+10
+    trap -- 'screencast' SIGRTMIN+11
+    trap -- 'weather' SIGRTMIN+12
 
     # own PID
     pid="$BASHPID"

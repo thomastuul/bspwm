@@ -65,21 +65,21 @@ fi
 get_ws_updates_changed_desktop() {
     stdbuf -oL -eL bspc subscribe desktop_focus | while read -r; do
         # shellcheck disable=SC2154
-        kill -RTMIN+2 "$sighandler_pid"
+        kill -s SIGRTMIN+2 "$sighandler_pid"
     done
 }
 
 # Send signal for update lemonbar workspaces at event node transfer to different desktop
 get_ws_updates_node_transfer() {
     stdbuf -oL -eL bspc subscribe node_transfer | while read -r; do
-        kill -RTMIN+2 "$sighandler_pid"
+        kill -s SIGRTMIN+2 "$sighandler_pid"
     done
 }
 
 # Send signal for update lemonbar workspaces at layout change
 get_ws_updates_layout_change() {
     stdbuf -oL -eL bspc subscribe desktop_layout | while read -r; do
-        kill -RTMIN+2 "$sighandler_pid"
+        kill -s SIGRTMIN+2 "$sighandler_pid"
     done
 }
 
@@ -91,16 +91,16 @@ get_trayer_updates() {
 
     stdbuf -oL -eL xprop -name "$SYSTRAY_WM_NAME" -spy | grep --line-buffered 'program specified minimum size' | while IFS= read -r; do
         sleep 0.02
-        kill -RTMIN+9 "$sighandler_pid"
+        kill -s SIGRTMIN+9 "$sighandler_pid"
         sleep 0.02
         # often an app disappears from workspace too if it is gone from systray
-        kill -RTMIN+2 "$sighandler_pid"
+        kill -s SIGRTMIN+2 "$sighandler_pid"
     done
 }
 
 get_new_node_updates() {
     stdbuf -oL -eL bspc subscribe node_add | while read -r; do
-        kill -RTMIN+2 "$sighandler_pid"
+        kill -s SIGRTMIN+2 "$sighandler_pid"
     done
 }
 
