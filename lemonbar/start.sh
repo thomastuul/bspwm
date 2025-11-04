@@ -2,6 +2,8 @@
 
 # Enable xtrace if the DEBUG environment variable is set
 if [[ ${DEBUG-} =~ ^1|yes|true$ ]]; then
+    #export PS4='+ $(date "+%F %T") ${BASH_SOURCE##*/}:${LINENO}: '
+    #export BASH_XTRACEFD=3
     set -o xtrace # Trace the execution of the script (debug)
 fi
 
@@ -307,8 +309,13 @@ main() {
     LOGGING_ENV_AUTO=1 "$LEMONDIR/title_server.sh" "$sighandler_pid" &
 
     # wait for subprocesses to be finished except one fails
-    while true; do
-        wait -n || break
+    while :; do
+        if ! wait -n; then
+            rc=$?
+            log_info "child_exit" "$rc"
+        fi
+        # wenn keine Jobs mehr: raus
+        [[ -z "$(jobs -pr)" ]] && break
     done
 }
 

@@ -34,7 +34,7 @@ seconds=0
 
 while true; do
     # every second
-    kill -s SIGRTMIN+3 "$sighandler_pid"
+    kill_or_log SIGRTMIN+3 "$sighandler_pid"
 
     # every 5 seconds
     if [[ $((seconds % 5)) -eq 0 ]]; then
@@ -44,13 +44,13 @@ while true; do
     # every 10 seconds
     if [[ $((seconds % 10)) -eq 0 ]]; then
         sleep 0.05
-        kill -s SIGRTMIN+10 "$sighandler_pid"
+        kill_or_log SIGRTMIN+10 "$sighandler_pid"
     fi
 
     # every 60 seconds
     if [[ $((seconds % 60)) -eq 0 ]]; then
         sleep 0.05
-        kill -s SIGRTMIN+12 "$sighandler_pid"
+        kill_or_log SIGRTMIN+12 "$sighandler_pid"
     fi
 
     seconds=$((seconds + 1))

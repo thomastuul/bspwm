@@ -30,6 +30,28 @@ export LOG_FILE
 
 # ---- internal helpers --------------------------------------------------------
 
+# Protokolliert Fehler, verhindert Abbruch unter 'set -e', liefert immer 0 zurück.
+call_or_log() {
+    # Aufruf: call_or_log <cmd> [args...]
+    if ! "$@"; then
+        local rc=$?
+        # "$*" = vollständiger Befehl zur Nachvollziehbarkeit
+        log_warn "cmd_failed" "rc=$rc" "cmd=$*"
+        return 0
+    fi
+}
+
+# Speziell für Signale, damit 'kill' nie das Skript beendet
+kill_or_log() {
+    # Aufruf: kill_or_log <signal> <pid>
+    local sig=$1 pid=$2
+    if ! kill -s "$sig" "$pid" 2>/dev/null; then
+        local rc=$?
+        log_warn "kill_failed" "rc=$rc" "sig=$sig" "pid=$pid"
+        return 0
+    fi
+}
+
 _ts() {
     # 24h timestamp
     date +'%F %T'
