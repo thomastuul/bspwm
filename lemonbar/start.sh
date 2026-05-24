@@ -231,7 +231,7 @@ init() {
     export LOG_INFO=0
 
     # Log im Runtime-Dir führen
-    LOG_FILE="$TMPDIR/lemonbar.$(date +'%F_%H-%M-%S').log"
+    LOG_FILE="$TMPDIR/lemonbar.log"
     export LOG_FILE
 
     # shellcheck disable=SC1090

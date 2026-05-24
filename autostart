@@ -178,7 +178,7 @@ if command -v xss-lock >/dev/null 2>&1; then
 fi
 
 # Start xautolock only once
-start_once xautolock -time 15 -detectsleep -locker 'systemctl suspend-then-hibernate'
+start_once xautolock -time 30 -detectsleep -locker 'systemctl suspend-then-hibernate'
 
 # Individual size of apps which are floating
 start_once "$HOME/.config/bspwm/bin/float-resize-bspwm.sh"

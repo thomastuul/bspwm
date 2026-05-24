@@ -95,7 +95,7 @@ activeWindow() {
     # I'm using my selfmade clone in bash
     "$LEMONDIR/xtmon.sh" | while read -r line; do
         # shellcheck disable=SC2154
-        kill -s SIGRTMIN+5 "$sighandler_pid"
+        #kill -s SIGRTMIN+5 "$sighandler_pid"
         sleep 0.02
         truncated=$(echo "$line" | awk -v m="$TITLE_MAX_LENGHT" '{print substr($0,1,m)}')
         printf "%s\n" "%{B$COLOR_DEFAULT_BG}%{F$COLOR_FREE_FG}%{+u}$PADDING$truncated$PADDING%{-u}%{F-}%{B-}" >"$title_fifo"
