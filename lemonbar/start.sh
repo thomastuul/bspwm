@@ -248,7 +248,7 @@ main() {
     fifo=""
 
     init "$@"
-    log_info "Initializing Lemonbar"
+    log_info "initialized" "$0"
     parse_params "$@"
 
     tmp_dir=$(mktemp -p "$TMPDIR" -d lemonbar.XXXX)

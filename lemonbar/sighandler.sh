@@ -107,6 +107,7 @@ render_line() {
 
 main() {
     sig_init
+    log_info "initialized" "$0"
     while true; do
         render_line
         sleep infinity &
