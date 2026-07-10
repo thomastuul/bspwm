@@ -33,6 +33,18 @@ trap_cleanup() {
 
 trap 'trap_cleanup' EXIT INT TERM QUIT HUP
 
+run_or_log() {
+    local rc
+
+    if "$@"; then
+        return 0
+    else
+        rc=$?
+        log_error "cmd=$* rc=$rc"
+        return 0
+    fi
+}
+
 cpu() { cpu_string="$("$LEMONDIR"/modules/block_cpu.sh)"; }
 clock() { clock_string="$("$LEMONDIR"/modules/block_clock.sh)"; }
 wsindicator() { ws_string="$("$LEMONDIR"/modules/block_wsindicator.sh)"; }
@@ -54,21 +66,21 @@ weather() { weather_string="$("$LEMONDIR"/modules/block_weather.sh)"; }
 #       $3 (optional): Set to any value to not append a new line to the message
 # OUTS: None
 sig_init() {
-    trap -- 'call_or_log wsindicator' SIGRTMIN+2
-    trap -- 'call_or_log cpu; call_or_log clock' SIGRTMIN+3
-    trap -- 'call_or_log window_title' SIGRTMIN+5
-    trap -- 'call_or_log volume "$pid"' SIGRTMIN+6
-    trap -- 'call_or_log monitor "+" "$pid"' SIGRTMIN+7
-    trap -- 'call_or_log monitor "-" "$pid"' SIGRTMIN+8
-    trap -- 'call_or_log tray' SIGRTMIN+9
-    trap -- 'call_or_log network; battery' SIGRTMIN+10
-    trap -- 'call_or_log screencast' SIGRTMIN+11
-    trap -- 'call_or_log weather' SIGRTMIN+12
+    trap -- 'run_or_log wsindicator' SIGRTMIN+2
+    trap -- 'run_or_log cpu; run_or_log clock' SIGRTMIN+3
+    trap -- 'run_or_log window_title' SIGRTMIN+5
+    trap -- 'run_or_log volume "$pid"' SIGRTMIN+6
+    trap -- 'run_or_log monitor "+" "$pid"' SIGRTMIN+7
+    trap -- 'run_or_log monitor "-" "$pid"' SIGRTMIN+8
+    trap -- 'run_or_log tray' SIGRTMIN+9
+    trap -- 'run_or_log network; battery' SIGRTMIN+10
+    trap -- 'run_or_log screencast' SIGRTMIN+11
+    trap -- 'run_or_log weather' SIGRTMIN+12
 
     # own PID
     pid="$BASHPID"
 
-    LOGGING_ENV_AUTO=1 "$LEMONDIR"/scheduler.sh "$pid" &
+    "$LEMONDIR"/scheduler.sh "$pid" &
 
     # init
     window_title
