@@ -1,10 +1,8 @@
 # shellcheck shell=bash
 
 # Minimal logging shared by the lemonbar scripts.
-# Every message is appended to the current runtime directory and written to
-# stderr. start.sh creates and exports tmp_dir before sourcing this file.
-: "${tmp_dir:?tmp_dir must be set before sourcing logging_env.sh}"
-LOG_FILE="$tmp_dir/lemonbar.log"
+# Every message is appended to /tmp/lemonbar.log and written to stderr.
+LOG_FILE="/tmp/lemonbar.log"
 export LOG_FILE
 
 log_write() {
