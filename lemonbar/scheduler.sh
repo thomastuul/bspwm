@@ -26,6 +26,20 @@ fi
 # SIGRTMIN+12 = Wetter    (60s)
 sighandler_pid="$1"
 
+send_signal() {
+    local signal="$1"
+    local pid="$2"
+    local rc
+
+    if kill -s "$signal" "$pid" 2>/dev/null; then
+        return 0
+    else
+        rc=$?
+        log_error "kill failed: signal=$signal pid=$pid rc=$rc"
+        return 0
+    fi
+}
+
 dummy() {
     :
 }
@@ -34,7 +48,7 @@ seconds=0
 
 while true; do
     # every second
-    kill_or_log SIGRTMIN+3 "$sighandler_pid"
+    send_signal SIGRTMIN+3 "$sighandler_pid"
 
     # every 5 seconds
     if [[ $((seconds % 5)) -eq 0 ]]; then
@@ -44,13 +58,13 @@ while true; do
     # every 10 seconds
     if [[ $((seconds % 10)) -eq 0 ]]; then
         sleep 0.05
-        kill_or_log SIGRTMIN+10 "$sighandler_pid"
+        send_signal SIGRTMIN+10 "$sighandler_pid"
     fi
 
     # every 60 seconds
     if [[ $((seconds % 60)) -eq 0 ]]; then
         sleep 0.05
-        kill_or_log SIGRTMIN+12 "$sighandler_pid"
+        send_signal SIGRTMIN+12 "$sighandler_pid"
     fi
 
     seconds=$((seconds + 1))
