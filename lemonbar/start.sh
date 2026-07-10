@@ -225,37 +225,33 @@ init() {
     export BASH_ENV="$LEMONDIR/lib/logging_env.sh"
     export XDG_RUNTIME_DIR="${XDG_RUNTIME_DIR:-/run/user/$UID}"
 
+    # shellcheck disable=SC1090
+    if [[ -r "$BASH_ENV" ]]; then
+        # shellcheck source=lib/logging_env.sh
+        source "$BASH_ENV"
+    else
+        echo "logging_env.sh not found at: $BASH_ENV" >&2
+    fi
 }
 
 # DESC: Main control flow
 # ARGS: $@ (optional): Arguments provided to the script
 # OUTS: None
 main() {
-    tmp_dir=""
-    fifo=""
-
-    init "$@"
-
-    tmp_dir=$(mktemp -p "$TMPDIR" -d lemonbar.XXXX)
-    export tmp_dir
-
-    # shellcheck disable=SC1090
-    if [[ -r "$BASH_ENV" ]]; then
-        # shellcheck source=lib/logging_env.sh
-        source "$BASH_ENV"
-    else
-        printf 'logging_env.sh not found at: %s\n' "$BASH_ENV" >&2
-        exit 1
-    fi
-
     trap 'trap_err "${LINENO}/${BASH_LINENO}" "$?" "$BASH_COMMAND"' ERR
     trap 'trap_exit; trap_cleanup' EXIT
     trap 'trap_cleanup; exit 130' INT
     trap 'trap_cleanup; exit 143' TERM
     trap 'trap_cleanup; exit 0' QUIT HUP PIPE
 
+    tmp_dir=""
+    fifo=""
+
+    init "$@"
     log_info "Initializing Lemonbar"
     parse_params "$@"
+
+    tmp_dir=$(mktemp -p "$TMPDIR" -d lemonbar.XXXX)
 
     if ! lock_init user; then
         rc=$? # Returncode of lock_init
@@ -279,6 +275,7 @@ main() {
         -f "$PANEL_FONT" -f "$PANEL_ICON_FONT" -F "$COLOR_DEFAULT_FG" -B "$COLOR_PANEL_BG" \
         -u "$UNDERLINE_HEIGHT" -n "$PANEL_WM_NAME" <"$fifo" | bash || true &
 
+    export tmp_dir
     # fifo-writer, starting after reader
     "$LEMONDIR/sighandler.sh" >"$fifo" &
     sighandler_pid=$!
