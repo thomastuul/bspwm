@@ -110,7 +110,6 @@ usage() {
     cat <<EOF
 Usage:
      -h|--help                  Displays this help
-     -l|--log                   Run silently unless we encounter an error
 EOF
 }
 
@@ -128,9 +127,6 @@ parse_params() {
             trap - EXIT
             usage
             exit 0
-            ;;
-        -l | --log)
-            log=true
             ;;
         *)
             exit_handler "Invalid parameter was provided: $param" 1
