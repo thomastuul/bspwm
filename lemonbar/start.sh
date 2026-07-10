@@ -53,27 +53,27 @@ trap_exit() {
 # ARGS: $1 (required): Message to print on exit
 #       $2 (optional): Exit code (defaults to 0)
 # OUTS: None
-# NOTE: The convention used in this script for exit codes is:
-#       0: Normal exit
-#       1: Abnormal exit due to external error
-#       2: Abnormal exit due to script error
 exit_handler() {
-    if [[ $# -eq 1 ]]; then
-        printf '%s\n' "$1"
-        exit 0
+    if [[ $# -lt 1 || $# -gt 2 ]]; then
+        printf '%s\n' 'Missing required argument to exit_handler()!' >&2
+        exit 2
     fi
 
-    if [[ ${2-} =~ ^[0-9]+$ ]]; then
-        printf '%b\n' "$1"
-        # If we've been provided a non-zero exit code run the error trap
-        if [[ $2 -ne 0 ]]; then
-            trap_err "$2"
-        else
-            exit 0
-        fi
+    local message="$1"
+    local rc="${2:-0}"
+
+    if [[ ! "$rc" =~ ^[0-9]+$ ]] || ((rc > 255)); then
+        printf 'Invalid exit code: %s\n' "$rc" >&2
+        exit 2
     fi
 
-    exit_handler 'Missing required argument to exit_handler()!' 2
+    printf '%b\n' "$message"
+
+    if ((rc != 0)); then
+        log_error "exit rc=$rc message=$message"
+    fi
+
+    exit "$rc"
 }
 
 # DESC: remove FIFO at termination
@@ -110,6 +110,7 @@ usage() {
     cat <<EOF
 Usage:
      -h|--help                  Displays this help
+     -l|--log                   Accepted for backwards compatibility
 EOF
 }
 
@@ -127,6 +128,10 @@ parse_params() {
             trap - EXIT
             usage
             exit 0
+            ;;
+        -l | --log)
+            # Logging is always enabled; keep this option for compatibility.
+            :
             ;;
         *)
             exit_handler "Invalid parameter was provided: $param" 1
