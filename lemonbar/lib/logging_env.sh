@@ -1,8 +1,8 @@
 # shellcheck shell=bash
 
 # Minimal logging shared by the lemonbar scripts.
-# Every message is appended to /tmp/lemonbar.log and written to stderr.
-LOG_FILE="/tmp/lemonbar.log"
+# Every message is appended to $TMPDIR/lemonbar.log and written to stderr.
+LOG_FILE="${TMPDIR:-/tmp}/lemonbar.log"
 export LOG_FILE
 
 log_write() {
