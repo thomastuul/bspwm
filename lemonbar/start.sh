@@ -28,10 +28,8 @@ trap_err() {
     set +o pipefail
 
     local loc="$1" rc="${2:-1}" cmd="${3:-}"
-    local line="${loc%%/*}"    # LINENO extrahieren
-    log_err "${line:-0}" "$rc" # strukturiertes Fehler-Log
-    # optional Zusatzinfo:
-    log_info "cmd=${cmd}"
+    local line="${loc%%/*}"
+    log_error "line=${line:-0} rc=$rc cmd=$cmd"
 }
 
 # DESC: Exithandler
@@ -226,14 +224,6 @@ init() {
     export BASH_ENV="$LEMONDIR/lib/logging_env.sh"
     export XDG_RUNTIME_DIR="${XDG_RUNTIME_DIR:-/run/user/$UID}"
 
-    # auto-bootstrap für dieses Skript und nicht-interaktive Kind-Shells
-    export LOGGING_ENV_AUTO=1
-    export LOG_INFO=0
-
-    # Log im Runtime-Dir führen
-    LOG_FILE="$TMPDIR/lemonbar.log"
-    export LOG_FILE
-
     # shellcheck disable=SC1090
     if [[ -r "$BASH_ENV" ]]; then
         # shellcheck source=lib/logging_env.sh
@@ -259,17 +249,6 @@ main() {
     init "$@"
     log_info "Initializing Lemonbar"
     parse_params "$@"
-
-    # -l/--log schaltet INFO-Logs frei, sonst nur ERR
-    if [[ ${log:-} == "true" ]]; then
-        if [[ ${LOG_INFO:-0} -eq 0 ]]; then
-            export LOG_INFO=0
-        fi
-    else
-        if [[ ${LOG_INFO:-0} -eq 1 ]]; then
-            export LOG_INFO=1
-        fi
-    fi
 
     tmp_dir=$(mktemp -p "$TMPDIR" -d lemonbar.XXXX)
 
@@ -297,7 +276,7 @@ main() {
 
     export tmp_dir
     # fifo-writer, starting after reader
-    LOGGING_ENV_AUTO=1 "$LEMONDIR/sighandler.sh" >"$fifo" &
+    "$LEMONDIR/sighandler.sh" >"$fifo" &
     sighandler_pid=$!
 
     # file for exchanging sighandler_pid to sxhkd
@@ -305,8 +284,8 @@ main() {
         echo "$sighandler_pid" >"$XDG_RUNTIME_DIR/sighandler.pid"
     fi
 
-    LOGGING_ENV_AUTO=1 "$LEMONDIR/events.sh" "$sighandler_pid" &
-    LOGGING_ENV_AUTO=1 "$LEMONDIR/title_server.sh" "$sighandler_pid" &
+    "$LEMONDIR/events.sh" "$sighandler_pid" &
+    "$LEMONDIR/title_server.sh" "$sighandler_pid" &
 
     # wait for subprocesses to be finished except one fails
     while :; do
