@@ -6,7 +6,7 @@
 # Exit with Ctrl-C
 
 set -o errexit -o nounset -o pipefail
-export LC_ALL=C
+export LC_ALL=C.UTF-8
 
 # shellcheck disable=SC1090
 if [[ -r "$BASH_ENV" ]]; then
