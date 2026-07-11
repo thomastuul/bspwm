@@ -47,33 +47,41 @@ print_desktop_if_needed() {
 
 start_title_watcher() {
     # $1 = WID
-    local wid=$1 line title
+    local wid=$1 title
+
     # Initialtitel sofort ausgeben (falls vorhanden)
     title="$(read_title_once "$wid")" || true
-    if [ -n "${title:-}" ] && [ "${title}" != "${LAST_TITLE:-}" ]; then
+    if [[ -n "${title:-}" && "$title" != "${LAST_TITLE:-}" ]]; then
         printf '%s\n' "$title"
         LAST_TITLE=$title
     fi
-    (
+
+    # xprop direkt im Hintergrund starten. Dadurch enthält $! wirklich die PID
+    # des X11-Clients und nicht die PID einer umgebenden Subshell.
+    xprop -spy -id "$wid" _NET_WM_NAME WM_NAME 2>/dev/null > >(
+        local line title last_title
+        last_title="${LAST_TITLE:-}"
+
         while IFS= read -r line; do
             title="$(printf '%s' "$line" | awk -F'"' 'NF>=2{print $2}')"
-            if [ -n "${title:-}" ] && [ "${title}" != "${LAST_TITLE:-}" ]; then
+            if [[ -n "${title:-}" && "$title" != "$last_title" ]]; then
                 printf '%s\n' "$title"
-                LAST_TITLE=$title
+                last_title=$title
             fi
-        done < <(xprop -spy -id "$wid" _NET_WM_NAME WM_NAME 2>/dev/null)
+        done
     ) &
+
     TITLE_WATCHER_PID=$!
 }
 
 stop_title_watcher() {
-    if [ -n "${TITLE_WATCHER_PID:-}" ] && kill -0 "$TITLE_WATCHER_PID" 2>/dev/null; then
+    if [[ -n "${TITLE_WATCHER_PID:-}" ]]; then
         kill "$TITLE_WATCHER_PID" 2>/dev/null || true
-        sleep 0.05
-        kill -9 "$TITLE_WATCHER_PID" 2>/dev/null || true
+        wait "$TITLE_WATCHER_PID" 2>/dev/null || true
     fi
+
     TITLE_WATCHER_PID=""
-    # Wichtig: LAST_TITLE NICHT zurücksetzen, damit Dedupe für "Desktop" greift
+    # Wichtig: LAST_TITLE nicht zurücksetzen, damit die Deduplizierung greift.
 }
 
 cleanup() {
