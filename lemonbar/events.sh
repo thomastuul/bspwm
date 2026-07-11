@@ -124,3 +124,6 @@ get_ws_updates_node_transfer &
 get_ws_updates_layout_change &
 get_trayer_updates &
 get_new_node_updates &
+
+# Keep the event supervisor alive until it receives a termination signal.
+wait
