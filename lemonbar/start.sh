@@ -110,7 +110,7 @@ usage() {
     cat <<EOF
 Usage:
      -h|--help                  Displays this help
-     -l|--log                   Accepted for backwards compatibility
+     -l|--log                   Enables INFO and ERROR logging
 EOF
 }
 
@@ -130,8 +130,8 @@ parse_params() {
             exit 0
             ;;
         -l | --log)
-            # Logging is always enabled; keep this option for compatibility.
-            :
+            LOG_INFO_ENABLED=1
+            export LOG_INFO_ENABLED
             ;;
         *)
             exit_handler "Invalid parameter was provided: $param" 1
@@ -248,8 +248,8 @@ main() {
     fifo=""
 
     init "$@"
-    log_info "initialized" "$0"
     parse_params "$@"
+    log_info "initialized" "$0"
 
     tmp_dir=$(mktemp -p "$TMPDIR" -d lemonbar.XXXX)
 
