@@ -31,13 +31,20 @@ sighandler_pid=$1
 
 # shellcheck disable=SC2154
 title_fifo="$tmp_dir/lemonbar_title.fifo"
+xtmon_pid=""
 
 # DESC: Remove FIFO
 # ARGS: None
 # OUTS: None
 trap_cleanup() {
-    # Disable the termination trap handler to prevent potential recursion
-    trap - TERM
+    trap - EXIT INT TERM QUIT HUP
+
+    if [[ "${xtmon_pid:-}" =~ ^[0-9]+$ ]]; then
+        kill -TERM "$xtmon_pid" 2>/dev/null || true
+        wait "$xtmon_pid" 2>/dev/null || true
+        xtmon_pid=""
+    fi
+
     if [[ -e "$title_fifo" ]]; then
         rm -f "$title_fifo"
     fi
@@ -87,24 +94,42 @@ fi
 # ARGS: None
 # OUTS: None
 activeWindow() {
-    "$LEMONDIR/xtmon.sh" | while IFS= read -r line; do
+    coproc XTMON {
+        exec "$LEMONDIR/xtmon.sh"
+    }
+
+    xtmon_pid=$XTMON_PID
+    local xtmon_fd=${XTMON[0]}
+
+    while IFS= read -r line <&"$xtmon_fd"; do
         if ! kill -s SIGRTMIN+5 "$sighandler_pid" 2>/dev/null; then
             log_error "sighandler not running: pid=$sighandler_pid"
             break
         fi
 
-        # Give block_title_client.sh time to open the FIFO for reading.
         sleep 0.02
+
+        if [[ ! -p "$title_fifo" ]]; then
+            log_error "title FIFO missing: $title_fifo"
+            break
+        fi
 
         truncated="$(
             printf '%s\n' "$line" |
                 awk -v m="$TITLE_MAX_LENGHT" '{print substr($0,1,m)}'
         )"
 
-        printf '%s\n' \
+        if ! printf '%s\n' \
             "%{B$COLOR_DEFAULT_BG}%{F$COLOR_FREE_FG}%{+u}$PADDING$truncated$PADDING%{-u}%{F-}%{B-}" \
-            >"$title_fifo"
+            >"$title_fifo"; then
+            log_error "cannot write title FIFO: $title_fifo"
+            break
+        fi
     done
+
+    kill -TERM "$xtmon_pid" 2>/dev/null || true
+    wait "$xtmon_pid" 2>/dev/null || true
+    xtmon_pid=""
 }
 
 activeWindow
