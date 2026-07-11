@@ -58,7 +58,10 @@ trap_err() {
     if [[ ${code:-} -eq 143 ]]; then return 0; fi # xtmon.sh ends with 143 at stop
 }
 
-trap 'trap_cleanup' EXIT INT TERM QUIT HUP
+trap 'trap_cleanup' EXIT
+trap 'exit 130' INT
+trap 'exit 143' TERM
+trap 'exit 0' QUIT HUP
 
 # create named pipe
 if [[ -e "$title_fifo" ]]; then
