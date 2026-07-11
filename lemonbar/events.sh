@@ -55,9 +55,9 @@ check_pid() {
 }
 
 if check_pid "$sighandler_pid"; then
-    echo "PID $sighandler_pid ist gültig und Prozess läuft"
+    log_info "sighandler_pid is valid: PID=" "$sighandler_pid"
 else
-    echo "PID $sighandler_pid ungültig oder Prozess existiert nicht"
+    log_error "sighandler_pid is invalid: PID=" "$sighandler_pid"
     exit 1
 fi
 
@@ -65,21 +65,21 @@ fi
 get_ws_updates_changed_desktop() {
     stdbuf -oL -eL bspc subscribe desktop_focus | while read -r; do
         # shellcheck disable=SC2154
-        kill -s SIGRTMIN+2 "$sighandler_pid"
+        kill -s SIGRTMIN+2 "$sighandler_pid" || true
     done
 }
 
 # Send signal for update lemonbar workspaces at event node transfer to different desktop
 get_ws_updates_node_transfer() {
     stdbuf -oL -eL bspc subscribe node_transfer | while read -r; do
-        kill -s SIGRTMIN+2 "$sighandler_pid"
+        kill -s SIGRTMIN+2 "$sighandler_pid" || true
     done
 }
 
 # Send signal for update lemonbar workspaces at layout change
 get_ws_updates_layout_change() {
     stdbuf -oL -eL bspc subscribe desktop_layout | while read -r; do
-        kill -s SIGRTMIN+2 "$sighandler_pid"
+        kill -s SIGRTMIN+2 "$sighandler_pid" || true
     done
 }
 
@@ -91,16 +91,16 @@ get_trayer_updates() {
 
     stdbuf -oL -eL xprop -name "$SYSTRAY_WM_NAME" -spy | grep --line-buffered 'program specified minimum size' | while IFS= read -r; do
         sleep 0.02
-        kill -s SIGRTMIN+9 "$sighandler_pid"
+        kill -s SIGRTMIN+9 "$sighandler_pid" || true
         sleep 0.02
         # often an app disappears from workspace too if it is gone from systray
-        kill -s SIGRTMIN+2 "$sighandler_pid"
+        kill -s SIGRTMIN+2 "$sighandler_pid" || true
     done
 }
 
 get_new_node_updates() {
     stdbuf -oL -eL bspc subscribe node_add | while read -r; do
-        kill -s SIGRTMIN+2 "$sighandler_pid"
+        kill -s SIGRTMIN+2 "$sighandler_pid" || true
     done
 }
 

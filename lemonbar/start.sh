@@ -2,6 +2,8 @@
 
 # Enable xtrace if the DEBUG environment variable is set
 if [[ ${DEBUG-} =~ ^1|yes|true$ ]]; then
+    #export PS4='+ $(date "+%F %T") ${BASH_SOURCE##*/}:${LINENO}: '
+    #export BASH_XTRACEFD=3
     set -o xtrace # Trace the execution of the script (debug)
 fi
 
@@ -26,10 +28,8 @@ trap_err() {
     set +o pipefail
 
     local loc="$1" rc="${2:-1}" cmd="${3:-}"
-    local line="${loc%%/*}"    # LINENO extrahieren
-    log_err "${line:-0}" "$rc" # strukturiertes Fehler-Log
-    # optional Zusatzinfo:
-    log_info "cmd=${cmd}"
+    local line="${loc%%/*}"
+    log_error "line=${line:-0} rc=$rc cmd=$cmd"
 }
 
 # DESC: Exithandler
@@ -53,27 +53,27 @@ trap_exit() {
 # ARGS: $1 (required): Message to print on exit
 #       $2 (optional): Exit code (defaults to 0)
 # OUTS: None
-# NOTE: The convention used in this script for exit codes is:
-#       0: Normal exit
-#       1: Abnormal exit due to external error
-#       2: Abnormal exit due to script error
 exit_handler() {
-    if [[ $# -eq 1 ]]; then
-        printf '%s\n' "$1"
-        exit 0
+    if [[ $# -lt 1 || $# -gt 2 ]]; then
+        printf '%s\n' 'Missing required argument to exit_handler()!' >&2
+        exit 2
     fi
 
-    if [[ ${2-} =~ ^[0-9]+$ ]]; then
-        printf '%b\n' "$1"
-        # If we've been provided a non-zero exit code run the error trap
-        if [[ $2 -ne 0 ]]; then
-            trap_err "$2"
-        else
-            exit 0
-        fi
+    local message="$1"
+    local rc="${2:-0}"
+
+    if [[ ! "$rc" =~ ^[0-9]+$ ]] || ((rc > 255)); then
+        printf 'Invalid exit code: %s\n' "$rc" >&2
+        exit 2
     fi
 
-    exit_handler 'Missing required argument to exit_handler()!' 2
+    printf '%b\n' "$message"
+
+    if ((rc != 0)); then
+        log_error "exit rc=$rc message=$message"
+    fi
+
+    exit "$rc"
 }
 
 # DESC: remove FIFO at termination
@@ -110,7 +110,7 @@ usage() {
     cat <<EOF
 Usage:
      -h|--help                  Displays this help
-     -l|--log                   Run silently unless we encounter an error
+     -l|--log                   Enables INFO and ERROR logging
 EOF
 }
 
@@ -130,7 +130,8 @@ parse_params() {
             exit 0
             ;;
         -l | --log)
-            log=true
+            LOG_INFO_ENABLED=1
+            export LOG_INFO_ENABLED
             ;;
         *)
             exit_handler "Invalid parameter was provided: $param" 1
@@ -224,14 +225,6 @@ init() {
     export BASH_ENV="$LEMONDIR/lib/logging_env.sh"
     export XDG_RUNTIME_DIR="${XDG_RUNTIME_DIR:-/run/user/$UID}"
 
-    # auto-bootstrap für dieses Skript und nicht-interaktive Kind-Shells
-    export LOGGING_ENV_AUTO=1
-    export LOG_INFO=0
-
-    # Log im Runtime-Dir führen
-    LOG_FILE="$TMPDIR/lemonbar.$(date +'%F_%H-%M-%S').log"
-    export LOG_FILE
-
     # shellcheck disable=SC1090
     if [[ -r "$BASH_ENV" ]]; then
         # shellcheck source=lib/logging_env.sh
@@ -255,19 +248,8 @@ main() {
     fifo=""
 
     init "$@"
-    log_info "Initializing Lemonbar"
     parse_params "$@"
-
-    # -l/--log schaltet INFO-Logs frei, sonst nur ERR
-    if [[ ${log:-} == "true" ]]; then
-        if [[ ${LOG_INFO:-0} -eq 0 ]]; then
-            export LOG_INFO=0
-        fi
-    else
-        if [[ ${LOG_INFO:-0} -eq 1 ]]; then
-            export LOG_INFO=1
-        fi
-    fi
+    log_info "initialized" "$0"
 
     tmp_dir=$(mktemp -p "$TMPDIR" -d lemonbar.XXXX)
 
@@ -295,7 +277,7 @@ main() {
 
     export tmp_dir
     # fifo-writer, starting after reader
-    LOGGING_ENV_AUTO=1 "$LEMONDIR/sighandler.sh" >"$fifo" &
+    "$LEMONDIR/sighandler.sh" >"$fifo" &
     sighandler_pid=$!
 
     # file for exchanging sighandler_pid to sxhkd
@@ -303,12 +285,17 @@ main() {
         echo "$sighandler_pid" >"$XDG_RUNTIME_DIR/sighandler.pid"
     fi
 
-    LOGGING_ENV_AUTO=1 "$LEMONDIR/events.sh" "$sighandler_pid" &
-    LOGGING_ENV_AUTO=1 "$LEMONDIR/title_server.sh" "$sighandler_pid" &
+    "$LEMONDIR/events.sh" "$sighandler_pid" &
+    # "$LEMONDIR/title_server.sh" "$sighandler_pid" &
 
     # wait for subprocesses to be finished except one fails
-    while true; do
-        wait -n || break
+    while :; do
+        if ! wait -n; then
+            rc=$?
+            log_info "child_exit" "$rc"
+        fi
+        # wenn keine Jobs mehr: raus
+        [[ -z "$(jobs -pr)" ]] && break
     done
 }
 

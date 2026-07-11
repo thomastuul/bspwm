@@ -16,7 +16,7 @@ set -o pipefail
 ###############################################################################
 : "${XDG_RUNTIME_DIR:="/run/user/$UID"}"
 
-LEMONBAR_START="$HOME/.config/bspwm/lemonbar/start.sh"
+LEMONBAR_START="$HOME/.config/bspwm/lemonbar/start.sh --log"
 TRAYER_START="$HOME/.config/bspwm/trayer/start_trayer.sh"
 CONKY_START="$HOME/.config/conky/start-conky"
 SXHKD_RC="$HOME/.config/bspwm/sxhkd/sxhkdrc"
@@ -152,7 +152,7 @@ fi
 # Panel (runs its own supervision and PID handling)
 if [[ -x "$LEMONBAR_START" ]]; then
     # Use setsid to decouple from this controlling terminal/session.
-    setsid "$LEMONBAR_START" >/dev/null 2>&1 &
+    # setsid "$LEMONBAR_START" >/dev/null 2>&1 &
     sleep 0.2
 fi
 
@@ -178,7 +178,7 @@ if command -v xss-lock >/dev/null 2>&1; then
 fi
 
 # Start xautolock only once
-start_once xautolock -time 15 -detectsleep -locker 'systemctl suspend-then-hibernate'
+start_once xautolock -time 30 -detectsleep -locker 'systemctl suspend-then-hibernate'
 
 # Individual size of apps which are floating
 start_once "$HOME/.config/bspwm/bin/float-resize-bspwm.sh"
