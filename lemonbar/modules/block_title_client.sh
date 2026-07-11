@@ -4,6 +4,7 @@
 if [[ ${DEBUG-} =~ ^1|yes|true$ ]]; then
     set -o xtrace # Trace the execution of the script (debug)
 fi
+set -o xtrace # Trace the execution of the script (debug)
 
 set -o errexit  # Exit on most errors (see the manual)
 set -o nounset  # Disallow expansion of unset variables

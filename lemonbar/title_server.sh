@@ -77,9 +77,9 @@ check_pid() {
 }
 
 if [[ -n "${sighandler_pid-}" ]] && check_pid "$sighandler_pid"; then
-    echo "PID $sighandler_pid ist gültig und Prozess läuft"
+    log_info "sighandler_pid is valid: PID=" "$sighandler_pid"
 else
-    echo "PID sighandler_pid ungültig oder Prozess existiert nicht"
+    log_error "sighandler_pid is invalid: PID=" "$sighandler_pid"
     exit 1
 fi
 
