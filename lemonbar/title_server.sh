@@ -83,22 +83,27 @@ else
     exit 1
 fi
 
-if command -v xdotool >/dev/null; then
-    xdotool getactivewindow getwindowname >"$title_fifo" || true
-fi
-
 # DESC: Get title of active window
 # ARGS: None
 # OUTS: None
 activeWindow() {
-    # endless loop, for original xtmon see https://github.com/vimist/xtmon/tree/master
-    # I'm using my selfmade clone in bash
-    "$LEMONDIR/xtmon.sh" | while read -r line; do
-        # shellcheck disable=SC2154
-        #kill -s SIGRTMIN+5 "$sighandler_pid"
+    "$LEMONDIR/xtmon.sh" | while IFS= read -r line; do
+        if ! kill -s SIGRTMIN+5 "$sighandler_pid" 2>/dev/null; then
+            log_error "sighandler not running: pid=$sighandler_pid"
+            break
+        fi
+
+        # Give block_title_client.sh time to open the FIFO for reading.
         sleep 0.02
-        truncated=$(echo "$line" | awk -v m="$TITLE_MAX_LENGHT" '{print substr($0,1,m)}')
-        printf "%s\n" "%{B$COLOR_DEFAULT_BG}%{F$COLOR_FREE_FG}%{+u}$PADDING$truncated$PADDING%{-u}%{F-}%{B-}" >"$title_fifo"
+
+        truncated="$(
+            printf '%s\n' "$line" |
+                awk -v m="$TITLE_MAX_LENGHT" '{print substr($0,1,m)}'
+        )"
+
+        printf '%s\n' \
+            "%{B$COLOR_DEFAULT_BG}%{F$COLOR_FREE_FG}%{+u}$PADDING$truncated$PADDING%{-u}%{F-}%{B-}" \
+            >"$title_fifo"
     done
 }
 
