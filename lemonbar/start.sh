@@ -286,7 +286,7 @@ main() {
     fi
 
     "$LEMONDIR/events.sh" "$sighandler_pid" &
-    # "$LEMONDIR/title_server.sh" "$sighandler_pid" &
+    "$LEMONDIR/title_server.sh" "$sighandler_pid" &
 
     # wait for subprocesses to be finished except one fails
     while :; do
