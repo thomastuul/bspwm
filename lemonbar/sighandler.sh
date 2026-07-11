@@ -31,7 +31,10 @@ trap_cleanup() {
     log_info "cleanup"
 }
 
-trap 'trap_cleanup' EXIT INT TERM QUIT HUP
+trap 'trap_cleanup' EXIT
+trap 'exit 130' INT
+trap 'exit 143' TERM
+trap 'exit 0' QUIT HUP
 
 run_or_log() {
     local rc
