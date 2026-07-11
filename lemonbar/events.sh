@@ -23,11 +23,26 @@ else
 fi
 
 trap_exit() {
-    kill "$(jobs -pr)" 2>/dev/null || true
+    local pid
+    local -a child_pids=()
+
+    trap - EXIT INT TERM HUP
+
+    while IFS= read -r pid; do
+        [[ "$pid" =~ ^[0-9]+$ ]] && child_pids+=("$pid")
+    done < <(jobs -pr)
+
+    if ((${#child_pids[@]} > 0)); then
+        kill -TERM "${child_pids[@]}" 2>/dev/null || true
+
+        for pid in "${child_pids[@]}"; do
+            wait "$pid" 2>/dev/null || true
+        done
+    fi
 }
 
 trap 'trap_exit' EXIT
-trap 'trap_exit; exit 0' INT TERM HUP
+trap 'exit 0' INT TERM HUP
 
 # check parameter count
 if [[ $# -lt 1 ]]; then
