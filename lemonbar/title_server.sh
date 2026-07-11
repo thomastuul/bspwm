@@ -68,6 +68,7 @@ if [[ -e "$title_fifo" ]]; then
     rm -f "$title_fifo"
 fi
 mkfifo -m 600 "$title_fifo"
+log_info "created " "$title_fifo"
 
 # DESC: Check if given PID variable is a valid, running process
 # ARGS: $1 (string) PID value to check
