@@ -5,6 +5,9 @@
 LOG_FILE="${TMPDIR:-/tmp}/lemonbar.log"
 export LOG_FILE
 
+LOG_INFO_ENABLED="${LOG_INFO_ENABLED:-0}"
+export LOG_INFO_ENABLED
+
 log_write() {
     local level="$1"
     shift
@@ -18,6 +21,7 @@ log_write() {
 }
 
 log_info() {
+    [[ "$LOG_INFO_ENABLED" == "1" ]] || return 0
     log_write "INFO" "$@"
 }
 
