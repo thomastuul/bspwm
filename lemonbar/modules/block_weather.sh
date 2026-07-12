@@ -179,8 +179,21 @@ parse_with_awk() {
 
 open_png_viewer() {
     local png="$1"
+    local geometry
+
     if command -v sxiv >/dev/null 2>&1; then
-        nohup sxiv -a "$png" >/dev/null 2>&1 &
+        if command -v identify >/dev/null 2>&1; then
+            geometry="$(identify -format '%wx%h' "$png" 2>/dev/null)"
+
+            if [[ "$geometry" =~ ^[0-9]+x[0-9]+$ ]]; then
+                nohup sxiv -b -g "$geometry" "$png" \
+                    >/dev/null 2>&1 &
+                return
+            fi
+        fi
+
+        # Fallback if identify is unavailable or cannot determine the size.
+        nohup sxiv -b -s f "$png" >/dev/null 2>&1 &
     elif command -v feh >/dev/null 2>&1; then
         nohup feh "$png" >/dev/null 2>&1 &
     else
