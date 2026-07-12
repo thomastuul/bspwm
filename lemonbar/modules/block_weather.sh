@@ -15,14 +15,16 @@
 #     --help, -h      help
 # -----------------------------------------------------------------------------
 set -o errexit -o nounset -o pipefail
+
 # shellcheck disable=SC1091
 source "$LEMONDIR/config.sh"
 # shellcheck disable=SC1090
 if [[ -n "${BASH_ENV:-}" && -r "$BASH_ENV" ]]; then
     # shellcheck source=../lib/logging_env.sh
     source "$BASH_ENV"
-
+    log_info "BASH_ENV sourced " "$BASH_ENV"
 else
+    log_error "BASH_ENV not found"
     exit 1
 fi
 
