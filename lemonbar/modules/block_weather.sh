@@ -7,7 +7,7 @@
 # - Caching in ~/.cache: JSON and PNG (3-day forecast)
 # - Parameters:
 #     --location, -l  location (default: "München")
-#     --age, -a       max cache age (default: "4h")
+#     --age, -a       max cache age (default: "30m")
 #     --language, -L  language (default: "de")
 #     --print-age     print age of JSON cache in minutes
 #     --open          3-day forecast (PNG) open
@@ -250,11 +250,10 @@ if ((DO_PRINT_AGE)); then
     if [[ -f "$JSON_CACHE" ]]; then
         m="$(file_age_minutes "$JSON_CACHE")"
         format_minutes_hm "$m"
-        exit 0
     else
-        format_minutes_hm 1e9
-        exit 0
+        printf '%s' 'unbekannt'
     fi
+    exit 0
 fi
 
 if ((DO_OPEN)); then
@@ -287,7 +286,19 @@ MAX="${REST#*|}"
 
 # ---- Ausgabe ----------------------------------------------------------------
 
-run_left="$0 --open -l $LOCATION -L $LANG -a $MAX_AGE_STR"
-run_right="notify-send \"Update vor $("$0" --print-age -l \"$LOCATION\" -a \"$MAX_AGE_STR\")\""
+printf -v run_left \
+    '%q --open --location %q --language %q --age %q' \
+    "$0" "$LOCATION" "$LANG" "$MAX_AGE_STR"
 
-printf "%s\n" "%{A1:$run_left:}%{A3:$run_right:}%{B$COLOR_DEFAULT_BG}%{F$COLOR_WEATHER_FG}%{+u} 爫${RAIN}%% ${MIN}° ${MAX}° %{-u}%{F-}%{B-}%{A}%{A}"
+age_text="$(
+    "$0" --print-age \
+        --location "$LOCATION" \
+        --age "$MAX_AGE_STR"
+)"
+
+printf -v run_right \
+    'notify-send %q' \
+    "Update vor $age_text"
+
+printf '%s\n' \
+    "%{A1:$run_left:}%{A3:$run_right:}%{B$COLOR_DEFAULT_BG}%{F$COLOR_WEATHER_FG}%{+u} 爫${RAIN}%% ${MIN}° ${MAX}° %{-u}%{F-}%{B-}%{A}%{A}"
