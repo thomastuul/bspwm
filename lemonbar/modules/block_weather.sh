@@ -7,7 +7,7 @@
 # - Caching in ~/.cache: JSON and PNG (3-day forecast)
 # - Parameters:
 #     --location, -l  location (default: "München")
-#     --age, -a       max cache age (default: "4h")
+#     --age, -a       max cache age (default: "30m")
 #     --language, -L  language (default: "de")
 #     --print-age     print age of JSON cache in minutes
 #     --open          3-day forecast (PNG) open
@@ -15,24 +15,25 @@
 #     --help, -h      help
 # -----------------------------------------------------------------------------
 set -o errexit -o nounset -o pipefail
+
 # shellcheck disable=SC1091
 source "$LEMONDIR/config.sh"
 # shellcheck disable=SC1090
 if [[ -n "${BASH_ENV:-}" && -r "$BASH_ENV" ]]; then
     # shellcheck source=../lib/logging_env.sh
     source "$BASH_ENV"
-
 else
+    printf "%s\n" "BASH_ENV not found"
     exit 1
 fi
 
 DEFAULT_LOCATION="${DEFAULT_LOCATION:-München}"
 DEFAULT_LANG="${WEATHER_LANG:-de}"
-DEFAULT_MAX_AGE="${WEATHER_MAX_AGE:-4h}"
+DEFAULT_MAX_AGE="${WEATHER_MAX_AGE:-30m}"
 WTTR_BASE="${WTTRURL:-https://wttr.in}"
 
 XDG_CACHE_HOME="${XDG_CACHE_HOME:-$HOME/.cache}"
-CACHE_PREFIX="${WEATHERREPORT:-$XDG_CACHE_HOME/weather}"
+WEATHER_CACHE_DIR="${WEATHERREPORT:-$XDG_CACHE_HOME/weather}"
 
 die() {
     printf '%s\n' "block_weather: $*" >&2
@@ -93,7 +94,7 @@ fetch_json_if_needed() {
         local enc_loc
         enc_loc="$(url_loc "$loc")"
         # tolerant: bei Fehler kein Exit, keine Ausgabe
-        if curl -fsSL --max-time 1 "${WTTR_BASE}/${enc_loc}?format=j1&lang=${lang}" \
+        if curl -fsSL --connect-timeout 3 --max-time 15 "${WTTR_BASE}/${enc_loc}?format=j1&lang=${lang}" \
             -o "$json_path.tmp" 2>/dev/null; then
             mv -f -- "$json_path.tmp" "$json_path"
         else
@@ -104,12 +105,18 @@ fetch_json_if_needed() {
 }
 
 format_minutes_hm() {
-    # $1: minutes (integer). Prints "Hh Mmin"
+    # $1: minutes (integer). Prints "Mmin" below one hour, else "Hh Mmin".
     local m="${1:-0}"
     if [[ "$m" -lt 0 ]]; then m=0; fi
+
     local h=$((m / 60))
     local mm=$((m % 60))
-    printf '%dh %dmin' "$h" "$mm"
+
+    if ((h == 0)); then
+        printf '%dmin' "$mm"
+    else
+        printf '%dh %dmin' "$h" "$mm"
+    fi
 }
 
 fetch_png_if_needed() {
@@ -120,7 +127,7 @@ fetch_png_if_needed() {
         enc_loc="$(url_loc "$loc")"
         local url="https://v2.wttr.in/${enc_loc}.png?lang=${lang}&m&2"
         # Try download. Do not exit the script on failure.
-        if ! curl -fsSL --max-time 1 "$url" -o "$png_path.tmp"; then
+        if ! curl -fsSL --connect-timeout 3 --max-time 15 "$url" -o "$png_path.tmp"; then
             rm -f -- "$png_path.tmp" 2>/dev/null || true
             return 1
         fi
@@ -171,8 +178,38 @@ parse_with_awk() {
 
 open_png_viewer() {
     local png="$1"
+    local scale="${WEATHER_IMAGE_SCALE:-200}"
+    local width height scaled_width scaled_height
+
     if command -v sxiv >/dev/null 2>&1; then
-        nohup sxiv -a "$png" >/dev/null 2>&1 &
+        if command -v identify >/dev/null 2>&1; then
+            width=""
+            height=""
+
+            if read -r width height < <(
+                identify -format '%w %h' "$png" 2>/dev/null
+            ); then
+                if [[ "$width" =~ ^[0-9]+$ &&
+                    "$height" =~ ^[0-9]+$ &&
+                    "$scale" =~ ^[0-9]+$ ]] &&
+                    ((scale > 0)); then
+
+                    scaled_width=$((width * scale / 100))
+                    scaled_height=$((height * scale / 100))
+
+                    nohup sxiv \
+                        -b \
+                        -g "${scaled_width}x${scaled_height}" \
+                        -z "$scale" \
+                        "$png" >/dev/null 2>&1 &
+
+                    return
+                fi
+            fi
+        fi
+
+        # Fallback if the image dimensions or scale are unavailable.
+        nohup sxiv -b -s f "$png" >/dev/null 2>&1 &
     elif command -v feh >/dev/null 2>&1; then
         nohup feh "$png" >/dev/null 2>&1 &
     else
@@ -241,31 +278,29 @@ done
 MAX_AGE_SEC="$(dur_to_seconds "$MAX_AGE_STR")"
 
 slug="$(slugify "$LOCATION")"
-JSON_CACHE="${CACHE_PREFIX}_${slug}.json"
-PNG_CACHE="${CACHE_PREFIX}_${slug}_3days.png"
+JSON_CACHE="${WEATHER_CACHE_DIR}/${slug}.json"
+PNG_CACHE="${WEATHER_CACHE_DIR}/${slug}_3days.png"
 
 if ((DO_PRINT_AGE)); then
     if [[ -f "$JSON_CACHE" ]]; then
         m="$(file_age_minutes "$JSON_CACHE")"
         format_minutes_hm "$m"
-        exit 0
     else
-        format_minutes_hm 1e9
-        exit 0
+        printf '%s' 'unbekannt'
     fi
+    exit 0
 fi
 
 if ((DO_OPEN)); then
-    fetch_png_if_needed "$LOCATION" "$LANG" "$MAX_AGE_SEC" "$PNG_CACHE"
-    open_png_viewer "$PNG_CACHE"
+    if fetch_png_if_needed "$LOCATION" "$LANG" "$MAX_AGE_SEC" "$PNG_CACHE"; then
+        open_png_viewer "$PNG_CACHE"
+    fi
     exit 0
 fi
 
 if ! fetch_json_if_needed "$LOCATION" "$LANG" "$MAX_AGE_SEC" "$JSON_CACHE"; then
-    exit 0
-fi
-if ! fetch_png_if_needed "$LOCATION" "$LANG" "$MAX_AGE_SEC" "$PNG_CACHE"; then
-    exit 0
+    # Keep displaying an existing stale cache when wttr.in is unavailable.
+    [[ -f "$JSON_CACHE" ]] || exit 0
 fi
 
 if command -v jq >/dev/null 2>&1; then
@@ -286,7 +321,19 @@ MAX="${REST#*|}"
 
 # ---- Ausgabe ----------------------------------------------------------------
 
-run_left="$0 --open -l $LOCATION -L $LANG -a $MAX_AGE_STR"
-run_right="notify-send \"Update vor $("$0" --print-age -l \"$LOCATION\" -a \"$MAX_AGE_STR\")\""
+printf -v run_left \
+    '%q --open --location %q --language %q --age %q' \
+    "$0" "$LOCATION" "$LANG" "$MAX_AGE_STR"
 
-printf "%s\n" "%{A1:$run_left:}%{A3:$run_right:}%{B$COLOR_DEFAULT_BG}%{F$COLOR_WEATHER_FG}%{+u} 爫${RAIN}%% ${MIN}° ${MAX}° %{-u}%{F-}%{B-}%{A}%{A}"
+age_text="$(
+    "$0" --print-age \
+        --location "$LOCATION" \
+        --age "$MAX_AGE_STR"
+)"
+
+printf -v run_right \
+    'notify-send %q' \
+    "Update vor $age_text"
+
+printf '%s\n' \
+    "%{A1:$run_left:}%{A3:$run_right:}%{B$COLOR_DEFAULT_BG}%{F$COLOR_WEATHER_FG}%{+u} 爫${RAIN}%% ${MIN}° ${MAX}° %{-u}%{F-}%{B-}%{A}%{A}"
