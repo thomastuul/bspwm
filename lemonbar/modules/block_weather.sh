@@ -24,7 +24,7 @@ if [[ -n "${BASH_ENV:-}" && -r "$BASH_ENV" ]]; then
     source "$BASH_ENV"
     log_info "BASH_ENV sourced " "$BASH_ENV"
 else
-    log_error "BASH_ENV not found"
+    printf "%s\n" "BASH_ENV not found"
     exit 1
 fi
 
