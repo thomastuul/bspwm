@@ -22,26 +22,18 @@ else
     exit 1
 fi
 
-trap_exit() {
-    local pid
-    local -a child_pids=()
+declare -a listener_pids=()
 
+cleanup() {
     trap - EXIT INT TERM HUP
 
-    while IFS= read -r pid; do
-        [[ "$pid" =~ ^[0-9]+$ ]] && child_pids+=("$pid")
-    done < <(jobs -pr)
-
-    if ((${#child_pids[@]} > 0)); then
-        kill -TERM "${child_pids[@]}" 2>/dev/null || true
-
-        for pid in "${child_pids[@]}"; do
-            wait "$pid" 2>/dev/null || true
-        done
+    if ((${#listener_pids[@]} > 0)); then
+        kill -TERM "${listener_pids[@]}" 2>/dev/null || true
+        wait "${listener_pids[@]}" 2>/dev/null || true
     fi
 }
 
-trap 'trap_exit' EXIT
+trap cleanup EXIT
 trap 'exit 0' INT TERM HUP
 
 # check parameter count
@@ -120,10 +112,19 @@ get_new_node_updates() {
 }
 
 get_ws_updates_changed_desktop &
+listener_pids+=("$!")
+
 get_ws_updates_node_transfer &
+listener_pids+=("$!")
+
 get_ws_updates_layout_change &
+listener_pids+=("$!")
+
 get_trayer_updates &
+listener_pids+=("$!")
+
 get_new_node_updates &
+listener_pids+=("$!")
 
 # Keep the event supervisor alive while its signal receiver exists.
 # If sighandler.sh disappears, leaving this script running would retain stale
