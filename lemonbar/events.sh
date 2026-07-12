@@ -22,18 +22,25 @@ else
     exit 1
 fi
 
+# Store listener PIDs so cleanup only manages processes started by this script.
 declare -a listener_pids=()
 
+# ShellCheck cannot detect that cleanup is invoked indirectly by trap.
+# shellcheck disable=SC2317
 cleanup() {
+    # Disable traps first to prevent cleanup from being entered recursively.
     trap - EXIT INT TERM HUP
 
+    # Stop and reap all event listeners to prevent stale background processes.
     if ((${#listener_pids[@]} > 0)); then
         kill -TERM "${listener_pids[@]}" 2>/dev/null || true
         wait "${listener_pids[@]}" 2>/dev/null || true
     fi
 }
 
+# Run cleanup on every normal or signal-triggered exit.
 trap cleanup EXIT
+# Convert termination signals into an exit so the EXIT trap performs cleanup.
 trap 'exit 0' INT TERM HUP
 
 # check parameter count
