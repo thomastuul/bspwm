@@ -22,7 +22,6 @@ source "$LEMONDIR/config.sh"
 if [[ -n "${BASH_ENV:-}" && -r "$BASH_ENV" ]]; then
     # shellcheck source=../lib/logging_env.sh
     source "$BASH_ENV"
-    log_info "BASH_ENV sourced " "$BASH_ENV"
 else
     printf "%s\n" "BASH_ENV not found"
     exit 1
@@ -191,8 +190,8 @@ open_png_viewer() {
                 identify -format '%w %h' "$png" 2>/dev/null
             ); then
                 if [[ "$width" =~ ^[0-9]+$ &&
-                      "$height" =~ ^[0-9]+$ &&
-                      "$scale" =~ ^[0-9]+$ ]] &&
+                    "$height" =~ ^[0-9]+$ &&
+                    "$scale" =~ ^[0-9]+$ ]] &&
                     ((scale > 0)); then
 
                     scaled_width=$((width * scale / 100))
