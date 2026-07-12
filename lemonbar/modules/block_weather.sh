@@ -179,20 +179,37 @@ parse_with_awk() {
 
 open_png_viewer() {
     local png="$1"
-    local geometry
+    local scale="${WEATHER_IMAGE_SCALE:-200}"
+    local width height scaled_width scaled_height
 
     if command -v sxiv >/dev/null 2>&1; then
         if command -v identify >/dev/null 2>&1; then
-            geometry="$(identify -format '%wx%h' "$png" 2>/dev/null)" || geometry=""
+            width=""
+            height=""
 
-            if [[ "$geometry" =~ ^[0-9]+x[0-9]+$ ]]; then
-                nohup sxiv -b -g "$geometry" "$png" \
-                    >/dev/null 2>&1 &
-                return
+            if read -r width height < <(
+                identify -format '%w %h' "$png" 2>/dev/null
+            ); then
+                if [[ "$width" =~ ^[0-9]+$ &&
+                      "$height" =~ ^[0-9]+$ &&
+                      "$scale" =~ ^[0-9]+$ ]] &&
+                    ((scale > 0)); then
+
+                    scaled_width=$((width * scale / 100))
+                    scaled_height=$((height * scale / 100))
+
+                    nohup sxiv \
+                        -b \
+                        -g "${scaled_width}x${scaled_height}" \
+                        -z "$scale" \
+                        "$png" >/dev/null 2>&1 &
+
+                    return
+                fi
             fi
         fi
 
-        # Fallback if identify is unavailable or cannot determine the size.
+        # Fallback if the image dimensions or scale are unavailable.
         nohup sxiv -b -s f "$png" >/dev/null 2>&1 &
     elif command -v feh >/dev/null 2>&1; then
         nohup feh "$png" >/dev/null 2>&1 &
