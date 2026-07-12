@@ -183,7 +183,7 @@ open_png_viewer() {
 
     if command -v sxiv >/dev/null 2>&1; then
         if command -v identify >/dev/null 2>&1; then
-            geometry="$(identify -format '%wx%h' "$png" 2>/dev/null)"
+            geometry="$(identify -format '%wx%h' "$png" 2>/dev/null)" || geometry=""
 
             if [[ "$geometry" =~ ^[0-9]+x[0-9]+$ ]]; then
                 nohup sxiv -b -g "$geometry" "$png" \
