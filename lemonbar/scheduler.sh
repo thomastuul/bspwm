@@ -37,7 +37,7 @@ send_signal() {
     else
         rc=$?
         log_error "kill failed: signal=$signal pid=$pid rc=$rc"
-        return 0
+        return "$rc"
     fi
 }
 
