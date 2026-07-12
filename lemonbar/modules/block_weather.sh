@@ -106,12 +106,18 @@ fetch_json_if_needed() {
 }
 
 format_minutes_hm() {
-    # $1: minutes (integer). Prints "Hh Mmin"
+    # $1: minutes (integer). Prints "Mmin" below one hour, else "Hh Mmin".
     local m="${1:-0}"
     if [[ "$m" -lt 0 ]]; then m=0; fi
+
     local h=$((m / 60))
     local mm=$((m % 60))
-    printf '%dh %dmin' "$h" "$mm"
+
+    if ((h == 0)); then
+        printf '%dmin' "$mm"
+    else
+        printf '%dh %dmin' "$h" "$mm"
+    fi
 }
 
 fetch_png_if_needed() {
