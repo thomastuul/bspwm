@@ -30,7 +30,7 @@ fi
 
 DEFAULT_LOCATION="${DEFAULT_LOCATION:-München}"
 DEFAULT_LANG="${WEATHER_LANG:-de}"
-DEFAULT_MAX_AGE="${WEATHER_MAX_AGE:-4h}"
+DEFAULT_MAX_AGE="${WEATHER_MAX_AGE:-30m}"
 WTTR_BASE="${WTTRURL:-https://wttr.in}"
 
 XDG_CACHE_HOME="${XDG_CACHE_HOME:-$HOME/.cache}"
@@ -95,7 +95,7 @@ fetch_json_if_needed() {
         local enc_loc
         enc_loc="$(url_loc "$loc")"
         # tolerant: bei Fehler kein Exit, keine Ausgabe
-        if curl -fsSL --max-time 1 "${WTTR_BASE}/${enc_loc}?format=j1&lang=${lang}" \
+        if curl -fsSL --connect-timeout 3 --max-time 15 "${WTTR_BASE}/${enc_loc}?format=j1&lang=${lang}" \
             -o "$json_path.tmp" 2>/dev/null; then
             mv -f -- "$json_path.tmp" "$json_path"
         else
@@ -122,7 +122,7 @@ fetch_png_if_needed() {
         enc_loc="$(url_loc "$loc")"
         local url="https://v2.wttr.in/${enc_loc}.png?lang=${lang}&m&2"
         # Try download. Do not exit the script on failure.
-        if ! curl -fsSL --max-time 1 "$url" -o "$png_path.tmp"; then
+        if ! curl -fsSL --connect-timeout 3 --max-time 15 "$url" -o "$png_path.tmp"; then
             rm -f -- "$png_path.tmp" 2>/dev/null || true
             return 1
         fi
@@ -258,16 +258,15 @@ if ((DO_PRINT_AGE)); then
 fi
 
 if ((DO_OPEN)); then
-    fetch_png_if_needed "$LOCATION" "$LANG" "$MAX_AGE_SEC" "$PNG_CACHE"
-    open_png_viewer "$PNG_CACHE"
+    if fetch_png_if_needed "$LOCATION" "$LANG" "$MAX_AGE_SEC" "$PNG_CACHE"; then
+        open_png_viewer "$PNG_CACHE"
+    fi
     exit 0
 fi
 
 if ! fetch_json_if_needed "$LOCATION" "$LANG" "$MAX_AGE_SEC" "$JSON_CACHE"; then
-    exit 0
-fi
-if ! fetch_png_if_needed "$LOCATION" "$LANG" "$MAX_AGE_SEC" "$PNG_CACHE"; then
-    exit 0
+    # Keep displaying an existing stale cache when wttr.in is unavailable.
+    [[ -f "$JSON_CACHE" ]] || exit 0
 fi
 
 if command -v jq >/dev/null 2>&1; then
