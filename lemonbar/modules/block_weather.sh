@@ -34,7 +34,7 @@ DEFAULT_MAX_AGE="${WEATHER_MAX_AGE:-30m}"
 WTTR_BASE="${WTTRURL:-https://wttr.in}"
 
 XDG_CACHE_HOME="${XDG_CACHE_HOME:-$HOME/.cache}"
-CACHE_PREFIX="${WEATHERREPORT:-$XDG_CACHE_HOME/weather}"
+WEATHER_CACHE_DIR="${WEATHERREPORT:-$XDG_CACHE_HOME/weather}"
 
 die() {
     printf '%s\n' "block_weather: $*" >&2
@@ -279,8 +279,8 @@ done
 MAX_AGE_SEC="$(dur_to_seconds "$MAX_AGE_STR")"
 
 slug="$(slugify "$LOCATION")"
-JSON_CACHE="${CACHE_PREFIX}_${slug}.json"
-PNG_CACHE="${CACHE_PREFIX}_${slug}_3days.png"
+JSON_CACHE="${WEATHER_CACHE_DIR}/${slug}.json"
+PNG_CACHE="${WEATHER_CACHE_DIR}/${slug}_3days.png"
 
 if ((DO_PRINT_AGE)); then
     if [[ -f "$JSON_CACHE" ]]; then
