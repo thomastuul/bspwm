@@ -20,8 +20,8 @@ else
 fi
 
 # Signal-Plan:
-# SIGRTMIN+3  = CPU       (1s)
-# SIGRTMIN+4  = Uhr       (1s)
+# SIGRTMIN+3  = Uhr       (1s)
+# SIGRTMIN+4  = CPU       (5s)
 # SIGRTMIN+5  = Titel     (on change)
 # SIGRTMIN+10 = Netz/Batt (10s)
 # SIGRTMIN+12 = Wetter    (60s)
@@ -41,20 +41,16 @@ send_signal() {
     fi
 }
 
-dummy() {
-    :
-}
 
 seconds=0
 
 while true; do
     # every second
     send_signal SIGRTMIN+3 "$sighandler_pid"
-    send_signal SIGRTMIN+4 "$sighandler_pid"
 
     # every 5 seconds
     if [[ $((seconds % 5)) -eq 0 ]]; then
-        dummy
+        send_signal SIGRTMIN+4 "$sighandler_pid"
     fi
 
     # every 10 seconds
