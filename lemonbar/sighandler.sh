@@ -102,7 +102,7 @@ sig_init() {
 }
 
 render_line() {
-    printf "%s" \
+    printf '%s%s%s\n' \
         "%{l}${launch_string}${ws_string}" \
         "%{c}${title_string}" \
         "%{r}${cast_string}${weather_string}${battery_string}${net_string}${mon_string}${vol_string}${cpu_string}${clock_string}${tray_string}${power_string}"
