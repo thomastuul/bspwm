@@ -32,21 +32,55 @@ trap_err() {
     log_error "line=${line:-0} rc=$rc cmd=$cmd"
 }
 
+# DESC: Terminate all directly managed child processes
+# ARGS: None
+# OUTS: None
+terminate_children() {
+    local pid
+
+    # Stop data producers first.
+    for pid in \
+        "${events_pid:-}" \
+        "${title_server_pid:-}" \
+        "${sighandler_pid:-}"; do
+        if [[ "$pid" =~ ^[0-9]+$ ]] && kill -0 "$pid" 2>/dev/null; then
+            kill -TERM "$pid" 2>/dev/null || true
+        fi
+    done
+
+    for pid in \
+        "${events_pid:-}" \
+        "${title_server_pid:-}" \
+        "${sighandler_pid:-}"; do
+        if [[ "$pid" =~ ^[0-9]+$ ]]; then
+            wait "$pid" 2>/dev/null || true
+        fi
+    done
+
+    # Stop lemonbar after its producers.
+    if [[ "${lemonbar_pid:-}" =~ ^[0-9]+$ ]]; then
+        kill -TERM "$lemonbar_pid" 2>/dev/null || true
+        wait "$lemonbar_pid" 2>/dev/null || true
+    fi
+}
+
 # DESC: Exithandler
 # ARGS: None
 # OUTS: None
 trap_exit() {
     local ec=$?
-    log_info "EXIT" "$ec"
 
-    cd "$orig_cwd"
+    trap - EXIT INT TERM QUIT HUP PIPE ERR
+    set +o errexit
+    set +o pipefail
 
-    # terminate entire process group
-    kill -TERM -- -$$ 2>/dev/null || true
-    sleep 0.2
-    kill -KILL -- -$$ 2>/dev/null || true
+    log_info "EXIT rc=$ec"
 
-    wait || true
+    terminate_children
+    trap_cleanup
+
+    cd "$orig_cwd" || true
+    exit "$ec"
 }
 
 # DESC: Exit script with the given message
@@ -239,13 +273,17 @@ init() {
 # OUTS: None
 main() {
     trap 'trap_err "${LINENO}/${BASH_LINENO}" "$?" "$BASH_COMMAND"' ERR
-    trap 'trap_exit; trap_cleanup' EXIT
-    trap 'trap_cleanup; exit 130' INT
-    trap 'trap_cleanup; exit 143' TERM
-    trap 'trap_cleanup; exit 0' QUIT HUP PIPE
+    trap 'trap_exit' EXIT
+    trap 'exit 130' INT
+    trap 'exit 143' TERM
+    trap 'exit 0' QUIT HUP PIPE
 
     tmp_dir=""
     fifo=""
+    lemonbar_pid=""
+    sighandler_pid=""
+    events_pid=""
+    title_server_pid=""
 
     init "$@"
     parse_params "$@"
@@ -253,8 +291,10 @@ main() {
 
     tmp_dir=$(mktemp -p "$TMPDIR" -d lemonbar.XXXX)
 
-    if ! lock_init user; then
-        rc=$? # Returncode of lock_init
+    if lock_init; then
+        :
+    else
+        rc=$?
         exit "$rc"
     fi
 
@@ -273,7 +313,9 @@ main() {
     lemonbar -p -a "$CLICKABLE_AREAS" \
         -g "$PANEL_WIDTH"x"$PANEL_HEIGHT"+"$PANEL_HORIZONTAL_OFFSET"+"$PANEL_VERTICAL_OFFSET" \
         -f "$PANEL_FONT" -f "$PANEL_ICON_FONT" -F "$COLOR_DEFAULT_FG" -B "$COLOR_PANEL_BG" \
-        -u "$UNDERLINE_HEIGHT" -n "$PANEL_WM_NAME" <"$fifo" | bash || true &
+        -u "$UNDERLINE_HEIGHT" -n "$PANEL_WM_NAME" \
+        <"$fifo" > >(bash) &
+    lemonbar_pid=$!
 
     export tmp_dir
     # fifo-writer, starting after reader
@@ -286,7 +328,10 @@ main() {
     fi
 
     "$LEMONDIR/events.sh" "$sighandler_pid" &
-    # "$LEMONDIR/title_server.sh" "$sighandler_pid" &
+    events_pid=$!
+
+    "$LEMONDIR/title_server.sh" "$sighandler_pid" &
+    title_server_pid=$!
 
     # wait for subprocesses to be finished except one fails
     while :; do

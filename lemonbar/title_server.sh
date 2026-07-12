@@ -31,13 +31,20 @@ sighandler_pid=$1
 
 # shellcheck disable=SC2154
 title_fifo="$tmp_dir/lemonbar_title.fifo"
+xtmon_pid=""
 
 # DESC: Remove FIFO
 # ARGS: None
 # OUTS: None
 trap_cleanup() {
-    # Disable the termination trap handler to prevent potential recursion
-    trap - TERM
+    trap - EXIT INT TERM QUIT HUP
+
+    if [[ "${xtmon_pid:-}" =~ ^[0-9]+$ ]]; then
+        kill -TERM "$xtmon_pid" 2>/dev/null || true
+        wait "$xtmon_pid" 2>/dev/null || true
+        xtmon_pid=""
+    fi
+
     if [[ -e "$title_fifo" ]]; then
         rm -f "$title_fifo"
     fi
@@ -51,13 +58,17 @@ trap_err() {
     if [[ ${code:-} -eq 143 ]]; then return 0; fi # xtmon.sh ends with 143 at stop
 }
 
-trap 'trap_cleanup' EXIT INT TERM QUIT HUP
+trap 'trap_cleanup' EXIT
+trap 'exit 130' INT
+trap 'exit 143' TERM
+trap 'exit 0' QUIT HUP
 
 # create named pipe
 if [[ -e "$title_fifo" ]]; then
     rm -f "$title_fifo"
 fi
 mkfifo -m 600 "$title_fifo"
+log_info "created " "$title_fifo"
 
 # DESC: Check if given PID variable is a valid, running process
 # ARGS: $1 (string) PID value to check
@@ -77,29 +88,52 @@ check_pid() {
 }
 
 if [[ -n "${sighandler_pid-}" ]] && check_pid "$sighandler_pid"; then
-    echo "PID $sighandler_pid ist gültig und Prozess läuft"
+    log_info "sighandler_pid is valid: PID=" "$sighandler_pid"
 else
-    echo "PID sighandler_pid ungültig oder Prozess existiert nicht"
+    log_error "sighandler_pid is invalid: PID=" "$sighandler_pid"
     exit 1
-fi
-
-if command -v xdotool >/dev/null; then
-    xdotool getactivewindow getwindowname >"$title_fifo" || true
 fi
 
 # DESC: Get title of active window
 # ARGS: None
 # OUTS: None
 activeWindow() {
-    # endless loop, for original xtmon see https://github.com/vimist/xtmon/tree/master
-    # I'm using my selfmade clone in bash
-    "$LEMONDIR/xtmon.sh" | while read -r line; do
-        # shellcheck disable=SC2154
-        #kill -s SIGRTMIN+5 "$sighandler_pid"
+    coproc XTMON {
+        exec "$LEMONDIR/xtmon.sh"
+    }
+
+    xtmon_pid=$XTMON_PID
+    local xtmon_fd=${XTMON[0]}
+
+    while IFS= read -r line <&"$xtmon_fd"; do
+        if ! kill -s SIGRTMIN+5 "$sighandler_pid" 2>/dev/null; then
+            log_error "sighandler not running: pid=$sighandler_pid"
+            break
+        fi
+
         sleep 0.02
-        truncated=$(echo "$line" | awk -v m="$TITLE_MAX_LENGHT" '{print substr($0,1,m)}')
-        printf "%s\n" "%{B$COLOR_DEFAULT_BG}%{F$COLOR_FREE_FG}%{+u}$PADDING$truncated$PADDING%{-u}%{F-}%{B-}" >"$title_fifo"
+
+        if [[ ! -p "$title_fifo" ]]; then
+            log_error "title FIFO missing: $title_fifo"
+            break
+        fi
+
+        truncated="$(
+            printf '%s\n' "$line" |
+                awk -v m="$TITLE_MAX_LENGHT" '{print substr($0,1,m)}'
+        )"
+
+        if ! printf '%s\n' \
+            "%{B$COLOR_DEFAULT_BG}%{F$COLOR_FREE_FG}%{+u}$PADDING$truncated$PADDING%{-u}%{F-}%{B-}" \
+            >"$title_fifo"; then
+            log_error "cannot write title FIFO: $title_fifo"
+            break
+        fi
     done
+
+    kill -TERM "$xtmon_pid" 2>/dev/null || true
+    wait "$xtmon_pid" 2>/dev/null || true
+    xtmon_pid=""
 }
 
 activeWindow
