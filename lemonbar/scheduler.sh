@@ -41,7 +41,6 @@ send_signal() {
     fi
 }
 
-
 seconds=0
 
 while true; do
@@ -50,6 +49,7 @@ while true; do
 
     # every 5 seconds
     if [[ $((seconds % 5)) -eq 0 ]]; then
+        sleep 0.05
         send_signal SIGRTMIN+4 "$sighandler_pid"
     fi
 
