@@ -121,7 +121,7 @@ sig_init() {
     "$LEMONDIR"/scheduler.sh "$pid" &
 
     # Run network access and weather parsing outside this signal handler.
-    bash "$LEMONDIR/weather_worker.sh" "$pid" &
+    "$LEMONDIR/weather_worker.sh" "$pid" &
     weather_worker_pid=$!
 
     # init
