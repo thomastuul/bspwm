@@ -75,30 +75,42 @@ else
     exit 1
 fi
 
-# Send signal for update lemonbar workspaces at event desktop change
-get_ws_updates_changed_desktop() {
-    stdbuf -oL -eL bspc subscribe desktop_focus | while read -r; do
-        # shellcheck disable=SC2154
-        kill -s SIGRTMIN+2 "$sighandler_pid" 2>/dev/null || break
-    done
+# Stop and reap the producer owned by the current listener subshell.
+cleanup_listener_producer() {
+    trap - INT TERM HUP
+
+    if [[ -n "${listener_producer_pid:-}" ]]; then
+        kill -TERM "$listener_producer_pid" 2>/dev/null || true
+        wait "$listener_producer_pid" 2>/dev/null || true
+    fi
 }
 
-# Send signal for update lemonbar workspaces at event node transfer to different desktop
-get_ws_updates_node_transfer() {
-    stdbuf -oL -eL bspc subscribe node_transfer | while read -r; do
-        kill -s SIGRTMIN+2 "$sighandler_pid" 2>/dev/null || break
-    done
-}
+# Send a workspace update signal for all relevant bspwm events.
+get_ws_updates() {
+    listener_producer_pid=""
+    trap 'cleanup_listener_producer; exit 0' INT TERM HUP
 
-# Send signal for update lemonbar workspaces at layout change
-get_ws_updates_layout_change() {
-    stdbuf -oL -eL bspc subscribe desktop_layout | while read -r; do
+    coproc EVENT_SOURCE {
+        exec stdbuf -oL -eL bspc subscribe \
+            desktop_focus \
+            node_transfer \
+            desktop_layout \
+            node_add
+    }
+    listener_producer_pid=$EVENT_SOURCE_PID
+
+    while IFS= read -r <&"${EVENT_SOURCE[0]}"; do
         kill -s SIGRTMIN+2 "$sighandler_pid" 2>/dev/null || break
     done
+
+    cleanup_listener_producer
 }
 
 get_trayer_updates() {
     local current_width line new_width
+
+    listener_producer_pid=""
+    trap 'cleanup_listener_producer; exit 0' INT TERM HUP
 
     # Wait until the Trayer window exposes a valid minimum width.
     while :; do
@@ -119,43 +131,35 @@ get_trayer_updates() {
     # Request one initial update after the Trayer window is ready.
     kill -s SIGRTMIN+9 "$sighandler_pid" 2>/dev/null || return
 
-    LC_ALL=C stdbuf -oL -eL \
-        xprop -name "$SYSTRAY_WM_NAME" -spy WM_NORMAL_HINTS |
-        grep --line-buffered 'program specified minimum size' |
-        while IFS= read -r line; do
-            new_width=${line#*: }
-            new_width=${new_width%% *}
+    coproc EVENT_SOURCE {
+        exec LC_ALL=C stdbuf -oL -eL \
+            xprop -name "$SYSTRAY_WM_NAME" -spy WM_NORMAL_HINTS
+    }
+    listener_producer_pid=$EVENT_SOURCE_PID
 
-            [[ $new_width =~ ^[0-9]+$ ]] || continue
-            [[ $new_width == "$current_width" ]] && continue
-            current_width=$new_width
+    while IFS= read -r line <&"${EVENT_SOURCE[0]}"; do
+        [[ "$line" == *'program specified minimum size'* ]] || continue
 
-            kill -s SIGRTMIN+9 "$sighandler_pid" 2>/dev/null || break
-            sleep 0.05
-            # Refresh workspaces after applications enter or leave the tray.
-            kill -s SIGRTMIN+2 "$sighandler_pid" 2>/dev/null || break
-        done
-}
+        new_width=${line#*: }
+        new_width=${new_width%% *}
 
-get_new_node_updates() {
-    stdbuf -oL -eL bspc subscribe node_add | while read -r; do
+        [[ $new_width =~ ^[0-9]+$ ]] || continue
+        [[ $new_width == "$current_width" ]] && continue
+        current_width=$new_width
+
+        kill -s SIGRTMIN+9 "$sighandler_pid" 2>/dev/null || break
+        sleep 0.05
+        # Refresh workspaces after applications enter or leave the tray.
         kill -s SIGRTMIN+2 "$sighandler_pid" 2>/dev/null || break
     done
+
+    cleanup_listener_producer
 }
 
-get_ws_updates_changed_desktop &
-listener_pids+=("$!")
-
-get_ws_updates_node_transfer &
-listener_pids+=("$!")
-
-get_ws_updates_layout_change &
+get_ws_updates &
 listener_pids+=("$!")
 
 get_trayer_updates &
-listener_pids+=("$!")
-
-get_new_node_updates &
 listener_pids+=("$!")
 
 # Keep the event supervisor alive while its signal receiver exists.
