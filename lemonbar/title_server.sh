@@ -94,6 +94,8 @@ activeWindow() {
         exec "$LEMONDIR/xtmon.sh"
     }
 
+    # Bash creates XTMON_PID dynamically for the named coprocess.
+    # shellcheck disable=SC2154
     xtmon_pid=$XTMON_PID
     local xtmon_fd=${XTMON[0]}
 
