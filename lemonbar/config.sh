@@ -2,15 +2,16 @@
 
 TERMINAL=${TERMINAL:-alacritty}
 
-# Realtime signal map shared by all Lemonbar senders and receivers.
-SIGNAL_WORKSPACE=SIGRTMIN+2
-SIGNAL_TICK=SIGRTMIN+3
-SIGNAL_TITLE=SIGRTMIN+5
-SIGNAL_VOLUME=SIGRTMIN+6
-SIGNAL_BRIGHTNESS_UP=SIGRTMIN+7
-SIGNAL_BRIGHTNESS_DOWN=SIGRTMIN+8
-SIGNAL_TRAY=SIGRTMIN+9
-SIGNAL_SCREENCAST=SIGRTMIN+11
+# Linux realtime signal map shared by all Lemonbar senders and receivers.
+# Numeric values also work with minimal /bin/sh implementations such as dash.
+SIGNAL_WORKSPACE=36       # SIGRTMIN+2
+SIGNAL_TICK=37            # SIGRTMIN+3
+SIGNAL_TITLE=39           # SIGRTMIN+5
+SIGNAL_VOLUME=40          # SIGRTMIN+6
+SIGNAL_BRIGHTNESS_UP=41   # SIGRTMIN+7
+SIGNAL_BRIGHTNESS_DOWN=42 # SIGRTMIN+8
+SIGNAL_TRAY=43            # SIGRTMIN+9
+SIGNAL_SCREENCAST=45      # SIGRTMIN+11
 
 # Dracula color palette
 BGlighter="#424450"
