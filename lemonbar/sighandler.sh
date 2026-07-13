@@ -22,11 +22,15 @@ fi
 trap_cleanup() {
     # prevent reentrancy
     trap - INT TERM QUIT EXIT HUP ERR
-    # nur Kindprozesse beenden, niemals die eigene Shell
+    # Stop the weather worker explicitly before terminating remaining children.
+    if [[ ${weather_worker_pid:-} =~ ^[0-9]+$ ]]; then
+        kill -TERM "$weather_worker_pid" 2>/dev/null || true
+        wait "$weather_worker_pid" 2>/dev/null || true
+    fi
     if [[ -n ${spid-} ]]; then
         kill "$spid" 2>/dev/null || true
     fi
-    pkill -P "$$" 2>/dev/null || true
+    pkill -P "$" 2>/dev/null || true
     wait 2>/dev/null || true
     log_info "cleanup"
 }
@@ -60,7 +64,19 @@ tray() { tray_string="$("$LEMONDIR"/modules/block_trayer.sh)"; }
 network() { net_string="$("$LEMONDIR"/modules/block_network.sh)"; }
 battery() { battery_string="$("$LEMONDIR"/modules/block_battery.sh)"; }
 screencast() { cast_string="$("$LEMONDIR"/modules/block_screencast.sh)"; }
-weather() { weather_string="$("$LEMONDIR"/modules/block_weather.sh)"; }
+weather() {
+    local cache_root weather_cache_dir display_cache
+
+    cache_root="${XDG_CACHE_HOME:-$HOME/.cache}"
+    weather_cache_dir="${WEATHERREPORT:-$cache_root/weather}"
+    display_cache="$weather_cache_dir/lemonbar.cache"
+
+    if [[ -r "$display_cache" ]]; then
+        weather_string="$(<"$display_cache")"
+    else
+        weather_string=""
+    fi
+}
 
 tick_count=0
 
@@ -78,9 +94,6 @@ tick() {
         run_or_log battery
     fi
 
-    if ((tick_count % 60 == 0)); then
-        run_or_log weather
-    fi
 }
 
 # DESC: Initialize signals, print lemonbar strings
@@ -98,11 +111,16 @@ sig_init() {
     trap -- 'run_or_log monitor "-" "$pid"' SIGRTMIN+8
     trap -- 'run_or_log tray' SIGRTMIN+9
     trap -- 'run_or_log screencast' SIGRTMIN+11
+    trap -- 'run_or_log weather' SIGRTMIN+12
 
     # own PID
     pid="$BASHPID"
 
     "$LEMONDIR"/scheduler.sh "$pid" &
+
+    # Run network access and weather parsing outside this signal handler.
+    bash "$LEMONDIR/weather_worker.sh" "$pid" &
+    weather_worker_pid=$!
 
     # init
     window_title
