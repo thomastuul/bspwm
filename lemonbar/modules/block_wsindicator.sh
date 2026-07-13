@@ -8,93 +8,106 @@ fi
 set -o errexit  # Exit on most errors (see the manual)
 set -o nounset  # Disallow expansion of unset variables
 set -o pipefail # Use last non-zero exit code in a pipeline
-# Enable errtrace or the error trap handler will not work as expected
 set -o errtrace # Ensure the error trap handler is inherited
 
 # shellcheck disable=SC1091
 source "$LEMONDIR/config.sh"
 # shellcheck disable=SC1090
-if [[ -n "${BASH_ENV:-}" && -r "$BASH_ENV" ]]; then
+if [[ -n ${BASH_ENV:-} && -r $BASH_ENV ]]; then
     # shellcheck source=../lib/logging_env.sh
     source "$BASH_ENV"
 else
     exit 1
 fi
 
-FG=$COLOR_DEFAULT_FG
-BG=$COLOR_DEFAULT_BG
-UL=$COLOR_FOREGROUND
-
 declare -a icons=('' '' '' '' '' '' '' '' '')
+declare -a report_items=()
+
 set_num=false
+lemonbar_output=""
+focused_layout=""
+monitor_focused=false
+desktop_index=0
 
-bspc subscribe report --count 1 | while read -r line; do
-    if [[ $line =~ ^WM[[:space:]]*([^:]+):(.*)$ ]]; then
-        workspace_index="${BASH_REMATCH[1]}"
-        workspace_info="${BASH_REMATCH[2]}"
+workspace_colors() {
+    case $1 in
+    O)
+        FG=$COLOR_FOCUSED_OCCUPIED_FG
+        BG=$COLOR_FOCUSED_OCCUPIED_BG
+        ;;
+    o)
+        FG=$COLOR_OCCUPIED_FG
+        BG=$COLOR_OCCUPIED_BG
+        ;;
+    F)
+        FG=$COLOR_FOCUSED_FREE_FG
+        BG=$COLOR_FOCUSED_FREE_BG
+        ;;
+    f)
+        FG=$COLOR_FREE_FG
+        BG=$COLOR_FREE_BG
+        ;;
+    U)
+        FG=$COLOR_FOCUSED_URGENT_FG
+        BG=$COLOR_FOCUSED_URGENT_BG
+        ;;
+    u)
+        FG=$COLOR_URGENT_FG
+        BG=$COLOR_URGENT_BG
+        ;;
+    esac
+}
 
-        IFS=, read -r -a monitors <<<"$workspace_index"
+report=$(bspc subscribe report --count 1)
+# This setup uses "W" as bspwm's status prefix for report lines.
+report=${report#W}
+IFS=: read -r -a report_items <<<"$report"
 
-        lemonbar_output=""
-        for monitor in "${monitors[@]}"; do
-            workspace_names=$(bspc query -D -m "$monitor" --names)
-            IFS=: read -ra ws_array <<<"$workspace_info"
-            k=0
-            for name in $workspace_names; do
-                CALLBACK="bspc desktop -f ${name}"
-                if [[ "$set_num" == false ]]; then
-                    tag_name="${icons[$k]}"
-                else
-                    tag_name=${name}
-                fi
-                case "${ws_array[$k]}" in
-                # Occupied focused desktop
-                O*)
-                    FG=$COLOR_FOCUSED_OCCUPIED_FG
-                    BG=$COLOR_FOCUSED_OCCUPIED_BG
-                    UL=$COLOR_FOREGROUND
-                    ;;
-                # Occupied unfocused desktop
-                o*)
-                    FG=$COLOR_OCCUPIED_FG
-                    BG=$COLOR_OCCUPIED_BG
-                    UL=$COLOR_FOREGROUND
-                    ;;
-                # Free focused desktop
-                F*)
-                    FG=$COLOR_FOCUSED_FREE_FG
-                    BG=$COLOR_FOCUSED_FREE_BG
-                    UL=$COLOR_FOREGROUND
-                    ;;
-                # Free unfocused desktop
-                f*)
-                    FG=$COLOR_FREE_FG
-                    BG=$COLOR_FREE_BG
-                    UL=$COLOR_FOREGROUND
-                    ;;
-                # Urgent focused desktop
-                U*)
-                    FG=$COLOR_FOCUSED_URGENT_FG
-                    BG=$COLOR_FOCUSED_URGENT_BG
-                    UL=$COLOR_FOREGROUND
-                    ;;
-                # Urgent unfocused desktop
-                u*)
-                    FG=$COLOR_URGENT_FG
-                    BG=$COLOR_URGENT_BG
-                    UL=$COLOR_FOREGROUND
-                    ;;
-                esac
-                lemonbar_output+="%{F${FG}}%{B${BG}}%{U${UL}}%{+u}%{A1:${CALLBACK}:}$PADDING${tag_name}$PADDING%{A}%{B-}%{F-}%{-u}"
-                ((++k))
-            done
-        done
-        case "${ws_array[$k]}" in
-        LT) layout="[TILED]" ;;
-        LM) layout="[MONOCLE]" ;;
-        *) layout="[FULLSCREEN]" ;;
-        esac
-        lemonbar_output+="%{F$COLOR_FREE_FG}%{B$COLOR_DEFAULT_BG}$PADDING${layout}$PADDING%{B-}%{F-}"
-        printf "%s" "$lemonbar_output"
-    fi
+for item in "${report_items[@]}"; do
+    type=${item:0:1}
+    value=${item:1}
+
+    case $type in
+    M | m)
+        monitor_focused=false
+        if [[ $type == M ]]; then
+            monitor_focused=true
+        fi
+        desktop_index=0
+        ;;
+    O | o | F | f | U | u)
+        if [[ $monitor_focused != true ]]; then
+            continue
+        fi
+
+        workspace_colors "$type"
+        printf -v callback 'bspc desktop -f %q' "$value"
+
+        if [[ $set_num == false && $desktop_index -lt ${#icons[@]} ]]; then
+            tag_name=${icons[$desktop_index]}
+        else
+            tag_name=$value
+        fi
+
+        lemonbar_output+="%{F${FG}}%{B${BG}}%{U${COLOR_FOREGROUND}}%{+u}"
+        lemonbar_output+="%{A1:${callback}:}${PADDING}${tag_name}${PADDING}%{A}"
+        lemonbar_output+="%{B-}%{F-}%{-u}"
+        ((++desktop_index))
+        ;;
+    L)
+        if [[ $monitor_focused == true ]]; then
+            focused_layout=$value
+        fi
+        ;;
+    esac
 done
+
+case $focused_layout in
+T) layout="[TILED]" ;;
+M) layout="[MONOCLE]" ;;
+*) layout="[UNKNOWN]" ;;
+esac
+
+lemonbar_output+="%{F$COLOR_FREE_FG}%{B$COLOR_DEFAULT_BG}"
+lemonbar_output+="${PADDING}${layout}${PADDING}%{B-}%{F-}"
+printf '%s' "$lemonbar_output"
