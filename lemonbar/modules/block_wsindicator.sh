@@ -12,6 +12,8 @@ set -o errtrace # Ensure the error trap handler is inherited
 
 # shellcheck disable=SC1091
 source "$LEMONDIR/config.sh"
+# shellcheck source=../lib/lemonbar_action.sh
+source "$LEMONDIR/lib/lemonbar_action.sh"
 # shellcheck disable=SC1090
 if [[ -n ${BASH_ENV:-} && -r $BASH_ENV ]]; then
     # shellcheck source=../lib/logging_env.sh
@@ -81,7 +83,8 @@ for item in "${report_items[@]}"; do
         fi
 
         workspace_colors "$type"
-        printf -v callback 'bspc desktop -f %q' "$value"
+        callback=$(lemonbar_action \
+            bash "$LEMONDIR/lib/click_action.sh" workspace "$value")
 
         if [[ $set_num == false && $desktop_index -lt ${#icons[@]} ]]; then
             tag_name=${icons[$desktop_index]}
