@@ -2,7 +2,7 @@
 
 PANEL_WIDTH=$(
     xdpyinfo |
-        awk '/dimensions/ { split($2, size, "x"); print size[1]; exit }'
+        awk '/dimensions/ { split($2, size, "x"); print size[1] }'
 )
 PANEL_HEIGHT=$(bspc config top_padding)
 
