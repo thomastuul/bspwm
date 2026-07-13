@@ -1,15 +1,14 @@
 #!/usr/bin/env bash
 
-# Enable xtrace if the DEBUG environment variable is set
-if [[ ${DEBUG-} =~ ^1|yes|true$ ]]; then
-    set -o xtrace # Trace the execution of the script (debug)
-fi
+set -o errexit
+set -o nounset
+set -o pipefail
+set -o errtrace
 
-set -o errexit  # Exit on most errors (see the manual)
-set -o nounset  # Disallow expansion of unset variables
-set -o pipefail # Use last non-zero exit code in a pipeline
-# Enable errtrace or the error trap handler will not work as expected
-set -o errtrace # Ensure the error trap handler is inherited
+# Enable xtrace for explicit debug runs.
+if [[ ${DEBUG-} =~ ^(1|yes|true)$ ]]; then
+    set -o xtrace
+fi
 
 # shellcheck disable=SC1091
 source "$LEMONDIR/config.sh"
@@ -18,31 +17,102 @@ if [[ -n "${BASH_ENV:-}" && -r "$BASH_ENV" ]]; then
     # shellcheck source=../lib/logging_env.sh
     source "$BASH_ENV"
 else
+    printf 'BASH_ENV not found: %s\n' "${BASH_ENV:-unset}" >&2
     exit 1
 fi
 
 ssid="-"
-wlan_adapter_list="$(ls /sys/class/ieee80211/*/device/net/)"
-for wlan in $wlan_adapter_list; do
-    if [[ "$(cat /sys/class/net/"${wlan}"/operstate)" == "up" ]]; then
-        ssid="$(nmcli connection | grep "$wlan" | awk '{print $1}')"
-        strength="$(awk 'END { print int($3 * 100 / 70) }' /proc/net/wireless | sed 's/\.$//')"
-        wlan_string="說 ${strength}%"
-        break
+strength=""
+wlan_string=""
+eth_string=""
+
+read_operstate() {
+    local interface=$1 state_file="/sys/class/net/$1/operstate"
+    local state=""
+
+    [[ -r $state_file ]] || return 1
+    IFS= read -r state <"$state_file"
+    [[ $state == "up" ]]
+}
+
+read_wifi_from_nmcli() {
+    local interface=$1 line payload
+
+    command -v nmcli >/dev/null 2>&1 || return 1
+
+    while IFS= read -r line; do
+        [[ $line == '*:'* ]] || continue
+
+        payload=${line#*:}
+        strength=${payload##*:}
+        ssid=${payload%:*}
+
+        [[ $strength =~ ^[0-9]+$ ]] || strength=""
+        [[ -n $ssid ]] || ssid="-"
+        return 0
+    done < <(
+        nmcli --terse --escape no --fields IN-USE,SSID,SIGNAL \
+            device wifi list --rescan no ifname "$interface" 2>/dev/null
+    )
+
+    return 1
+}
+
+read_wifi_from_proc() {
+    local interface=$1
+
+    [[ -r /proc/net/wireless ]] || return 1
+    strength=$(
+        awk -v interface="$interface" '
+            $1 == interface ":" {
+                value = int($3 * 100 / 70)
+                if (value < 0) value = 0
+                if (value > 100) value = 100
+                print value
+            }
+        ' /proc/net/wireless
+    )
+
+    [[ $strength =~ ^[0-9]+$ ]]
+}
+
+for interface_path in /sys/class/net/*; do
+    [[ -e $interface_path ]] || continue
+    interface=${interface_path##*/}
+
+    if [[ -d $interface_path/wireless || -e $interface_path/phy80211 ]]; then
+        if read_operstate "$interface"; then
+            read_wifi_from_nmcli "$interface" ||
+                read_wifi_from_proc "$interface" ||
+                strength=""
+
+            if [[ -n $strength ]]; then
+                wlan_string="說 ${strength}%"
+            else
+                wlan_string="說"
+            fi
+            break
+        fi
     fi
 done
 
-eth_adapter_list=()
-for interface in /sys/class/net/e*; do
-    [[ -e $interface ]] && eth_adapter_list+=("$(basename "$interface")")
-done
+for interface_path in /sys/class/net/*; do
+    [[ -e $interface_path ]] || continue
+    interface=${interface_path##*/}
 
-eth_string=""
-for eth in "${eth_adapter_list[@]}"; do
-    if [[ "$(cat "/sys/class/net/${eth}/operstate")" == "up" ]]; then
+    [[ $interface == "lo" ]] && continue
+    [[ -d $interface_path/wireless || -e $interface_path/phy80211 ]] &&
+        continue
+    [[ -e $interface_path/device ]] || continue
+
+    if read_operstate "$interface"; then
         eth_string=""
         break
     fi
 done
 
-printf "%s" "%{A1:/bin/sh -c 'setsid -f \"$TERMINAL\" -e nmtui >/dev/null 2>&1 &':}%{A3:notify-send \"SSID\: $ssid\":}%{B$COLOR_DEFAULT_BG}%{F$COLOR_NETWORK_FG}%{+u} ${eth_string-} ${wlan_string-} %{-u}%{F-}%{B-}%{A}%{A}"
+printf -v notify_action 'notify-send %q %q' "Network" "SSID: $ssid"
+notify_action=${notify_action//:/\\:}
+
+printf '%s' \
+    "%{A1:/bin/sh -c 'setsid -f \"$TERMINAL\" -e nmtui >/dev/null 2>&1 &':}%{A3:${notify_action}:}%{B$COLOR_DEFAULT_BG}%{F$COLOR_NETWORK_FG}%{+u} ${eth_string} ${wlan_string} %{-u}%{F-}%{B-}%{A}%{A}"
