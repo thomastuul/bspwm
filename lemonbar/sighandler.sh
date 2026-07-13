@@ -22,7 +22,11 @@ fi
 trap_cleanup() {
     # prevent reentrancy
     trap - INT TERM QUIT EXIT HUP ERR
-    # Stop the weather worker explicitly before terminating remaining children.
+    # Stop explicitly managed background workers before leaving.
+    if [[ ${scheduler_pid:-} =~ ^[0-9]+$ ]]; then
+        kill -TERM "$scheduler_pid" 2>/dev/null || true
+        wait "$scheduler_pid" 2>/dev/null || true
+    fi
     if [[ ${weather_worker_pid:-} =~ ^[0-9]+$ ]]; then
         kill -TERM "$weather_worker_pid" 2>/dev/null || true
         wait "$weather_worker_pid" 2>/dev/null || true
@@ -30,7 +34,7 @@ trap_cleanup() {
     if [[ -n ${spid-} ]]; then
         kill "$spid" 2>/dev/null || true
     fi
-    pkill -P "$" 2>/dev/null || true
+    pkill -P "${BASHPID}" 2>/dev/null || true
     wait 2>/dev/null || true
     log_info "cleanup"
 }
@@ -119,6 +123,7 @@ sig_init() {
     pid="$BASHPID"
 
     "$LEMONDIR"/scheduler.sh "$pid" &
+    scheduler_pid=$!
 
     # Run network access and weather parsing outside this signal handler.
     "$LEMONDIR/weather_worker.sh" "$pid" &
