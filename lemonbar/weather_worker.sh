@@ -49,11 +49,17 @@ refresh_weather() {
     mkdir -p -- "$weather_cache_dir"
     printf '%s\n' "$output" >"$display_cache_tmp"
     mv -f -- "$display_cache_tmp" "$display_cache"
+}
 
+prefetch_weather_image() {
+    if ! "$LEMONDIR/modules/block_weather.sh" --prefetch-image; then
+        log_error "weather image prefetch failed"
+    fi
 }
 
 while kill -0 "$sighandler_pid" 2>/dev/null; do
     refresh_weather
+    prefetch_weather_image
 
     # Check the parent every second while keeping a one-minute refresh cycle.
     for ((second = 0; second < 60; second++)); do
