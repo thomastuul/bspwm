@@ -31,7 +31,7 @@ sighandler_pid=$1
 
 # shellcheck disable=SC2154
 title_cache="$tmp_dir/lemonbar_title.cache"
-title_cache_tmp="$title_cache.$"
+title_cache_tmp="$title_cache.${BASHPID}"
 xtmon_pid=""
 
 # DESC: Stop the title watcher and remove title cache files
