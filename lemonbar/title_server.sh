@@ -30,10 +30,11 @@ fi
 sighandler_pid=$1
 
 # shellcheck disable=SC2154
-title_fifo="$tmp_dir/lemonbar_title.fifo"
+title_cache="$tmp_dir/lemonbar_title.cache"
+title_cache_tmp="$title_cache.$"
 xtmon_pid=""
 
-# DESC: Remove FIFO
+# DESC: Stop the title watcher and remove title cache files
 # ARGS: None
 # OUTS: None
 trap_cleanup() {
@@ -45,9 +46,7 @@ trap_cleanup() {
         xtmon_pid=""
     fi
 
-    if [[ -e "$title_fifo" ]]; then
-        rm -f "$title_fifo"
-    fi
+    rm -f -- "$title_cache" "$title_cache_tmp"
 }
 
 # DESC: Errorhandler
@@ -62,13 +61,6 @@ trap 'trap_cleanup' EXIT
 trap 'exit 130' INT
 trap 'exit 143' TERM
 trap 'exit 0' QUIT HUP
-
-# create named pipe
-if [[ -e "$title_fifo" ]]; then
-    rm -f "$title_fifo"
-fi
-mkfifo -m 600 "$title_fifo"
-log_info "created " "$title_fifo"
 
 # DESC: Check if given PID variable is a valid, running process
 # ARGS: $1 (string) PID value to check
@@ -105,19 +97,9 @@ activeWindow() {
     xtmon_pid=$XTMON_PID
     local xtmon_fd=${XTMON[0]}
 
+    local truncated
+
     while IFS= read -r line <&"$xtmon_fd"; do
-        if ! kill -s SIGRTMIN+5 "$sighandler_pid" 2>/dev/null; then
-            log_error "sighandler not running: pid=$sighandler_pid"
-            break
-        fi
-
-        sleep 0.02
-
-        if [[ ! -p "$title_fifo" ]]; then
-            log_error "title FIFO missing: $title_fifo"
-            break
-        fi
-
         truncated="$(
             printf '%s\n' "$line" |
                 awk -v m="$TITLE_MAX_LENGHT" '{print substr($0,1,m)}'
@@ -125,8 +107,18 @@ activeWindow() {
 
         if ! printf '%s\n' \
             "%{B$COLOR_DEFAULT_BG}%{F$COLOR_FREE_FG}%{+u}$PADDING$truncated$PADDING%{-u}%{F-}%{B-}" \
-            >"$title_fifo"; then
-            log_error "cannot write title FIFO: $title_fifo"
+            >"$title_cache_tmp"; then
+            log_error "cannot write title cache: $title_cache_tmp"
+            break
+        fi
+
+        if ! mv -f -- "$title_cache_tmp" "$title_cache"; then
+            log_error "cannot publish title cache: $title_cache"
+            break
+        fi
+
+        if ! kill -s SIGRTMIN+5 "$sighandler_pid" 2>/dev/null; then
+            log_error "sighandler not running: pid=$sighandler_pid"
             break
         fi
     done
