@@ -68,8 +68,6 @@ COLOR_BATTERY_CHARGING_FG="$Green"
 
 PADDING=" "
 CLICKABLE_AREAS=30
-PANEL_WIDTH=$(xdpyinfo | awk '/dimensions/{print $2}' | cut -d 'x' -f 1)
-PANEL_HEIGHT=$(bspc config top_padding)
 PANEL_HORIZONTAL_OFFSET=0
 PANEL_VERTICAL_OFFSET=0
 PANEL_FONT="JetBrainsMono:style=Regular:size=9"
