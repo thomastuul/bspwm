@@ -98,19 +98,38 @@ get_ws_updates_layout_change() {
 }
 
 get_trayer_updates() {
-    # Wait for the Trayer window and its size hints, not just the process.
-    while ! LC_ALL=C xprop -name "$SYSTRAY_WM_NAME" WM_NORMAL_HINTS \
-        >/dev/null 2>&1; do
+    local current_width line new_width
+
+    # Wait until the Trayer window exposes a valid minimum width.
+    while :; do
+        current_width=$(
+            LC_ALL=C xprop -name "$SYSTRAY_WM_NAME" WM_NORMAL_HINTS \
+                2>/dev/null |
+                awk '/program specified minimum size/ { print $(NF - 2) }'
+        ) || current_width=""
+
+        if [[ $current_width =~ ^[0-9]+$ ]]; then
+            break
+        fi
+
         kill -0 "$sighandler_pid" 2>/dev/null || return
         sleep 0.1
     done
 
-    # Request the initial padding update after the Trayer window is ready.
+    # Request one initial update after the Trayer window is ready.
     kill -s SIGRTMIN+9 "$sighandler_pid" 2>/dev/null || return
 
     LC_ALL=C stdbuf -oL -eL \
         xprop -name "$SYSTRAY_WM_NAME" -spy WM_NORMAL_HINTS |
-        while IFS= read -r; do
+        grep --line-buffered 'program specified minimum size' |
+        while IFS= read -r line; do
+            new_width=${line#*: }
+            new_width=${new_width%% *}
+
+            [[ $new_width =~ ^[0-9]+$ ]] || continue
+            [[ $new_width == "$current_width" ]] && continue
+            current_width=$new_width
+
             kill -s SIGRTMIN+9 "$sighandler_pid" 2>/dev/null || break
             sleep 0.05
             # Refresh workspaces after applications enter or leave the tray.
