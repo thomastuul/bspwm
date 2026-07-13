@@ -268,6 +268,53 @@ init() {
     fi
 }
 
+# DESC: Wait for the first critical child process to exit
+# ARGS: None
+# OUTS: None
+# NOTE: Any child exit stops the complete panel to avoid a partial session.
+monitor_children() {
+    local exited_pid rc exit_rc child_name
+
+    if wait -n -p exited_pid \
+        "$lemonbar_pid" \
+        "$sighandler_pid" \
+        "$events_pid" \
+        "$title_server_pid"; then
+        rc=0
+    else
+        rc=$?
+    fi
+
+    case "${exited_pid:-}" in
+    "$lemonbar_pid")
+        child_name="lemonbar"
+        ;;
+    "$sighandler_pid")
+        child_name="sighandler.sh"
+        rm -f -- "$XDG_RUNTIME_DIR/sighandler.pid"
+        ;;
+    "$events_pid")
+        child_name="events.sh"
+        ;;
+    "$title_server_pid")
+        child_name="title_server.sh"
+        ;;
+    *)
+        child_name="unknown"
+        ;;
+    esac
+
+    if ((rc == 0)); then
+        log_error "unexpected child exit: name=$child_name pid=${exited_pid:-unknown} rc=0"
+        exit_rc=1
+    else
+        log_error "child exit: name=$child_name pid=${exited_pid:-unknown} rc=$rc"
+        exit_rc=$rc
+    fi
+
+    exit "$exit_rc"
+}
+
 # DESC: Main control flow
 # ARGS: $@ (optional): Arguments provided to the script
 # OUTS: None
@@ -335,15 +382,8 @@ main() {
     "$LEMONDIR/title_server.sh" "$sighandler_pid" &
     title_server_pid=$!
 
-    # wait for subprocesses to be finished except one fails
-    while :; do
-        if ! wait -n; then
-            rc=$?
-            log_info "child_exit" "$rc"
-        fi
-        # wenn keine Jobs mehr: raus
-        [[ -z "$(jobs -pr)" ]] && break
-    done
+    # Stop the complete panel as soon as one critical child exits.
+    monitor_children
 }
 
 main "$@"
