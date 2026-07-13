@@ -6,6 +6,8 @@ set -euo pipefail
 
 # shellcheck disable=SC1091
 source "$HOME/.config/bspwm/lemonbar/config.sh"
+# shellcheck disable=SC1091
+source "$HOME/.config/bspwm/lemonbar/panel_runtime.sh"
 
 : "${XDG_RUNTIME_DIR:="/run/user/$(id -u)"}"
 mkdir -p -- "$XDG_RUNTIME_DIR"
