@@ -10,6 +10,10 @@ if [[ ${DEBUG-} =~ ^1|yes|true$ ]]; then
     set -o xtrace # Trace the execution of the script (debug)
 fi
 
+# Load the shared signal map before installing realtime signal traps.
+# shellcheck source=config.sh
+source "$LEMONDIR/config.sh"
+
 # shellcheck disable=SC1090
 if [[ -r "${BASH_ENV:-}" ]]; then
     # shellcheck source=lib/logging_env.sh
