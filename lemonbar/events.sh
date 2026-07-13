@@ -98,7 +98,7 @@ get_ws_updates() {
     listener_producer_pid=$EVENT_SOURCE_PID
 
     while IFS= read -r <&"${EVENT_SOURCE[0]}"; do
-        kill -s SIGRTMIN+2 "$sighandler_pid" 2>/dev/null || break
+        kill -s "$SIGNAL_WORKSPACE" "$sighandler_pid" 2>/dev/null || break
     done
 
     cleanup_listener_producer
@@ -127,7 +127,7 @@ get_trayer_updates() {
     done
 
     # Request one initial update after the Trayer window is ready.
-    kill -s SIGRTMIN+9 "$sighandler_pid" 2>/dev/null || return
+    kill -s "$SIGNAL_TRAY" "$sighandler_pid" 2>/dev/null || return
 
     coproc EVENT_SOURCE {
         exec env LC_ALL=C stdbuf -oL -eL \
@@ -145,10 +145,10 @@ get_trayer_updates() {
         [[ $new_width == "$current_width" ]] && continue
         current_width=$new_width
 
-        kill -s SIGRTMIN+9 "$sighandler_pid" 2>/dev/null || break
+        kill -s "$SIGNAL_TRAY" "$sighandler_pid" 2>/dev/null || break
         sleep 0.05
         # Refresh workspaces after applications enter or leave the tray.
-        kill -s SIGRTMIN+2 "$sighandler_pid" 2>/dev/null || break
+        kill -s "$SIGNAL_WORKSPACE" "$sighandler_pid" 2>/dev/null || break
     done
 
     cleanup_listener_producer

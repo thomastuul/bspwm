@@ -7,6 +7,10 @@
 # 01.01.2022
 # Version 0.1
 
+LEMONDIR="${LEMONDIR:-${XDG_CONFIG_HOME:-$HOME/.config}/bspwm/lemonbar}"
+# shellcheck source=../lemonbar/config.sh
+source "$LEMONDIR/config.sh"
+
 # You can also run kill -39 $(pidof dwmblocks) which will have the same effect, but is faster. Just add 34 to your typical
 # signal number.
 
@@ -52,4 +56,4 @@ else
         echo $! > "$XDG_RUNTIME_DIR/screencast.pid"
 fi
 
-kill -s SIGRTMIN+11 "$(getPid)"
+kill -s "$SIGNAL_SCREENCAST" "$(getPid)"

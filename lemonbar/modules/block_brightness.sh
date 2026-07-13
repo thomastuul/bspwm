@@ -120,8 +120,8 @@ case "$change_level" in
     ;;
 esac
 
-inc="kill -s SIGRTMIN+7 $sighandler_pid"
-dec="kill -s SIGRTMIN+8 $sighandler_pid"
+inc="kill -s $SIGNAL_BRIGHTNESS_UP $sighandler_pid"
+dec="kill -s $SIGNAL_BRIGHTNESS_DOWN $sighandler_pid"
 icon=""
 
 printf '%s' \

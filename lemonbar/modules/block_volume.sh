@@ -50,18 +50,18 @@ vol_ui="/bin/sh -c 'setsid -f \"$TERMINAL\" -e pulsemixer >/dev/null 2>&1 &'"
 inc_vol="sh -c 'if command -v pamixer >/dev/null 2>&1; then pamixer -i ${VOL_STEP}; \
 elif command -v pactl >/dev/null 2>&1; then pactl set-sink-volume @DEFAULT_SINK@ +${VOL_STEP}%; \
 else amixer set Master ${VOL_STEP}%+ >/dev/null; fi; \
-kill -RTMIN+6 $sighandler_pid'"
+kill -s $SIGNAL_VOLUME $sighandler_pid'"
 
 # Decrease volume
 dec_vol="sh -c 'if command -v pamixer >/dev/null 2>&1; then pamixer -d ${VOL_STEP}; \
 elif command -v pactl >/dev/null 2>&1; then pactl set-sink-volume @DEFAULT_SINK@ -${VOL_STEP}%; \
 else amixer set Master ${VOL_STEP}%- >/dev/null; fi; \
-kill -RTMIN+6 $sighandler_pid'"
+kill -s $SIGNAL_VOLUME $sighandler_pid'"
 
 # Toggle mute
 vol_toggle="sh -c 'if command -v pamixer >/dev/null 2>&1; then pamixer -t; \
 elif command -v pactl >/dev/null 2>&1; then pactl set-sink-mute @DEFAULT_SINK@ toggle; \
 else amixer set Master toggle >/dev/null; fi; \
-kill -RTMIN+6 $sighandler_pid'"
+kill -s $SIGNAL_VOLUME $sighandler_pid'"
 
 printf "%s" "%{A1:${vol_ui}:}%{A4:${inc_vol}:}%{A5:${dec_vol}:}%{A3:${vol_toggle}:}$(vol)%{A}%{A}%{A}%{A}"

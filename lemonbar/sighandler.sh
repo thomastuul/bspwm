@@ -10,6 +10,10 @@ if [[ ${DEBUG-} =~ ^1|yes|true$ ]]; then
     set -o xtrace # Trace the execution of the script (debug)
 fi
 
+# Load the shared signal map before installing realtime signal traps.
+# shellcheck source=config.sh
+source "$LEMONDIR/config.sh"
+
 # shellcheck disable=SC1090
 if [[ -r "${BASH_ENV:-}" ]]; then
     # shellcheck source=lib/logging_env.sh
@@ -147,14 +151,14 @@ process_pending_updates() {
 #       $3 (optional): Set to any value to not append a new line to the message
 # OUTS: None
 sig_init() {
-    trap -- 'pending_workspace=1' SIGRTMIN+2
-    trap -- 'pending_tick=1' SIGRTMIN+3
-    trap -- 'pending_title=1' SIGRTMIN+5
-    trap -- 'pending_volume=1' SIGRTMIN+6
-    trap -- 'pending_monitor="+"' SIGRTMIN+7
-    trap -- 'pending_monitor="-"' SIGRTMIN+8
-    trap -- 'pending_tray=1' SIGRTMIN+9
-    trap -- 'pending_screencast=1' SIGRTMIN+11
+    trap -- 'pending_workspace=1' "$SIGNAL_WORKSPACE"
+    trap -- 'pending_tick=1' "$SIGNAL_TICK"
+    trap -- 'pending_title=1' "$SIGNAL_TITLE"
+    trap -- 'pending_volume=1' "$SIGNAL_VOLUME"
+    trap -- 'pending_monitor="+"' "$SIGNAL_BRIGHTNESS_UP"
+    trap -- 'pending_monitor="-"' "$SIGNAL_BRIGHTNESS_DOWN"
+    trap -- 'pending_tray=1' "$SIGNAL_TRAY"
+    trap -- 'pending_screencast=1' "$SIGNAL_SCREENCAST"
 
     # own PID
     pid="$BASHPID"

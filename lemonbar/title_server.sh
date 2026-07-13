@@ -119,7 +119,7 @@ activeWindow() {
             break
         fi
 
-        if ! kill -s SIGRTMIN+5 "$sighandler_pid" 2>/dev/null; then
+        if ! kill -s "$SIGNAL_TITLE" "$sighandler_pid" 2>/dev/null; then
             log_error "sighandler not running: pid=$sighandler_pid"
             break
         fi
