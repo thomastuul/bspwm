@@ -98,18 +98,24 @@ get_ws_updates_layout_change() {
 }
 
 get_trayer_updates() {
-    # wait until trayer has started
-    while ! pidof trayer >/dev/null; do
+    # Wait for the Trayer window and its size hints, not just the process.
+    while ! LC_ALL=C xprop -name "$SYSTRAY_WM_NAME" WM_NORMAL_HINTS \
+        >/dev/null 2>&1; do
+        kill -0 "$sighandler_pid" 2>/dev/null || return
         sleep 0.1
     done
 
-    stdbuf -oL -eL xprop -name "$SYSTRAY_WM_NAME" -spy | grep --line-buffered 'program specified minimum size' | while IFS= read -r; do
-        sleep 0.02
-        kill -s SIGRTMIN+9 "$sighandler_pid" 2>/dev/null || break
-        sleep 0.02
-        # often an app disappears from workspace too if it is gone from systray
-        kill -s SIGRTMIN+2 "$sighandler_pid" 2>/dev/null || break
-    done
+    # Request the initial padding update after the Trayer window is ready.
+    kill -s SIGRTMIN+9 "$sighandler_pid" 2>/dev/null || return
+
+    LC_ALL=C stdbuf -oL -eL \
+        xprop -name "$SYSTRAY_WM_NAME" -spy WM_NORMAL_HINTS |
+        while IFS= read -r; do
+            kill -s SIGRTMIN+9 "$sighandler_pid" 2>/dev/null || break
+            sleep 0.05
+            # Refresh workspaces after applications enter or leave the tray.
+            kill -s SIGRTMIN+2 "$sighandler_pid" 2>/dev/null || break
+        done
 }
 
 get_new_node_updates() {
