@@ -94,6 +94,9 @@ tick() {
         run_or_log battery
     fi
 
+    if ((tick_count % 60 == 0)); then
+        run_or_log weather
+    fi
 }
 
 # DESC: Initialize signals, print lemonbar strings
@@ -111,7 +114,6 @@ sig_init() {
     trap -- 'run_or_log monitor "-" "$pid"' SIGRTMIN+8
     trap -- 'run_or_log tray' SIGRTMIN+9
     trap -- 'run_or_log screencast' SIGRTMIN+11
-    trap -- 'run_or_log weather' SIGRTMIN+12
 
     # own PID
     pid="$BASHPID"
