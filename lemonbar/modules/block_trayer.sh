@@ -32,11 +32,15 @@ MARGIN="${MARGIN:-4}"
 SYSTRAY_WM_NAME="${SYSTRAY_WM_NAME:-panel}"
 
 trayer_width() {
-    width=1
-    if [[ -n "$(pidof trayer)" ]]; then
-        width=$(xprop -name "$SYSTRAY_WM_NAME" | grep 'program specified minimum size' | cut -d ' ' -f 5)
-    fi
-    printf "%s" "$((width + MARGIN))"
+    local width=1
+
+    width=$(
+        LC_ALL=C xprop -name "$SYSTRAY_WM_NAME" WM_NORMAL_HINTS 2>/dev/null |
+            awk '/program specified minimum size/ { print $(NF - 2) }'
+    ) || width=1
+
+    [[ $width =~ ^[0-9]+$ ]] || width=1
+    printf '%s' "$((width + MARGIN))"
 }
 
 trayer="%{F$COLOR_DEFAULT_FG}%{B$COLOR_DEFAULT_BG}%{O$(trayer_width)}%{B-}%{F-}"
