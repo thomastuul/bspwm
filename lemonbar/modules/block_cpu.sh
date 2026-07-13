@@ -27,4 +27,4 @@ load=$(awk -v l="$LOADAVG" -v c="$NUM_CORES" 'BEGIN{printf "%2.1f", (l*100)/c}')
 
 icon=""
 
-printf "%s" "%{A1:/bin/sh -c 'setsid -f \"$TERMINAL\" -e sh -c btop >/dev/null 2>&1 &':}%{B$COLOR_DEFAULT_BG}%{F$COLOR_SYS_FG}%{+u} $icon ${load}% %{-u}%{F-}%{B-}%{A}"
+printf "%s" "%{A1:setsid -f \"$TERMINAL\" -e btop >/dev/null 2>&1:}%{B$COLOR_DEFAULT_BG}%{F$COLOR_SYS_FG}%{+u} $icon ${load}% %{-u}%{F-}%{B-}%{A}"
