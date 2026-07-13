@@ -18,6 +18,8 @@ set -o errexit -o nounset -o pipefail
 
 # shellcheck disable=SC1091
 source "$LEMONDIR/config.sh"
+# shellcheck source=../lib/lemonbar_action.sh
+source "$LEMONDIR/lib/lemonbar_action.sh"
 # shellcheck disable=SC1090
 if [[ -n "${BASH_ENV:-}" && -r "$BASH_ENV" ]]; then
     # shellcheck source=../lib/logging_env.sh
@@ -343,9 +345,9 @@ MAX="${REST#*|}"
 
 # ---- Ausgabe ----------------------------------------------------------------
 
-printf -v run_left \
-    '%q --open --location %q --language %q --age %q' \
-    "$0" "$LOCATION" "$LANG" "$MAX_AGE_STR"
+run_left=$(lemonbar_action \
+    "$0" --open --location "$LOCATION" \
+    --language "$LANG" --age "$MAX_AGE_STR")
 
 age_text="$(
     "$0" --print-age \
@@ -353,9 +355,9 @@ age_text="$(
         --age "$MAX_AGE_STR"
 )"
 
-printf -v run_right \
-    'notify-send %q' \
-    "Update vor $age_text"
+run_right=$(lemonbar_action \
+    bash "$LEMONDIR/lib/click_action.sh" notify \
+    "Weather forecast" "Update vor $age_text")
 
 printf '%s\n' \
     "%{A1:$run_left:}%{A3:$run_right:}%{B$COLOR_DEFAULT_BG}%{F$COLOR_WEATHER_FG}%{+u} 爫${RAIN}%% ${MIN}° ${MAX}° %{-u}%{F-}%{B-}%{A}%{A}"
