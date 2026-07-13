@@ -70,7 +70,8 @@ weather() { weather_string="$("$LEMONDIR"/modules/block_weather.sh)"; }
 # OUTS: None
 sig_init() {
     trap -- 'run_or_log wsindicator' SIGRTMIN+2
-    trap -- 'run_or_log cpu; run_or_log clock' SIGRTMIN+3
+    trap -- 'run_or_log clock' SIGRTMIN+3
+    trap -- 'run_or_log cpu' SIGRTMIN+4
     trap -- 'run_or_log window_title' SIGRTMIN+5
     trap -- 'run_or_log volume "$pid"' SIGRTMIN+6
     trap -- 'run_or_log monitor "+" "$pid"' SIGRTMIN+7
@@ -102,7 +103,7 @@ sig_init() {
 }
 
 render_line() {
-    printf "%s" \
+    printf '%s%s%s\n' \
         "%{l}${launch_string}${ws_string}" \
         "%{c}${title_string}" \
         "%{r}${cast_string}${weather_string}${battery_string}${net_string}${mon_string}${vol_string}${cpu_string}${clock_string}${tray_string}${power_string}"

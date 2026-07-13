@@ -20,7 +20,8 @@ else
 fi
 
 # Signal-Plan:
-# SIGRTMIN+3  = CPU/Uhr   (1s)
+# SIGRTMIN+3  = Uhr       (1s)
+# SIGRTMIN+4  = CPU       (5s)
 # SIGRTMIN+5  = Titel     (on change)
 # SIGRTMIN+10 = Netz/Batt (10s)
 # SIGRTMIN+12 = Wetter    (60s)
@@ -36,12 +37,8 @@ send_signal() {
     else
         rc=$?
         log_error "kill failed: signal=$signal pid=$pid rc=$rc"
-        return 0
+        return "$rc"
     fi
-}
-
-dummy() {
-    :
 }
 
 seconds=0
@@ -52,7 +49,8 @@ while true; do
 
     # every 5 seconds
     if [[ $((seconds % 5)) -eq 0 ]]; then
-        dummy
+        sleep 0.05
+        send_signal SIGRTMIN+4 "$sighandler_pid"
     fi
 
     # every 10 seconds
