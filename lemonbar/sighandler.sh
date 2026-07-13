@@ -23,10 +23,6 @@ trap_cleanup() {
     # prevent reentrancy
     trap - INT TERM QUIT EXIT HUP ERR
     # Stop explicitly managed background workers before leaving.
-    if [[ ${scheduler_pid:-} =~ ^[0-9]+$ ]]; then
-        kill -TERM "$scheduler_pid" 2>/dev/null || true
-        wait "$scheduler_pid" 2>/dev/null || true
-    fi
     if [[ ${weather_worker_pid:-} =~ ^[0-9]+$ ]]; then
         kill -TERM "$weather_worker_pid" 2>/dev/null || true
         wait "$weather_worker_pid" 2>/dev/null || true
@@ -103,6 +99,47 @@ tick() {
     fi
 }
 
+pending_tick=0
+pending_workspace=0
+pending_title=0
+pending_volume=0
+pending_monitor=""
+pending_tray=0
+pending_screencast=0
+
+# Process updates outside trap context so module calls cannot overlap.
+process_pending_updates() {
+    if ((pending_tick)); then
+        pending_tick=0
+        run_or_log tick
+    fi
+    if ((pending_workspace)); then
+        pending_workspace=0
+        run_or_log wsindicator
+    fi
+    if ((pending_title)); then
+        pending_title=0
+        run_or_log window_title
+    fi
+    if ((pending_volume)); then
+        pending_volume=0
+        run_or_log volume "$pid"
+    fi
+    if [[ -n $pending_monitor ]]; then
+        local monitor_action="$pending_monitor"
+        pending_monitor=""
+        run_or_log monitor "$monitor_action" "$pid"
+    fi
+    if ((pending_tray)); then
+        pending_tray=0
+        run_or_log tray
+    fi
+    if ((pending_screencast)); then
+        pending_screencast=0
+        run_or_log screencast
+    fi
+}
+
 # DESC: Initialize signals, print lemonbar strings
 # ARGS: $1 (required): Message to print (defaults to a green foreground)
 #       $2 (optional): Colour to print the message with. This can be an ANSI
@@ -110,20 +147,17 @@ tick() {
 #       $3 (optional): Set to any value to not append a new line to the message
 # OUTS: None
 sig_init() {
-    trap -- 'run_or_log wsindicator' SIGRTMIN+2
-    trap -- 'tick' SIGRTMIN+3
-    trap -- 'run_or_log window_title' SIGRTMIN+5
-    trap -- 'run_or_log volume "$pid"' SIGRTMIN+6
-    trap -- 'run_or_log monitor "+" "$pid"' SIGRTMIN+7
-    trap -- 'run_or_log monitor "-" "$pid"' SIGRTMIN+8
-    trap -- 'run_or_log tray' SIGRTMIN+9
-    trap -- 'run_or_log screencast' SIGRTMIN+11
+    trap -- 'pending_workspace=1' SIGRTMIN+2
+    trap -- 'pending_tick=1' SIGRTMIN+3
+    trap -- 'pending_title=1' SIGRTMIN+5
+    trap -- 'pending_volume=1' SIGRTMIN+6
+    trap -- 'pending_monitor="+"' SIGRTMIN+7
+    trap -- 'pending_monitor="-"' SIGRTMIN+8
+    trap -- 'pending_tray=1' SIGRTMIN+9
+    trap -- 'pending_screencast=1' SIGRTMIN+11
 
     # own PID
     pid="$BASHPID"
-
-    "$LEMONDIR"/scheduler.sh "$pid" &
-    scheduler_pid=$!
 
     # Run network access and weather parsing outside this signal handler.
     "$LEMONDIR/weather_worker.sh" "$pid" &
@@ -153,11 +187,23 @@ render_line() {
 }
 
 main() {
+    local next_tick now
+
     sig_init
     log_info "initialized" "$0"
+    next_tick=$((EPOCHSECONDS + 1))
+
     while true; do
+        now=$EPOCHSECONDS
+        if ((now >= next_tick)); then
+            next_tick=$((now + 1))
+            run_or_log tick
+        fi
+
+        process_pending_updates
         render_line
-        sleep infinity &
+        # A finite wait guarantees progress even if a wake-up signal is lost.
+        sleep 1 &
         spid=$!
         wait "$spid" || true
         kill "$spid" 2>/dev/null || true
