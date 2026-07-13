@@ -90,12 +90,10 @@ get_ws_updates() {
     listener_producer_pid=""
     trap 'cleanup_listener_producer; exit 0' INT TERM HUP
 
+    # The report stream covers every state change represented by the workspace
+    # indicator, including desktop, monitor, occupancy and urgency changes.
     coproc EVENT_SOURCE {
-        exec stdbuf -oL -eL bspc subscribe \
-            desktop_focus \
-            node_transfer \
-            desktop_layout \
-            node_add
+        exec stdbuf -oL -eL bspc subscribe report
     }
     listener_producer_pid=$EVENT_SOURCE_PID
 
