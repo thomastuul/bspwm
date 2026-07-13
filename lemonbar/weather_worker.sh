@@ -12,6 +12,9 @@ fi
 if [[ -n "${BASH_ENV:-}" && -r "$BASH_ENV" ]]; then
     # shellcheck source=lib/logging_env.sh
     source "$BASH_ENV"
+else
+    printf 'logging_env.sh not found: %s\n' "${BASH_ENV:-unset}" >&2
+    exit 1
 fi
 
 if [[ $# -ne 1 || ! $1 =~ ^[0-9]+$ ]]; then
@@ -47,10 +50,6 @@ refresh_weather() {
     printf '%s\n' "$output" >"$display_cache_tmp"
     mv -f -- "$display_cache_tmp" "$display_cache"
 
-    if ! kill -s SIGRTMIN+12 "$sighandler_pid" 2>/dev/null; then
-        log_error "sighandler not running: pid=$sighandler_pid"
-        return 1
-    fi
 }
 
 while kill -0 "$sighandler_pid" 2>/dev/null; do
