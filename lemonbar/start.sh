@@ -300,6 +300,8 @@ main() {
 
     # shellcheck disable=SC1091
     source "$LEMONDIR/config.sh"
+    # shellcheck source=panel_runtime.sh
+    source "$LEMONDIR/panel_runtime.sh"
 
     # create named pipe
     fifo="${tmp_dir}/lemonbar.fifo"
