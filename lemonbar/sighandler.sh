@@ -62,6 +62,27 @@ battery() { battery_string="$("$LEMONDIR"/modules/block_battery.sh)"; }
 screencast() { cast_string="$("$LEMONDIR"/modules/block_screencast.sh)"; }
 weather() { weather_string="$("$LEMONDIR"/modules/block_weather.sh)"; }
 
+tick_count=0
+
+tick() {
+    tick_count=$((tick_count + 1))
+
+    run_or_log clock
+
+    if ((tick_count % 5 == 0)); then
+        run_or_log cpu
+    fi
+
+    if ((tick_count % 10 == 0)); then
+        run_or_log network
+        run_or_log battery
+    fi
+
+    if ((tick_count % 60 == 0)); then
+        run_or_log weather
+    fi
+}
+
 # DESC: Initialize signals, print lemonbar strings
 # ARGS: $1 (required): Message to print (defaults to a green foreground)
 #       $2 (optional): Colour to print the message with. This can be an ANSI
@@ -70,16 +91,13 @@ weather() { weather_string="$("$LEMONDIR"/modules/block_weather.sh)"; }
 # OUTS: None
 sig_init() {
     trap -- 'run_or_log wsindicator' SIGRTMIN+2
-    trap -- 'run_or_log clock' SIGRTMIN+3
-    trap -- 'run_or_log cpu' SIGRTMIN+4
+    trap -- 'tick' SIGRTMIN+3
     trap -- 'run_or_log window_title' SIGRTMIN+5
     trap -- 'run_or_log volume "$pid"' SIGRTMIN+6
     trap -- 'run_or_log monitor "+" "$pid"' SIGRTMIN+7
     trap -- 'run_or_log monitor "-" "$pid"' SIGRTMIN+8
     trap -- 'run_or_log tray' SIGRTMIN+9
-    trap -- 'run_or_log network; battery' SIGRTMIN+10
     trap -- 'run_or_log screencast' SIGRTMIN+11
-    trap -- 'run_or_log weather' SIGRTMIN+12
 
     # own PID
     pid="$BASHPID"
