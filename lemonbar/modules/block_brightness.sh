@@ -12,6 +12,8 @@ fi
 
 # shellcheck disable=SC1091
 source "$LEMONDIR/config.sh"
+# shellcheck source=../lib/lemonbar_action.sh
+source "$LEMONDIR/lib/lemonbar_action.sh"
 # shellcheck disable=SC1090
 if [[ -n "${BASH_ENV:-}" && -r "$BASH_ENV" ]]; then
     # shellcheck source=../lib/logging_env.sh
@@ -120,8 +122,12 @@ case "$change_level" in
     ;;
 esac
 
-inc="kill -s $SIGNAL_BRIGHTNESS_UP $sighandler_pid"
-dec="kill -s $SIGNAL_BRIGHTNESS_DOWN $sighandler_pid"
+inc=$(lemonbar_action \
+    bash "$LEMONDIR/lib/click_action.sh" signal \
+    "$SIGNAL_BRIGHTNESS_UP" "$sighandler_pid")
+dec=$(lemonbar_action \
+    bash "$LEMONDIR/lib/click_action.sh" signal \
+    "$SIGNAL_BRIGHTNESS_DOWN" "$sighandler_pid")
 icon=""
 
 printf '%s' \
