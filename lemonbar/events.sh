@@ -132,7 +132,7 @@ get_trayer_updates() {
     kill -s SIGRTMIN+9 "$sighandler_pid" 2>/dev/null || return
 
     coproc EVENT_SOURCE {
-        exec LC_ALL=C stdbuf -oL -eL \
+        exec env LC_ALL=C stdbuf -oL -eL \
             xprop -name "$SYSTRAY_WM_NAME" -spy WM_NORMAL_HINTS
     }
     listener_producer_pid=$EVENT_SOURCE_PID
