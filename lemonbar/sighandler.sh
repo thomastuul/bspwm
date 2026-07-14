@@ -14,10 +14,9 @@ fi
 # shellcheck source=config.sh
 source "$LEMONDIR/config.sh"
 
-# shellcheck disable=SC1090
-if [[ -r "${BASH_ENV:-}" ]]; then
-    # shellcheck source=lib/logging_env.sh
-    source "$BASH_ENV"
+if ! declare -F log_error >/dev/null; then
+    printf 'logging bootstrap not loaded: %s\n' "${BASH_ENV:-unset}" >&2
+    exit 1
 fi
 
 # DESC: Terminate subprocesses
