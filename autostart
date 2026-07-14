@@ -134,7 +134,7 @@ start_if_executable() { # $1=path, $2...=args
     local bin="$1"
     shift
     if [[ -x "$bin" ]]; then
-        "$bin" "$@" &
+        start_once "$bin" "$@"
     fi
 }
 
