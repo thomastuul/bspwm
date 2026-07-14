@@ -8,12 +8,8 @@ if [[ ${DEBUG-} =~ ^(1|yes|true)$ ]]; then
     set -o xtrace
 fi
 
-# shellcheck disable=SC1090
-if [[ -n "${BASH_ENV:-}" && -r "$BASH_ENV" ]]; then
-    # shellcheck source=lib/logging_env.sh
-    source "$BASH_ENV"
-else
-    printf 'logging_env.sh not found: %s\n' "${BASH_ENV:-unset}" >&2
+if ! declare -F log_error >/dev/null; then
+    printf 'logging bootstrap not loaded: %s\n' "${BASH_ENV:-unset}" >&2
     exit 1
 fi
 
