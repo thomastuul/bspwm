@@ -23,9 +23,33 @@ else
     exit 1
 fi
 
-LOADAVG=$(cut -d ' ' -f1 /proc/loadavg)
-NUM_CORES=$(nproc --all)
-load=$(awk -v l="$LOADAVG" -v c="$NUM_CORES" 'BEGIN{printf "%2.1f", (l*100)/c}')
+read -r load_average _ </proc/loadavg
+
+# CPU directories correspond to the logical processors reported by nproc --all.
+shopt -s nullglob
+cpu_directories=(/sys/devices/system/cpu/cpu[0-9]*)
+shopt -u nullglob
+cpu_count=${#cpu_directories[@]}
+
+if ((cpu_count == 0)); then
+    log_error "no logical CPUs found"
+    exit 1
+fi
+
+# Convert the load average to thousandths and calculate tenths of a percent.
+load_whole=${load_average%%.*}
+load_fraction=${load_average#*.}000
+load_thousandths=$((10#$load_whole * 1000 + 10#${load_fraction:0:3}))
+load_tenths=$((load_thousandths / cpu_count))
+load_remainder=$((load_thousandths % cpu_count))
+
+# Match printf's round-half-to-even behavior at exactly half a tenth.
+if ((load_remainder * 2 > cpu_count ||
+    (load_remainder * 2 == cpu_count && load_tenths % 2 != 0))); then
+    ((++load_tenths))
+fi
+
+printf -v load '%d.%d' "$((load_tenths / 10))" "$((load_tenths % 10))"
 
 icon=""
 cpu_action=$(lemonbar_action bash "$LEMONDIR/lib/click_action.sh" terminal btop)
