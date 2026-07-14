@@ -10,9 +10,11 @@ source "$HOME/.config/bspwm/lemonbar/config.sh"
 source "$HOME/.config/bspwm/lemonbar/panel_runtime.sh"
 
 : "${XDG_RUNTIME_DIR:="/run/user/$(id -u)"}"
-mkdir -p -- "$XDG_RUNTIME_DIR"
+BSPWM_RUNTIME_DIR="${BSPWM_RUNTIME_DIR:-$XDG_RUNTIME_DIR/bspwm}"
+mkdir -p -- "$BSPWM_RUNTIME_DIR"
+chmod 700 -- "$BSPWM_RUNTIME_DIR"
 
-pidfile="$XDG_RUNTIME_DIR/trayer.pid"
+pidfile="$BSPWM_RUNTIME_DIR/trayer.pid"
 trayer_pid=""
 
 cleanup() {
