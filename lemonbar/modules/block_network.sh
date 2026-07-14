@@ -5,17 +5,33 @@ set -o nounset
 set -o pipefail
 set -o errtrace
 
-# Enable xtrace for explicit debug runs.
 if [[ ${DEBUG-} =~ ^(1|yes|true)$ ]]; then
     set -o xtrace
 fi
+
+cache_root="${XDG_CACHE_HOME:-$HOME/.cache}"
+network_cache_dir="${NETWORK_CACHE_DIR:-$cache_root/lemonbar}"
+display_cache="$network_cache_dir/network.cache"
+
+# Normal panel updates only read the worker-owned cache.
+if [[ ${1:-} != --refresh ]]; then
+    if [[ -r $display_cache ]]; then
+        printf '%s' "$(<"$display_cache")"
+    fi
+    exit 0
+fi
+
+[[ $# -eq 1 ]] || {
+    printf 'Usage: %s [--refresh]\n' "$0" >&2
+    exit 2
+}
 
 # shellcheck disable=SC1091
 source "$LEMONDIR/config.sh"
 # shellcheck source=../lib/lemonbar_action.sh
 source "$LEMONDIR/lib/lemonbar_action.sh"
 # shellcheck disable=SC1090
-if [[ -n "${BASH_ENV:-}" && -r "$BASH_ENV" ]]; then
+if [[ -n ${BASH_ENV:-} && -r $BASH_ENV ]]; then
     # shellcheck source=../lib/logging_env.sh
     source "$BASH_ENV"
 else
@@ -34,7 +50,7 @@ read_operstate() {
 
     [[ -r $state_file ]] || return 1
     IFS= read -r state <"$state_file"
-    [[ $state == "up" ]]
+    [[ $state == up ]]
 }
 
 read_wifi_from_nmcli() {
@@ -61,29 +77,32 @@ read_wifi_from_nmcli() {
 }
 
 read_wifi_from_proc() {
-    local interface=$1
+    local interface=$1 name status quality
 
     [[ -r /proc/net/wireless ]] || return 1
-    strength=$(
-        awk -v interface="$interface" '
-            $1 == interface ":" {
-                value = int($3 * 100 / 70)
-                if (value < 0) value = 0
-                if (value > 100) value = 100
-                print value
-            }
-        ' /proc/net/wireless
-    )
 
-    [[ $strength =~ ^[0-9]+$ ]]
+    while read -r name status quality _; do
+        name=${name%:}
+        [[ $name == "$interface" ]] || continue
+
+        quality=${quality%%.*}
+        [[ $quality =~ ^[0-9]+$ ]] || return 1
+        strength=$((quality * 100 / 70))
+        ((strength > 100)) && strength=100
+        return 0
+    done </proc/net/wireless
+
+    return 1
 }
 
+# Inspect every interface once and collect both WLAN and Ethernet state.
 for interface_path in /sys/class/net/*; do
     [[ -e $interface_path ]] || continue
     interface=${interface_path##*/}
+    [[ $interface == lo ]] && continue
 
     if [[ -d $interface_path/wireless || -e $interface_path/phy80211 ]]; then
-        if read_operstate "$interface"; then
+        if [[ -z $wlan_string ]] && read_operstate "$interface"; then
             read_wifi_from_nmcli "$interface" ||
                 read_wifi_from_proc "$interface" ||
                 strength=""
@@ -93,23 +112,10 @@ for interface_path in /sys/class/net/*; do
             else
                 wlan_string="說"
             fi
-            break
         fi
-    fi
-done
-
-for interface_path in /sys/class/net/*; do
-    [[ -e $interface_path ]] || continue
-    interface=${interface_path##*/}
-
-    [[ $interface == "lo" ]] && continue
-    [[ -d $interface_path/wireless || -e $interface_path/phy80211 ]] &&
-        continue
-    [[ -e $interface_path/device ]] || continue
-
-    if read_operstate "$interface"; then
+    elif [[ -z $eth_string && -e $interface_path/device ]] &&
+        read_operstate "$interface"; then
         eth_string=""
-        break
     fi
 done
 
