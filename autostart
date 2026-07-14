@@ -207,8 +207,8 @@ start_if_executable "$TRAYER_START"
 # Conky (optional)
 start_if_executable "$CONKY_START"
 
-# Cloud client
-start_if_available nextcloud --background
+# Cloud client: keep it in the foreground so start_once tracks the real PID.
+start_if_available nextcloud
 
 # Screen power management
 xset +dpms || true
@@ -230,13 +230,13 @@ start_if_available xautolock -time 30 -detectsleep -locker 'systemctl suspend-th
 # Individual size of apps which are floating
 start_if_executable "$HOME/.config/bspwm/bin/float-resize-bspwm.sh"
 
-# Compositor: start once by process name (selection checks are unreliable via xprop)
+# Compositor: keep it in the foreground so start_once tracks the real PID.
 # compositor shall be invoked last to prevent glitches
 if ! pgrep -x -u "$UID" picom >/dev/null 2>&1; then
     if [[ -r "$PICOM_CONF" ]]; then
-        start_if_available picom --config "$PICOM_CONF" --daemon
+        start_if_available picom --config "$PICOM_CONF"
     else
-        start_if_available picom --daemon
+        start_if_available picom
     fi
 fi
 
