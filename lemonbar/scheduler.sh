@@ -11,12 +11,9 @@ set -o pipefail # Use last non-zero exit code in a pipeline
 # Enable errtrace or the error trap handler will not work as expected
 set -o errtrace # Ensure the error trap handler is inherited
 
-# shellcheck disable=SC1090
-if [[ -r "$BASH_ENV" ]]; then
-    # shellcheck source=lib/logging_env.sh
-    source "$BASH_ENV"
-else
-    echo "logging_env.sh not found at: $BASH_ENV" >&2
+if ! declare -F log_error >/dev/null; then
+    printf 'logging bootstrap not loaded: %s\n' "${BASH_ENV:-unset}" >&2
+    exit 1
 fi
 
 # Signal plan:
