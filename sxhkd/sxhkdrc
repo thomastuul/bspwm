@@ -196,22 +196,22 @@ super + alt + s
 XF86AudioRaiseVolume
     amixer set Master 2%+ > /dev/null;\
     . "${XDG_CONFIG_HOME:-$HOME/.config}/bspwm/lemonbar/config.sh"; \
-    [ -f "$XDG_RUNTIME_DIR/sighandler.pid" ] && kill -s "$SIGNAL_VOLUME" "$(cat "$XDG_RUNTIME_DIR/sighandler.pid")"
+    [ -f "$LEMONBAR_RUNTIME_DIR/sighandler.pid" ] && kill -s "$SIGNAL_VOLUME" "$(cat "$LEMONBAR_RUNTIME_DIR/sighandler.pid")"
 
 XF86AudioLowerVolume
     amixer set Master 2%- > /dev/null;\
     . "${XDG_CONFIG_HOME:-$HOME/.config}/bspwm/lemonbar/config.sh"; \
-    [ -f "$XDG_RUNTIME_DIR/sighandler.pid" ] && kill -s "$SIGNAL_VOLUME" "$(cat "$XDG_RUNTIME_DIR/sighandler.pid")"
+    [ -f "$LEMONBAR_RUNTIME_DIR/sighandler.pid" ] && kill -s "$SIGNAL_VOLUME" "$(cat "$LEMONBAR_RUNTIME_DIR/sighandler.pid")"
 
 XF86AudioMute
     amixer set Master toggle > /dev/null;\
     . "${XDG_CONFIG_HOME:-$HOME/.config}/bspwm/lemonbar/config.sh"; \
-    [ -f "$XDG_RUNTIME_DIR/sighandler.pid" ] && kill -s "$SIGNAL_VOLUME" "$(cat "$XDG_RUNTIME_DIR/sighandler.pid")"
+    [ -f "$LEMONBAR_RUNTIME_DIR/sighandler.pid" ] && kill -s "$SIGNAL_VOLUME" "$(cat "$LEMONBAR_RUNTIME_DIR/sighandler.pid")"
 
 XF86MonBrightnessUp
     . "${XDG_CONFIG_HOME:-$HOME/.config}/bspwm/lemonbar/config.sh"; \
-    [ -f "$XDG_RUNTIME_DIR/sighandler.pid" ] && kill -s "$SIGNAL_BRIGHTNESS_UP" "$(cat "$XDG_RUNTIME_DIR/sighandler.pid")"
+    [ -f "$LEMONBAR_RUNTIME_DIR/sighandler.pid" ] && kill -s "$SIGNAL_BRIGHTNESS_UP" "$(cat "$LEMONBAR_RUNTIME_DIR/sighandler.pid")"
 
 XF86MonBrightnessDown
     . "${XDG_CONFIG_HOME:-$HOME/.config}/bspwm/lemonbar/config.sh"; \
-    [ -f "$XDG_RUNTIME_DIR/sighandler.pid" ] && kill -s "$SIGNAL_BRIGHTNESS_DOWN" "$(cat "$XDG_RUNTIME_DIR/sighandler.pid")"
+    [ -f "$LEMONBAR_RUNTIME_DIR/sighandler.pid" ] && kill -s "$SIGNAL_BRIGHTNESS_DOWN" "$(cat "$LEMONBAR_RUNTIME_DIR/sighandler.pid")"
