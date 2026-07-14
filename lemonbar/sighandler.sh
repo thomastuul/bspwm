@@ -5,7 +5,9 @@ set -o nounset
 set -o pipefail
 set -o errtrace
 
-[[ ${DEBUG-} =~ ^(1|yes|true)$ ]] && set -o xtrace
+if [[ ${DEBUG-} =~ ^(1|yes|true)$ ]]; then
+    set -o xtrace
+fi
 
 # shellcheck source=config.sh
 source "$LEMONDIR/config.sh"
@@ -128,7 +130,9 @@ ensure_workers() {
             log_error "worker stopped: name=network pid=$network_worker_pid"
         fi
         network_worker_pid=""
-        ((now - network_worker_started >= WORKER_RESTART_DELAY)) && start_network_worker
+        if ((now - network_worker_started >= WORKER_RESTART_DELAY)); then
+            start_network_worker
+        fi
     fi
     if ! [[ $weather_worker_pid =~ ^[0-9]+$ ]] || ! kill -0 "$weather_worker_pid" 2>/dev/null; then
         if [[ -n $weather_worker_pid ]]; then
@@ -136,7 +140,9 @@ ensure_workers() {
             log_error "worker stopped: name=weather pid=$weather_worker_pid"
         fi
         weather_worker_pid=""
-        ((now - weather_worker_started >= WORKER_RESTART_DELAY)) && start_weather_worker
+        if ((now - weather_worker_started >= WORKER_RESTART_DELAY)); then
+            start_weather_worker
+        fi
     fi
 }
 
@@ -144,9 +150,9 @@ tick_count=0
 tick() {
     tick_count=$((tick_count + 1))
     clock
-    ((tick_count % 5 == 0)) && cpu
-    ((tick_count % 10 == 0)) && battery
-    ((tick_count % 60 == 0)) && weather
+    if ((tick_count % 5 == 0)); then cpu; fi
+    if ((tick_count % 10 == 0)); then battery; fi
+    if ((tick_count % 60 == 0)); then weather; fi
 }
 
 pending_tick=0
@@ -254,7 +260,9 @@ main() {
         if wait "$spid"; then wait_rc=0; else wait_rc=$?; fi
         kill "$spid" 2>/dev/null || true
         spid=""
-        ((wait_rc == 0)) || debounce_signals
+        if ((wait_rc != 0)); then
+            debounce_signals
+        fi
     done
 }
 
