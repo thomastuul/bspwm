@@ -36,10 +36,9 @@ trap_cleanup() {
         wait "$network_worker_pid" 2>/dev/null || true
     fi
     if [[ -n ${spid-} ]]; then
-        kill "$spid" 2>/dev/null || true
+        kill -TERM "$spid" 2>/dev/null || true
+        wait "$spid" 2>/dev/null || true
     fi
-    pkill -P "${BASHPID}" 2>/dev/null || true
-    wait 2>/dev/null || true
     log_info "cleanup"
 }
 
