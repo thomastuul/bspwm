@@ -48,27 +48,79 @@ trap 'exit 130' INT
 trap 'exit 143' TERM
 trap 'exit 0' QUIT HUP
 
-run_or_log() {
-    local rc
+# Initial values keep render_line safe even if every module fails at startup.
+cpu_string=""
+clock_string=" --:--:-- "
+ws_string=""
+title_string=""
+launch_string=""
+power_string=""
+vol_string=""
+mon_string=""
+tray_string=""
+net_string=""
+battery_string=""
+cast_string=""
+weather_string=""
 
-    if "$@"; then
-        return 0
+# Update one module without replacing its last valid output on failure.
+update_block() {
+    local target=$1 block_name=$2
+    local output rc
+    shift 2
+
+    [[ $target =~ ^[a-zA-Z_][a-zA-Z0-9_]*$ ]] || return 2
+
+    if output=$("$@"); then
+        printf -v "$target" '%s' "$output"
     else
         rc=$?
-        log_error "cmd=$* rc=$rc"
-        return 0
+        log_error "block update failed: name=$block_name rc=$rc"
     fi
+
+    return 0
 }
 
-cpu() { cpu_string="$("$LEMONDIR"/modules/block_cpu.sh)"; }
-clock() { clock_string="$("$LEMONDIR"/modules/block_clock.sh)"; }
-wsindicator() { ws_string="$("$LEMONDIR"/modules/block_wsindicator.sh)"; }
-window_title() { title_string="$("$LEMONDIR"/modules/block_title_client.sh)"; }
-launcher() { launch_string="$("$LEMONDIR"/modules/block_launcher.sh)"; }
-power() { power_string="$("$LEMONDIR"/modules/block_power.sh)"; }
-volume() { vol_string="$("$LEMONDIR"/modules/block_volume.sh "$1")"; }
-monitor() { mon_string="$("$LEMONDIR"/modules/block_brightness.sh "$1" "$2")"; }
-tray() { tray_string="$("$LEMONDIR"/modules/block_trayer.sh)"; }
+# Read worker output without discarding an existing value if the cache is absent.
+update_cache_block() {
+    local target=$1 display_cache=$2
+
+    [[ $target =~ ^[a-zA-Z_][a-zA-Z0-9_]*$ ]] || return 2
+
+    if [[ -r $display_cache ]]; then
+        printf -v "$target" '%s' "$(<"$display_cache")"
+    fi
+
+    return 0
+}
+
+cpu() {
+    update_block cpu_string cpu "$LEMONDIR/modules/block_cpu.sh"
+}
+clock() {
+    update_block clock_string clock "$LEMONDIR/modules/block_clock.sh"
+}
+wsindicator() {
+    update_block ws_string workspace "$LEMONDIR/modules/block_wsindicator.sh"
+}
+window_title() {
+    update_block title_string title "$LEMONDIR/modules/block_title_client.sh"
+}
+launcher() {
+    update_block launch_string launcher "$LEMONDIR/modules/block_launcher.sh"
+}
+power() {
+    update_block power_string power "$LEMONDIR/modules/block_power.sh"
+}
+volume() {
+    update_block vol_string volume "$LEMONDIR/modules/block_volume.sh" "$1"
+}
+monitor() {
+    update_block mon_string brightness "$LEMONDIR/modules/block_brightness.sh" "$1" "$2"
+}
+tray() {
+    update_block tray_string tray "$LEMONDIR/modules/block_trayer.sh"
+}
 network() {
     local cache_root network_cache_dir display_cache
 
@@ -76,14 +128,14 @@ network() {
     network_cache_dir="${NETWORK_CACHE_DIR:-$cache_root/lemonbar}"
     display_cache="$network_cache_dir/network.cache"
 
-    if [[ -r $display_cache ]]; then
-        net_string="$(<"$display_cache")"
-    else
-        net_string=""
-    fi
+    update_cache_block net_string "$display_cache"
 }
-battery() { battery_string="$("$LEMONDIR"/modules/block_battery.sh)"; }
-screencast() { cast_string="$("$LEMONDIR"/modules/block_screencast.sh)"; }
+battery() {
+    update_block battery_string battery "$LEMONDIR/modules/block_battery.sh"
+}
+screencast() {
+    update_block cast_string screencast "$LEMONDIR/modules/block_screencast.sh"
+}
 weather() {
     local cache_root weather_cache_dir display_cache
 
@@ -91,11 +143,7 @@ weather() {
     weather_cache_dir="${WEATHERREPORT:-$cache_root/weather}"
     display_cache="$weather_cache_dir/lemonbar.cache"
 
-    if [[ -r "$display_cache" ]]; then
-        weather_string="$(<"$display_cache")"
-    else
-        weather_string=""
-    fi
+    update_cache_block weather_string "$display_cache"
 }
 
 tick_count=0
@@ -103,18 +151,18 @@ tick_count=0
 tick() {
     tick_count=$((tick_count + 1))
 
-    run_or_log clock
+    clock
 
     if ((tick_count % 5 == 0)); then
-        run_or_log cpu
+        cpu
     fi
 
     if ((tick_count % 10 == 0)); then
-        run_or_log battery
+        battery
     fi
 
     if ((tick_count % 60 == 0)); then
-        run_or_log weather
+        weather
     fi
 }
 
@@ -131,36 +179,36 @@ pending_screencast=0
 process_pending_updates() {
     if ((pending_tick)); then
         pending_tick=0
-        run_or_log tick
+        tick
     fi
     if ((pending_workspace)); then
         pending_workspace=0
-        run_or_log wsindicator
+        wsindicator
     fi
     if ((pending_title)); then
         pending_title=0
-        run_or_log window_title
+        window_title
     fi
     if ((pending_volume)); then
         pending_volume=0
-        run_or_log volume "$pid"
+        volume "$pid"
     fi
     if [[ -n $pending_monitor ]]; then
         local monitor_action="$pending_monitor"
         pending_monitor=""
-        run_or_log monitor "$monitor_action" "$pid"
+        monitor "$monitor_action" "$pid"
     fi
     if ((pending_tray)); then
         pending_tray=0
-        run_or_log tray
+        tray
     fi
     if ((pending_network)); then
         pending_network=0
-        run_or_log network
+        network
     fi
     if ((pending_screencast)); then
         pending_screencast=0
-        run_or_log screencast
+        screencast
     fi
 }
 
@@ -225,7 +273,7 @@ main() {
         now=$EPOCHSECONDS
         if ((now >= next_tick)); then
             next_tick=$((now + 1))
-            run_or_log tick
+            tick
         fi
 
         process_pending_updates
