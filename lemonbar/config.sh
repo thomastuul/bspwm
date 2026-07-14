@@ -3,20 +3,25 @@
 TERMINAL=${TERMINAL:-alacritty}
 LEMONBAR_RUNTIME_DIR=${LEMONBAR_RUNTIME_DIR:-${XDG_RUNTIME_DIR:-/run/user/${UID:-$(id -u)}}/lemonbar}
 
-# Linux realtime signal map shared by all Lemonbar senders and receivers.
-# Numeric values also work with minimal /bin/sh implementations such as dash.
-SIGNAL_WORKSPACE=36       # SIGRTMIN+2
-SIGNAL_TICK=37            # SIGRTMIN+3
-SIGNAL_TITLE=39           # SIGRTMIN+5
-SIGNAL_VOLUME=40          # SIGRTMIN+6
-SIGNAL_BRIGHTNESS_UP=41   # SIGRTMIN+7
-SIGNAL_BRIGHTNESS_DOWN=42 # SIGRTMIN+8
-SIGNAL_TRAY=43            # SIGRTMIN+9
-SIGNAL_NETWORK=44         # SIGRTMIN+10
-SIGNAL_SCREENCAST=45      # SIGRTMIN+11
+# Derive realtime signals from the platform instead of assuming SIGRTMIN=34.
+SIGNAL_RTMIN=${SIGNAL_RTMIN:-$(kill -l RTMIN 2>/dev/null || printf '34')}
+case $SIGNAL_RTMIN in
+'' | *[!0-9]*) SIGNAL_RTMIN=34 ;;
+esac
+SIGNAL_WORKSPACE=$((SIGNAL_RTMIN + 2))
+SIGNAL_TICK=$((SIGNAL_RTMIN + 3))
+SIGNAL_TITLE=$((SIGNAL_RTMIN + 5))
+SIGNAL_VOLUME=$((SIGNAL_RTMIN + 6))
+SIGNAL_BRIGHTNESS_UP=$((SIGNAL_RTMIN + 7))
+SIGNAL_BRIGHTNESS_DOWN=$((SIGNAL_RTMIN + 8))
+SIGNAL_TRAY=$((SIGNAL_RTMIN + 9))
+SIGNAL_NETWORK=$((SIGNAL_RTMIN + 10))
+SIGNAL_SCREENCAST=$((SIGNAL_RTMIN + 11))
 
 # Collect state-change bursts before updating and rendering the panel.
 SIGNAL_DEBOUNCE_DELAY=${SIGNAL_DEBOUNCE_DELAY:-0.03}
+WORKER_RESTART_DELAY=${WORKER_RESTART_DELAY:-2}
+CACHE_STALE_MAX_AGE=${CACHE_STALE_MAX_AGE:-300}
 
 # Dracula color palette
 BGlighter="#424450"
@@ -53,7 +58,6 @@ Color_15="#FFFFFF"
 
 COLOR_DEFAULT_FG="$Red"
 COLOR_DEFAULT_BG="$Background"
-COLOR_MONITOR_FG="$Cyan"
 COLOR_MONITOR_BG="$Background"
 COLOR_FREE_FG="$Selection"
 COLOR_FREE_BG="$BGdarker"
@@ -90,5 +94,7 @@ PANEL_FONT="JetBrainsMono:style=Regular:size=9"
 PANEL_ICON_FONT="Hack Nerd Font Mono:style=Regular:size=11"
 UNDERLINE_HEIGHT=0
 PANEL_WM_NAME="lemonbar"
-SYSTRAY_WM_NAME="panel" # not trayer!
-TITLE_MAX_LENGHT=45
+SYSTRAY_WM_NAME="panel" # The X11 window name, not the executable name.
+TITLE_MAX_LENGTH=${TITLE_MAX_LENGTH:-45}
+# Compatibility alias for older local modules.
+TITLE_MAX_LENGHT=$TITLE_MAX_LENGTH
