@@ -15,6 +15,9 @@ set -o pipefail
 # Environment and paths
 ###############################################################################
 : "${XDG_RUNTIME_DIR:="/run/user/$UID"}"
+export LEMONBAR_RUNTIME_DIR="${LEMONBAR_RUNTIME_DIR:-$XDG_RUNTIME_DIR/lemonbar}"
+mkdir -p -- "$LEMONBAR_RUNTIME_DIR"
+chmod 700 -- "$LEMONBAR_RUNTIME_DIR"
 
 LEMONBAR_START="$HOME/.config/bspwm/lemonbar/start.sh"
 LEMONBAR_ARGS=(--log)
@@ -28,11 +31,11 @@ WALLPAPER="$HOME/Bilder/Wallpaper/Background.jpg"
 ###############################################################################
 # Single-instance lock for this script
 ###############################################################################
-#exec 9>"$XDG_RUNTIME_DIR/autostart.lock"
-#if ! flock -n 9; then
-#Another autostart is active; exit quietly.
-#exit 0
-#fi
+exec 9>"$LEMONBAR_RUNTIME_DIR/autostart.lock"
+if ! flock -n 9; then
+    # Another autostart is active; exit quietly.
+    exit 0
+fi
 
 ###############################################################################
 # Helpers
@@ -46,15 +49,33 @@ wait_until_gone() { # $1=pid, $2=timeout seconds
     done
 }
 
-kill_pidfile() { # $1=pidfile path
-    local pf="$1" pid
+pid_matches_command() { # $1=pid, $2=expected argv entry or basename
+    local pid=$1 expected=$2 expected_base argument
+    local -a arguments=()
+
+    [[ -r /proc/$pid/cmdline ]] || return 1
+    mapfile -d '' -t arguments <"/proc/$pid/cmdline" || return 1
+    expected_base=${expected##*/}
+
+    for argument in "${arguments[@]}"; do
+        if [[ $argument == "$expected" || ${argument##*/} == "$expected_base" ]]; then
+            return 0
+        fi
+    done
+
+    return 1
+}
+
+kill_pidfile() { # $1=pidfile path, $2=expected command
+    local pf=$1 expected=$2 pid
     [[ -r "$pf" ]] || return 0
-    pid="$(cat "$pf" 2>/dev/null || true)"
+    IFS= read -r pid <"$pf" || pid=""
     [[ -n "${pid:-}" && "$pid" =~ ^[0-9]+$ ]] || {
         rm -f -- "$pf"
         return 0
     }
-    if kill -0 "$pid" 2>/dev/null; then
+
+    if kill -0 "$pid" 2>/dev/null && pid_matches_command "$pid" "$expected"; then
         kill "$pid" 2>/dev/null || true
         wait_until_gone "$pid" 2
         if kill -0 "$pid" 2>/dev/null; then
@@ -84,7 +105,7 @@ start_once() {
     mkdir -p -- "$XDG_RUNTIME_DIR"
 
     # Build a unique key from command + args, then hash it for a safe filename
-    local base key hash pidfile oldpid
+    local base key hash pidfile pidfile_tmp oldpid
     base="$(basename -- "$1")"
     key="$(printf '%q ' "$@")"
     hash="$(printf '%s' "$key" | sha256sum | awk '{print $1}')"
@@ -93,7 +114,9 @@ start_once() {
     # If pidfile exists and PID alive: do nothing
     if [[ -f "$pidfile" ]]; then
         oldpid="$(<"$pidfile")"
-        if [[ "$oldpid" =~ ^[0-9]+$ ]] && kill -0 "$oldpid" 2>/dev/null; then
+        if [[ "$oldpid" =~ ^[0-9]+$ ]] &&
+            kill -0 "$oldpid" 2>/dev/null &&
+            pid_matches_command "$oldpid" "$1"; then
             return 0
         fi
         rm -f -- "$pidfile"
@@ -101,7 +124,10 @@ start_once() {
 
     # Start and record PID
     "$@" &
-    printf '%s\n' "$!" >"$pidfile"
+    pidfile_tmp="$pidfile.tmp.$$"
+    printf '%s\n' "$!" >"$pidfile_tmp"
+    chmod 600 -- "$pidfile_tmp"
+    mv -f -- "$pidfile_tmp" "$pidfile"
 }
 
 start_if_executable() { # $1=path, $2...=args
@@ -116,8 +142,10 @@ start_if_executable() { # $1=path, $2...=args
 # Pre-clean: kill leftovers to avoid grabs and double-daemons
 ###############################################################################
 # Known PID files from your setup
-kill_pidfile "$XDG_RUNTIME_DIR/start.sh.pid"
-kill_pidfile "$XDG_RUNTIME_DIR/trayer.pid"
+kill_pidfile "$LEMONBAR_RUNTIME_DIR/start.pid" "$LEMONBAR_START"
+# Remove the legacy Lemonbar PID file during migration to the private directory.
+kill_pidfile "$XDG_RUNTIME_DIR/start.sh.pid" "$LEMONBAR_START"
+kill_pidfile "$XDG_RUNTIME_DIR/trayer.pid" trayer
 
 # Defensive stop of typical session daemons
 for p in sxhkd dunst picom xautolock nextcloud; do
