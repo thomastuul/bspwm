@@ -13,6 +13,8 @@ set -o errtrace # Ensure the error trap handler is inherited
 
 # shellcheck disable=SC1091
 source "$LEMONDIR/config.sh"
+# shellcheck source=../lib/lemonbar_action.sh
+source "$LEMONDIR/lib/lemonbar_action.sh"
 # shellcheck disable=SC1090
 if [[ -n "${BASH_ENV:-}" && -r "$BASH_ENV" ]]; then
     # shellcheck source=../lib/logging_env.sh
@@ -26,5 +28,6 @@ NUM_CORES=$(nproc --all)
 load=$(awk -v l="$LOADAVG" -v c="$NUM_CORES" 'BEGIN{printf "%2.1f", (l*100)/c}')
 
 icon=""
+cpu_action=$(lemonbar_action bash "$LEMONDIR/lib/click_action.sh" terminal btop)
 
-printf "%s" "%{A1:/bin/sh -c 'setsid -f \"$TERMINAL\" -e sh -c btop >/dev/null 2>&1 &':}%{B$COLOR_DEFAULT_BG}%{F$COLOR_SYS_FG}%{+u} $icon ${load}% %{-u}%{F-}%{B-}%{A}"
+printf "%s" "%{A1:${cpu_action}:}%{B$COLOR_DEFAULT_BG}%{F$COLOR_SYS_FG}%{+u} $icon ${load}% %{-u}%{F-}%{B-}%{A}"

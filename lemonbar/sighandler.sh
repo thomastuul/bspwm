@@ -10,6 +10,10 @@ if [[ ${DEBUG-} =~ ^1|yes|true$ ]]; then
     set -o xtrace # Trace the execution of the script (debug)
 fi
 
+# Load the shared signal map before installing realtime signal traps.
+# shellcheck source=config.sh
+source "$LEMONDIR/config.sh"
+
 # shellcheck disable=SC1090
 if [[ -r "${BASH_ENV:-}" ]]; then
     # shellcheck source=lib/logging_env.sh
@@ -22,11 +26,15 @@ fi
 trap_cleanup() {
     # prevent reentrancy
     trap - INT TERM QUIT EXIT HUP ERR
-    # nur Kindprozesse beenden, niemals die eigene Shell
+    # Stop explicitly managed background workers before leaving.
+    if [[ ${weather_worker_pid:-} =~ ^[0-9]+$ ]]; then
+        kill -TERM "$weather_worker_pid" 2>/dev/null || true
+        wait "$weather_worker_pid" 2>/dev/null || true
+    fi
     if [[ -n ${spid-} ]]; then
         kill "$spid" 2>/dev/null || true
     fi
-    pkill -P "$$" 2>/dev/null || true
+    pkill -P "${BASHPID}" 2>/dev/null || true
     wait 2>/dev/null || true
     log_info "cleanup"
 }
@@ -60,7 +68,81 @@ tray() { tray_string="$("$LEMONDIR"/modules/block_trayer.sh)"; }
 network() { net_string="$("$LEMONDIR"/modules/block_network.sh)"; }
 battery() { battery_string="$("$LEMONDIR"/modules/block_battery.sh)"; }
 screencast() { cast_string="$("$LEMONDIR"/modules/block_screencast.sh)"; }
-weather() { weather_string="$("$LEMONDIR"/modules/block_weather.sh)"; }
+weather() {
+    local cache_root weather_cache_dir display_cache
+
+    cache_root="${XDG_CACHE_HOME:-$HOME/.cache}"
+    weather_cache_dir="${WEATHERREPORT:-$cache_root/weather}"
+    display_cache="$weather_cache_dir/lemonbar.cache"
+
+    if [[ -r "$display_cache" ]]; then
+        weather_string="$(<"$display_cache")"
+    else
+        weather_string=""
+    fi
+}
+
+tick_count=0
+
+tick() {
+    tick_count=$((tick_count + 1))
+
+    run_or_log clock
+
+    if ((tick_count % 5 == 0)); then
+        run_or_log cpu
+    fi
+
+    if ((tick_count % 10 == 0)); then
+        run_or_log network
+        run_or_log battery
+    fi
+
+    if ((tick_count % 60 == 0)); then
+        run_or_log weather
+    fi
+}
+
+pending_tick=0
+pending_workspace=0
+pending_title=0
+pending_volume=0
+pending_monitor=""
+pending_tray=0
+pending_screencast=0
+
+# Process updates outside trap context so module calls cannot overlap.
+process_pending_updates() {
+    if ((pending_tick)); then
+        pending_tick=0
+        run_or_log tick
+    fi
+    if ((pending_workspace)); then
+        pending_workspace=0
+        run_or_log wsindicator
+    fi
+    if ((pending_title)); then
+        pending_title=0
+        run_or_log window_title
+    fi
+    if ((pending_volume)); then
+        pending_volume=0
+        run_or_log volume "$pid"
+    fi
+    if [[ -n $pending_monitor ]]; then
+        local monitor_action="$pending_monitor"
+        pending_monitor=""
+        run_or_log monitor "$monitor_action" "$pid"
+    fi
+    if ((pending_tray)); then
+        pending_tray=0
+        run_or_log tray
+    fi
+    if ((pending_screencast)); then
+        pending_screencast=0
+        run_or_log screencast
+    fi
+}
 
 # DESC: Initialize signals, print lemonbar strings
 # ARGS: $1 (required): Message to print (defaults to a green foreground)
@@ -69,22 +151,21 @@ weather() { weather_string="$("$LEMONDIR"/modules/block_weather.sh)"; }
 #       $3 (optional): Set to any value to not append a new line to the message
 # OUTS: None
 sig_init() {
-    trap -- 'run_or_log wsindicator' SIGRTMIN+2
-    trap -- 'run_or_log clock' SIGRTMIN+3
-    trap -- 'run_or_log cpu' SIGRTMIN+4
-    trap -- 'run_or_log window_title' SIGRTMIN+5
-    trap -- 'run_or_log volume "$pid"' SIGRTMIN+6
-    trap -- 'run_or_log monitor "+" "$pid"' SIGRTMIN+7
-    trap -- 'run_or_log monitor "-" "$pid"' SIGRTMIN+8
-    trap -- 'run_or_log tray' SIGRTMIN+9
-    trap -- 'run_or_log network; battery' SIGRTMIN+10
-    trap -- 'run_or_log screencast' SIGRTMIN+11
-    trap -- 'run_or_log weather' SIGRTMIN+12
+    trap -- 'pending_workspace=1' "$SIGNAL_WORKSPACE"
+    trap -- 'pending_tick=1' "$SIGNAL_TICK"
+    trap -- 'pending_title=1' "$SIGNAL_TITLE"
+    trap -- 'pending_volume=1' "$SIGNAL_VOLUME"
+    trap -- 'pending_monitor="+"' "$SIGNAL_BRIGHTNESS_UP"
+    trap -- 'pending_monitor="-"' "$SIGNAL_BRIGHTNESS_DOWN"
+    trap -- 'pending_tray=1' "$SIGNAL_TRAY"
+    trap -- 'pending_screencast=1' "$SIGNAL_SCREENCAST"
 
     # own PID
     pid="$BASHPID"
 
-    "$LEMONDIR"/scheduler.sh "$pid" &
+    # Run network access and weather parsing outside this signal handler.
+    "$LEMONDIR/weather_worker.sh" "$pid" &
+    weather_worker_pid=$!
 
     # init
     window_title
@@ -110,11 +191,23 @@ render_line() {
 }
 
 main() {
+    local next_tick now
+
     sig_init
     log_info "initialized" "$0"
+    next_tick=$((EPOCHSECONDS + 1))
+
     while true; do
+        now=$EPOCHSECONDS
+        if ((now >= next_tick)); then
+            next_tick=$((now + 1))
+            run_or_log tick
+        fi
+
+        process_pending_updates
         render_line
-        sleep infinity &
+        # A finite wait guarantees progress even if a wake-up signal is lost.
+        sleep 1 &
         spid=$!
         wait "$spid" || true
         kill "$spid" 2>/dev/null || true

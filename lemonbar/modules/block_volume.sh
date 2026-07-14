@@ -13,6 +13,8 @@ set -o errtrace # Ensure the error trap handler is inherited
 
 # shellcheck disable=SC1091
 source "$LEMONDIR/config.sh"
+# shellcheck source=../lib/lemonbar_action.sh
+source "$LEMONDIR/lib/lemonbar_action.sh"
 # shellcheck disable=SC1090
 if [[ -n "${BASH_ENV:-}" && -r "$BASH_ENV" ]]; then
     # shellcheck source=../lib/logging_env.sh
@@ -22,6 +24,7 @@ else
 fi
 
 sighandler_pid="$1"
+[[ $sighandler_pid =~ ^[0-9]+$ ]] || exit 2
 
 vol() {
     icon_on=""
@@ -43,25 +46,17 @@ vol() {
 # Volume step in percent (used for scroll up/down)
 : "${VOL_STEP:=2}"
 
-# Left-click: open TUI mixer in terminal
-vol_ui="/bin/sh -c 'setsid -f \"$TERMINAL\" -e pulsemixer >/dev/null 2>&1 &'"
-
-# Increase volume: prefer pamixer, then pactl, fallback amixer
-inc_vol="sh -c 'if command -v pamixer >/dev/null 2>&1; then pamixer -i ${VOL_STEP}; \
-elif command -v pactl >/dev/null 2>&1; then pactl set-sink-volume @DEFAULT_SINK@ +${VOL_STEP}%; \
-else amixer set Master ${VOL_STEP}%+ >/dev/null; fi; \
-kill -RTMIN+6 $sighandler_pid'"
-
-# Decrease volume
-dec_vol="sh -c 'if command -v pamixer >/dev/null 2>&1; then pamixer -d ${VOL_STEP}; \
-elif command -v pactl >/dev/null 2>&1; then pactl set-sink-volume @DEFAULT_SINK@ -${VOL_STEP}%; \
-else amixer set Master ${VOL_STEP}%- >/dev/null; fi; \
-kill -RTMIN+6 $sighandler_pid'"
-
-# Toggle mute
-vol_toggle="sh -c 'if command -v pamixer >/dev/null 2>&1; then pamixer -t; \
-elif command -v pactl >/dev/null 2>&1; then pactl set-sink-mute @DEFAULT_SINK@ toggle; \
-else amixer set Master toggle >/dev/null; fi; \
-kill -RTMIN+6 $sighandler_pid'"
+# Keep click commands argument-based; the dispatcher validates PID and signal.
+vol_ui=$(lemonbar_action \
+    bash "$LEMONDIR/lib/click_action.sh" terminal pulsemixer)
+inc_vol=$(lemonbar_action \
+    bash "$LEMONDIR/lib/click_action.sh" volume increase \
+    "$VOL_STEP" "$SIGNAL_VOLUME" "$sighandler_pid")
+dec_vol=$(lemonbar_action \
+    bash "$LEMONDIR/lib/click_action.sh" volume decrease \
+    "$VOL_STEP" "$SIGNAL_VOLUME" "$sighandler_pid")
+vol_toggle=$(lemonbar_action \
+    bash "$LEMONDIR/lib/click_action.sh" volume toggle \
+    "$VOL_STEP" "$SIGNAL_VOLUME" "$sighandler_pid")
 
 printf "%s" "%{A1:${vol_ui}:}%{A4:${inc_vol}:}%{A5:${dec_vol}:}%{A3:${vol_toggle}:}$(vol)%{A}%{A}%{A}%{A}"

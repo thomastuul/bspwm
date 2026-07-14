@@ -19,14 +19,11 @@ else
 fi
 
 # shellcheck disable=SC2154
-title_fifo="$tmp_dir/lemonbar_title.fifo"
+title_cache="$tmp_dir/lemonbar_title.cache"
 
-if [[ ! -p "$title_fifo" ]]; then
-    exit 0
-fi
-
-if IFS= read -r line <"$title_fifo"; then
-    printf '%s' "$line"
+if [[ -r "$title_cache" ]]; then
+    IFS= read -r line <"$title_cache" || true
+    printf '%s' "${line:-}"
 fi
 
 # vim: syntax=bash

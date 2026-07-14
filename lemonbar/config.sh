@@ -2,6 +2,17 @@
 
 TERMINAL=${TERMINAL:-alacritty}
 
+# Linux realtime signal map shared by all Lemonbar senders and receivers.
+# Numeric values also work with minimal /bin/sh implementations such as dash.
+SIGNAL_WORKSPACE=36       # SIGRTMIN+2
+SIGNAL_TICK=37            # SIGRTMIN+3
+SIGNAL_TITLE=39           # SIGRTMIN+5
+SIGNAL_VOLUME=40          # SIGRTMIN+6
+SIGNAL_BRIGHTNESS_UP=41   # SIGRTMIN+7
+SIGNAL_BRIGHTNESS_DOWN=42 # SIGRTMIN+8
+SIGNAL_TRAY=43            # SIGRTMIN+9
+SIGNAL_SCREENCAST=45      # SIGRTMIN+11
+
 # Dracula color palette
 BGlighter="#424450"
 BGlight="#343746"
@@ -68,8 +79,6 @@ COLOR_BATTERY_CHARGING_FG="$Green"
 
 PADDING=" "
 CLICKABLE_AREAS=30
-PANEL_WIDTH=$(xdpyinfo | awk '/dimensions/{print $2}' | cut -d 'x' -f 1)
-PANEL_HEIGHT=$(bspc config top_padding)
 PANEL_HORIZONTAL_OFFSET=0
 PANEL_VERTICAL_OFFSET=0
 PANEL_FONT="JetBrainsMono:style=Regular:size=9"

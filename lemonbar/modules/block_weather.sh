@@ -18,6 +18,8 @@ set -o errexit -o nounset -o pipefail
 
 # shellcheck disable=SC1091
 source "$LEMONDIR/config.sh"
+# shellcheck source=../lib/lemonbar_action.sh
+source "$LEMONDIR/lib/lemonbar_action.sh"
 # shellcheck disable=SC1090
 if [[ -n "${BASH_ENV:-}" && -r "$BASH_ENV" ]]; then
     # shellcheck source=../lib/logging_env.sh
@@ -30,6 +32,7 @@ fi
 DEFAULT_LOCATION="${DEFAULT_LOCATION:-München}"
 DEFAULT_LANG="${WEATHER_LANG:-de}"
 DEFAULT_MAX_AGE="${WEATHER_MAX_AGE:-30m}"
+DEFAULT_IMAGE_MAX_AGE="${WEATHER_IMAGE_MAX_AGE:-1h}"
 WTTR_BASE="${WTTRURL:-https://wttr.in}"
 
 XDG_CACHE_HOME="${XDG_CACHE_HOME:-$HOME/.cache}"
@@ -121,17 +124,22 @@ format_minutes_hm() {
 
 fetch_png_if_needed() {
     local loc="$1" lang="$2" max_age_sec="$3" png_path="$4"
+    local enc_loc url tmp_path
+
     if ! is_fresh "$png_path" "$max_age_sec"; then
         mkdir -p -- "$(dirname -- "$png_path")"
-        local enc_loc
         enc_loc="$(url_loc "$loc")"
-        local url="https://v2.wttr.in/${enc_loc}.png?lang=${lang}&m&2"
-        # Try download. Do not exit the script on failure.
-        if ! curl -fsSL --connect-timeout 3 --max-time 15 "$url" -o "$png_path.tmp"; then
-            rm -f -- "$png_path.tmp" 2>/dev/null || true
+        url="https://v2.wttr.in/${enc_loc}.png?lang=${lang}&m&2"
+        tmp_path="${png_path}.${BASHPID}.tmp"
+
+        # Publish only complete downloads and retain an existing stale image.
+        if ! curl -fsSL --connect-timeout 3 --max-time 15 "$url" \
+            -o "$tmp_path"; then
+            rm -f -- "$tmp_path" 2>/dev/null || true
             return 1
         fi
-        mv -f -- "$png_path.tmp" "$png_path"
+
+        mv -f -- "$tmp_path" "$png_path"
     fi
 }
 
@@ -221,6 +229,7 @@ LOCATION="$DEFAULT_LOCATION"
 LANG="$DEFAULT_LANG"
 MAX_AGE_STR="$DEFAULT_MAX_AGE"
 DO_OPEN=0
+DO_PREFETCH_IMAGE=0
 DO_PRINT_AGE=0
 
 print_help() {
@@ -233,6 +242,7 @@ Optionen:
   -L, --language  LANG    Sprache (Default: "$DEFAULT_LANG")
       --print-age         Alter des JSON-Caches in Minuten
       --open              3-Tage-Vorschau öffnen
+      --prefetch-image    PNG-Vorschau im Cache aktualisieren
       --lemonbar          Ausgabe formatiert für Lemonbar (Farben, Klicks)
   -h, --help              Diese Hilfe
 EOF
@@ -256,6 +266,10 @@ while [[ $# -gt 0 ]]; do
         DO_OPEN=1
         shift
         ;;
+    --prefetch-image)
+        DO_PREFETCH_IMAGE=1
+        shift
+        ;;
     --print-age)
         DO_PRINT_AGE=1
         shift
@@ -276,6 +290,7 @@ done
 [[ -n "$LOCATION" ]] || die "Leerer Ort übergeben"
 [[ -n "$LANG" ]] || die "Leere Sprache übergeben"
 MAX_AGE_SEC="$(dur_to_seconds "$MAX_AGE_STR")"
+IMAGE_MAX_AGE_SEC="$(dur_to_seconds "$DEFAULT_IMAGE_MAX_AGE")"
 
 slug="$(slugify "$LOCATION")"
 JSON_CACHE="${WEATHER_CACHE_DIR}/${slug}.json"
@@ -291,9 +306,18 @@ if ((DO_PRINT_AGE)); then
     exit 0
 fi
 
+if ((DO_PREFETCH_IMAGE)); then
+    fetch_png_if_needed \
+        "$LOCATION" "$LANG" "$IMAGE_MAX_AGE_SEC" "$PNG_CACHE"
+    exit $?
+fi
+
 if ((DO_OPEN)); then
-    if fetch_png_if_needed "$LOCATION" "$LANG" "$MAX_AGE_SEC" "$PNG_CACHE"; then
+    if [[ -r "$PNG_CACHE" ]]; then
         open_png_viewer "$PNG_CACHE"
+    else
+        notify-send "Weather forecast" \
+            "The forecast image is not available yet."
     fi
     exit 0
 fi
@@ -321,9 +345,9 @@ MAX="${REST#*|}"
 
 # ---- Ausgabe ----------------------------------------------------------------
 
-printf -v run_left \
-    '%q --open --location %q --language %q --age %q' \
-    "$0" "$LOCATION" "$LANG" "$MAX_AGE_STR"
+run_left=$(lemonbar_action \
+    "$0" --open --location "$LOCATION" \
+    --language "$LANG" --age "$MAX_AGE_STR")
 
 age_text="$(
     "$0" --print-age \
@@ -331,9 +355,9 @@ age_text="$(
         --age "$MAX_AGE_STR"
 )"
 
-printf -v run_right \
-    'notify-send %q' \
-    "Update vor $age_text"
+run_right=$(lemonbar_action \
+    bash "$LEMONDIR/lib/click_action.sh" notify \
+    "Weather forecast" "Update vor $age_text")
 
 printf '%s\n' \
     "%{A1:$run_left:}%{A3:$run_right:}%{B$COLOR_DEFAULT_BG}%{F$COLOR_WEATHER_FG}%{+u} 爫${RAIN}%% ${MIN}° ${MAX}° %{-u}%{F-}%{B-}%{A}%{A}"

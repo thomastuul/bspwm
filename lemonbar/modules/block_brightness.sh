@@ -1,70 +1,134 @@
 #!/usr/bin/env bash
 
-# Enable xtrace if the DEBUG environment variable is set
-if [[ ${DEBUG-} =~ ^1|yes|true$ ]]; then
-    set -o xtrace # Trace the execution of the script (debug)
-fi
+set -o errexit
+set -o nounset
+set -o pipefail
+set -o errtrace
 
-set -o errexit  # Exit on most errors (see the manual)
-set -o nounset  # Disallow expansion of unset variables
-set -o pipefail # Use last non-zero exit code in a pipeline
-# Enable errtrace or the error trap handler will not work as expected
-set -o errtrace # Ensure the error trap handler is inherited
+# Enable xtrace for explicit debug runs.
+if [[ ${DEBUG-} =~ ^(1|yes|true)$ ]]; then
+    set -o xtrace
+fi
 
 # shellcheck disable=SC1091
 source "$LEMONDIR/config.sh"
+# shellcheck source=../lib/lemonbar_action.sh
+source "$LEMONDIR/lib/lemonbar_action.sh"
 # shellcheck disable=SC1090
 if [[ -n "${BASH_ENV:-}" && -r "$BASH_ENV" ]]; then
     # shellcheck source=../lib/logging_env.sh
     source "$BASH_ENV"
 else
+    printf 'BASH_ENV not found: %s\n' "${BASH_ENV:-unset}" >&2
     exit 1
 fi
 
-change_level="$1"
-sighandler_pid="$2"
-
-connection=$(xrandr --listmonitors | awk 'NR==2 {print $4}')
-
-brightness=$(xrandr --verbose | grep -i "$connection" -A10 | grep -i Brightness | cut -f2 -d ' ' | head -n1)
-
-brightness_int=$(echo "$brightness * 100" | bc | cut -f1 -d '.')
-
-inc_brightness() {
-    new_brightness_int=$((brightness_int + 5))
-    if [ "$new_brightness_int" -gt 100 ]; then
-        new_brightness_int=100
-    fi
-    new_brightness=$(echo "$new_brightness_int / 100" | bc -l)
-    xrandr --output "$connection" --brightness "$new_brightness"
+die() {
+    printf 'block_brightness: %s\n' "$*" >&2
+    exit 1
 }
 
-dec_brightness() {
-    new_brightness_int=$((brightness_int - 5))
-    if [ "$new_brightness_int" -lt 0 ]; then
-        new_brightness_int=0
-    fi
-    new_brightness=$(echo "$new_brightness_int / 100" | bc -l)
-    xrandr --output "$connection" --brightness "$new_brightness"
-}
-
-monitor() {
-    icon=""
-
-    mon_string="%{B$COLOR_DEFAULT_BG}%{F$COLOR_MONITOR_FG}%{+u} $icon $brightness_int% %{-u}%{F-}%{B-}"
-
-    printf "%s" "$mon_string"
-}
-
-inc="kill -RTMIN+7 $sighandler_pid"
-dec="kill -RTMIN+8 $sighandler_pid"
-
-if [[ "$change_level" == "+" ]]; then
-    inc_brightness
-elif [[ "$change_level" == "-" ]]; then
-    dec_brightness
-else
-    :
+if [[ $# -ne 2 ]]; then
+    die "expected <change> <sighandler_pid>"
 fi
 
-printf "%s" "%{A4:${inc}:}%{A5:${dec}:}$(monitor)%{A}%{A}"
+change_level=$1
+sighandler_pid=$2
+
+[[ $change_level == " " || $change_level == "+" || $change_level == "-" ]] ||
+    die "invalid change: $change_level"
+[[ $sighandler_pid =~ ^[0-9]+$ ]] ||
+    die "invalid sighandler PID: $sighandler_pid"
+
+brightness_step="${BRIGHTNESS_STEP:-5}"
+brightness_min="${BRIGHTNESS_MIN:-5}"
+brightness_max="${BRIGHTNESS_MAX:-100}"
+
+[[ $brightness_step =~ ^[1-9][0-9]*$ ]] ||
+    die "invalid BRIGHTNESS_STEP: $brightness_step"
+[[ $brightness_min =~ ^[0-9]+$ ]] ||
+    die "invalid BRIGHTNESS_MIN: $brightness_min"
+[[ $brightness_max =~ ^[0-9]+$ ]] ||
+    die "invalid BRIGHTNESS_MAX: $brightness_max"
+((brightness_min <= brightness_max)) ||
+    die "BRIGHTNESS_MIN must not exceed BRIGHTNESS_MAX"
+
+# Allow an explicit output and otherwise select the first active monitor.
+connection="${BRIGHTNESS_OUTPUT:-}"
+if [[ -z $connection ]]; then
+    connection=$(
+        xrandr --query |
+            awk '
+                $2 == "connected" {
+                    for (i = 3; i <= NF; i++) {
+                        if ($i ~ /^[0-9]+x[0-9]+[+][0-9]+[+][0-9]+/) {
+                            if (!found) {
+                                print $1
+                                found = 1
+                            }
+                        }
+                    }
+                }
+            '
+    )
+fi
+[[ -n $connection ]] || die "no active monitor found"
+
+brightness=$(
+    xrandr --verbose --current |
+        awk -v output="$connection" '
+            $1 == output && $2 == "connected" {
+                active = 1
+                next
+            }
+            active && $1 == "Brightness:" && !found {
+                print $2
+                found = 1
+            }
+            active && $0 !~ /^[[:space:]]/ {
+                active = 0
+            }
+        '
+)
+[[ $brightness =~ ^[0-9]+([.][0-9]+)?$ ]] ||
+    die "invalid brightness for $connection: ${brightness:-missing}"
+
+brightness_int=$(
+    awk -v value="$brightness" 'BEGIN { printf "%.0f", value * 100 }'
+)
+
+set_brightness() {
+    local target=$1 value
+
+    ((target < brightness_min)) && target=$brightness_min
+    ((target > brightness_max)) && target=$brightness_max
+
+    value=$(
+        awk -v percent="$target" 'BEGIN { printf "%.2f", percent / 100 }'
+    )
+
+    xrandr --output "$connection" --brightness "$value"
+    brightness_int=$target
+}
+
+case "$change_level" in
+"+")
+    set_brightness "$((brightness_int + brightness_step))"
+    ;;
+"-")
+    set_brightness "$((brightness_int - brightness_step))"
+    ;;
+" ")
+    ;;
+esac
+
+inc=$(lemonbar_action \
+    bash "$LEMONDIR/lib/click_action.sh" signal \
+    "$SIGNAL_BRIGHTNESS_UP" "$sighandler_pid")
+dec=$(lemonbar_action \
+    bash "$LEMONDIR/lib/click_action.sh" signal \
+    "$SIGNAL_BRIGHTNESS_DOWN" "$sighandler_pid")
+icon=""
+
+printf '%s' \
+    "%{A4:${inc}:}%{A5:${dec}:}%{B$COLOR_DEFAULT_BG}%{F$COLOR_MONITOR_FG}%{+u} $icon ${brightness_int}% %{-u}%{F-}%{B-}%{A}%{A}"
