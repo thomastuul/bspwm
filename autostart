@@ -148,7 +148,7 @@ kill_pidfile "$XDG_RUNTIME_DIR/start.sh.pid" "$LEMONBAR_START"
 kill_pidfile "$XDG_RUNTIME_DIR/trayer.pid" trayer
 
 # Defensive stop of typical session daemons
-for p in sxhkd dunst picom xautolock nextcloud; do
+for p in sxhkd dunst picom xautolock xss-lock nextcloud; do
     stop_by_name "$p"
 done
 
@@ -203,7 +203,9 @@ xset dpms 400 600 900 || true
 # xss-lock supervises the locker and integrates with system sleep
 if command -v xss-lock >/dev/null 2>&1; then
     XSECURELOCK_DIM_TIME_MS="${XSECURELOCK_DIM_TIME_MS:-10000}" \
-        xss-lock -n /usr/libexec/xsecurelock/dimmer --transfer-sleep-lock -- xsecurelock >/dev/null 2>&1 &
+        start_once xss-lock \
+            -n /usr/libexec/xsecurelock/dimmer \
+            --transfer-sleep-lock -- xsecurelock
 fi
 
 # Start xautolock only once
