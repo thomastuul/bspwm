@@ -1,69 +1,37 @@
 #!/usr/bin/env bash
-#set -x
-# Purpose: Start bspwm session daemons exactly once and clean up stale PID-managed leftovers.
-# Notes:
-#   - Uses dedicated runtime directories for bspwm and lemonbar state.
-#   - Cleans up known stale PID files from supervised components.
-#   - Starts each component only if not already running.
-#   - Works across repeated bspwm restarts (bspc wm -r).
+# Purpose: start bspwm session services once and clean up stale managed state.
 
 set -o errexit
 set -o nounset
 set -o pipefail
 
-###############################################################################
-# Environment and paths
-###############################################################################
-: "${XDG_RUNTIME_DIR:="/run/user/$UID"}"
+: "${XDG_RUNTIME_DIR:=/run/user/$UID}"
 export BSPWM_RUNTIME_DIR="${BSPWM_RUNTIME_DIR:-$XDG_RUNTIME_DIR/bspwm}"
 export LEMONBAR_RUNTIME_DIR="${LEMONBAR_RUNTIME_DIR:-$XDG_RUNTIME_DIR/lemonbar}"
 mkdir -p -- "$BSPWM_RUNTIME_DIR" "$LEMONBAR_RUNTIME_DIR"
 chmod 700 -- "$BSPWM_RUNTIME_DIR" "$LEMONBAR_RUNTIME_DIR"
 
+AUTOSTART_LOG="${AUTOSTART_LOG:-${XDG_STATE_HOME:-$HOME/.local/state}/bspwm/autostart.log}"
+mkdir -p -- "$(dirname -- "$AUTOSTART_LOG")"
+
 LEMONBAR_START="$HOME/.config/bspwm/lemonbar/start.sh"
 LEMONBAR_ARGS=(--log)
 TRAYER_START="$HOME/.config/bspwm/trayer/start_trayer.sh"
-CONKY_START="$HOME/.config/conky/start-conky"
+CONKY_CONFIG="${CONKY_CONFIG:-$HOME/.config/conky/conky.conf}"
 SXHKD_RC="$HOME/.config/bspwm/sxhkd/sxhkdrc"
 DUNST_CONF="$HOME/.config/bspwm/dunst/dunstrc"
 PICOM_CONF="$HOME/.config/bspwm/picom/picom.conf"
-WALLPAPER="$HOME/Bilder/Wallpaper/Background.jpg"
+WALLPAPER="${WALLPAPER:-$HOME/Bilder/Wallpaper/Background.jpg}"
+XSECURELOCK_DIMMER="${XSECURELOCK_DIMMER:-/usr/libexec/xsecurelock/dimmer}"
 
-###############################################################################
-# Single-instance lock for this script
-###############################################################################
 exec 9>"$BSPWM_RUNTIME_DIR/autostart.lock"
-if ! flock -n 9; then
-    # Another autostart is active; exit quietly.
-    exit 0
-fi
+flock -n 9 || exit 0
 
-###############################################################################
-# Helpers
-###############################################################################
-wait_until_gone() { # $1=pid, $2=timeout seconds
-    local pid="$1" timeout_s="${2:-2}" i=0
-    while kill -0 "$pid" 2>/dev/null; do
-        ((i * 50 >= timeout_s * 1000)) && break
-        sleep 0.05
-        i=$((i + 1))
-    done
+log() {
+    printf '%(%F %T)T\tautostart\t%s\n' -1 "$*" >>"$AUTOSTART_LOG" 2>/dev/null || true
 }
 
-pid_matches_command() { # $1=pid, $2=expected executable or script path
-    local pid=$1 expected=$2
-    local -a actual=()
-
-    [[ -r /proc/$pid/cmdline ]] || return 1
-    mapfile -d '' -t actual <"/proc/$pid/cmdline" || return 1
-
-    [[ ${#actual[@]} -ge 1 && ${actual[0]} == "$expected" ]] && return 0
-    [[ ${#actual[@]} -ge 2 && ${actual[1]} == "$expected" ]] && return 0
-
-    return 1
-}
-
-pid_matches_argv() { # $1=pid, $2...=expected complete argv
+pid_matches_argv() {
     local pid=$1 index offset
     shift
     local -a expected=("$@") actual=()
@@ -71,10 +39,8 @@ pid_matches_argv() { # $1=pid, $2...=expected complete argv
     [[ -r /proc/$pid/cmdline ]] || return 1
     mapfile -d '' -t actual <"/proc/$pid/cmdline" || return 1
 
-    # Native executable: argv must match exactly.
     if (( ${#actual[@]} == ${#expected[@]} )); then
         offset=0
-    # Script via shebang: the interpreter is prepended as argv[0].
     elif (( ${#actual[@]} == ${#expected[@]} + 1 )); then
         offset=1
     else
@@ -84,50 +50,20 @@ pid_matches_argv() { # $1=pid, $2...=expected complete argv
     for ((index = 0; index < ${#expected[@]}; index++)); do
         [[ ${actual[index + offset]} == "${expected[index]}" ]] || return 1
     done
-
-    return 0
 }
 
-kill_pidfile() { # $1=pidfile path, $2=expected command
-    local pf=$1 expected=$2 pid
-    [[ -r "$pf" ]] || return 0
-    IFS= read -r pid <"$pf" || pid=""
-    [[ -n "${pid:-}" && "$pid" =~ ^[0-9]+$ ]] || {
-        rm -f -- "$pf"
-        return 0
-    }
-
-    if kill -0 "$pid" 2>/dev/null && pid_matches_command "$pid" "$expected"; then
-        kill "$pid" 2>/dev/null || true
-        wait_until_gone "$pid" 2
-        if kill -0 "$pid" 2>/dev/null; then
-            kill -9 "$pid" 2>/dev/null || true
-            wait_until_gone "$pid" 1
-        fi
-    fi
-    rm -f -- "$pf"
-}
-
-# DESC: Start a command once per user session using a pidfile keyed by full argv
-# ARGS: $@  Command with all parameters
-# RET:  0 if already running or started successfully; 2 on bad usage
 start_once() {
-    # Require a command
-    if [[ $# -eq 0 ]]; then
-        return 2
-    fi
+    (($# > 0)) || return 2
 
-    # Build a unique key from command + args, then hash it for a safe filename
-    local base key hash pidfile pidfile_tmp oldpid
-    base="$(basename -- "$1")"
-    key="$(printf '%q ' "$@")"
-    hash="$(printf '%s' "$key" | sha256sum | awk '{print $1}')"
+    local base key hash pidfile pidfile_tmp oldpid pid
+    base=$(basename -- "$1")
+    key=$(printf '%q ' "$@")
+    hash=$(printf '%s' "$key" | sha256sum | awk '{print $1}')
     pidfile="$BSPWM_RUNTIME_DIR/${base}.${hash}.pid"
 
-    # If pidfile exists and its process has the exact expected argv: do nothing
-    if [[ -f "$pidfile" ]]; then
-        oldpid="$(<"$pidfile")"
-        if [[ "$oldpid" =~ ^[0-9]+$ ]] &&
+    if [[ -r $pidfile ]]; then
+        IFS= read -r oldpid <"$pidfile" || oldpid=""
+        if [[ $oldpid =~ ^[0-9]+$ ]] &&
             kill -0 "$oldpid" 2>/dev/null &&
             pid_matches_argv "$oldpid" "$@"; then
             return 0
@@ -135,110 +71,95 @@ start_once() {
         rm -f -- "$pidfile"
     fi
 
-    # Start and record PID
-    "$@" &
+    "$@" >>"$AUTOSTART_LOG" 2>&1 &
+    pid=$!
+    sleep 0.1
+    if ! kill -0 "$pid" 2>/dev/null; then
+        wait "$pid" 2>/dev/null || true
+        log "failed to start: $key"
+        return 1
+    fi
+
     pidfile_tmp="$pidfile.tmp.$$"
-    printf '%s\n' "$!" >"$pidfile_tmp"
+    printf '%s\n' "$pid" >"$pidfile_tmp"
     chmod 600 -- "$pidfile_tmp"
     mv -f -- "$pidfile_tmp" "$pidfile"
+    log "started pid=$pid command=$key"
 }
 
-start_if_available() { # $1=command, $2...=args
-    local command_name="$1"
+start_if_available() {
+    local command_name=$1
     shift
-
-    command -v "$command_name" >/dev/null 2>&1 || return 0
-    start_once "$command_name" "$@"
+    command -v "$command_name" >/dev/null 2>&1 || {
+        log "optional command not found: $command_name"
+        return 0
+    }
+    start_once "$command_name" "$@" || true
 }
 
-start_if_executable() { # $1=path, $2...=args
-    local bin="$1"
+start_if_executable() {
+    local executable=$1
     shift
-    if [[ -x "$bin" ]]; then
-        start_once "$bin" "$@"
-    fi
+    [[ -x $executable ]] || {
+        log "optional executable not found: $executable"
+        return 0
+    }
+    start_once "$executable" "$@" || true
 }
 
-###############################################################################
-# Pre-clean: remove stale state from explicitly supervised components
-###############################################################################
-# Known PID files from your setup
-kill_pidfile "$LEMONBAR_RUNTIME_DIR/start.pid" "$LEMONBAR_START"
-# Remove legacy PID files during migration to dedicated runtime directories.
-kill_pidfile "$XDG_RUNTIME_DIR/start.sh.pid" "$LEMONBAR_START"
-kill_pidfile "$XDG_RUNTIME_DIR/trayer.pid" trayer
-kill_pidfile "$BSPWM_RUNTIME_DIR/trayer.pid" trayer
-
-###############################################################################
-# Session bootstrap
-###############################################################################
-# Basic X defaults
 xsetroot -cursor_name left_ptr || true
-if [[ -r "$WALLPAPER" ]]; then
-    xwallpaper --daemon --zoom "$WALLPAPER" >/dev/null 2>&1 || true
+if [[ -r $WALLPAPER ]] && command -v xwallpaper >/dev/null 2>&1; then
+    # xwallpaper sets the root pixmap and exits; daemon mode is unnecessary.
+    xwallpaper --zoom "$WALLPAPER" >>"$AUTOSTART_LOG" 2>&1 || true
 fi
 
-# Hotkeys
-if [[ -r "$SXHKD_RC" ]]; then
+if [[ -r $SXHKD_RC ]]; then
     start_if_available sxhkd -c "$SXHKD_RC"
 else
     start_if_available sxhkd
 fi
 
-# Notifications
-if [[ -r "$DUNST_CONF" ]]; then
+if [[ -r $DUNST_CONF ]]; then
     start_if_available dunst -config "$DUNST_CONF"
 else
     start_if_available dunst
 fi
 
-# Panel (runs its own supervision and PID handling)
-if [[ -x "$LEMONBAR_START" ]]; then
-    # Use setsid to decouple from this controlling terminal/session.
-    setsid "$LEMONBAR_START" "${LEMONBAR_ARGS[@]}" >/dev/null 2>&1 &
-    sleep 0.2
-fi
-
-# System tray
+# Lemonbar owns its own lock file; an already running panel exits with LOCKBUSY.
+start_if_executable "$LEMONBAR_START" "${LEMONBAR_ARGS[@]}"
 start_if_executable "$TRAYER_START"
 
-# Conky (optional)
-start_if_executable "$CONKY_START"
+# Start Conky directly so the tracked PID belongs to the long-running process.
+if [[ -r $CONKY_CONFIG ]]; then
+    start_if_available conky --config "$CONKY_CONFIG"
+else
+    start_if_available conky
+fi
 
-# Cloud client: keep it in the foreground so start_once tracks the real PID.
 start_if_available nextcloud
 
-# Screen power management
 xset +dpms || true
 xset s 300 10 || true
 xset dpms 400 600 900 || true
 
-# Locker helpers
-# xss-lock supervises the locker and integrates with system sleep
-if command -v xss-lock >/dev/null 2>&1; then
+if command -v xss-lock >/dev/null 2>&1 &&
+    command -v xsecurelock >/dev/null 2>&1 &&
+    [[ -x $XSECURELOCK_DIMMER ]]; then
     XSECURELOCK_DIM_TIME_MS="${XSECURELOCK_DIM_TIME_MS:-10000}" \
-        start_once xss-lock \
-            -n /usr/libexec/xsecurelock/dimmer \
-            --transfer-sleep-lock -- xsecurelock
+        start_once xss-lock -n "$XSECURELOCK_DIMMER" \
+        --transfer-sleep-lock -- xsecurelock || true
+else
+    log "screen locker disabled: xss-lock, xsecurelock or dimmer missing"
 fi
 
-# Start xautolock only once
-start_if_available xautolock -time 30 -detectsleep -locker 'systemctl suspend-then-hibernate'
-
-# Individual size of apps which are floating
+start_if_available xautolock -time 30 -detectsleep \
+    -locker 'systemctl suspend-then-hibernate'
 start_if_executable "$HOME/.config/bspwm/bin/float-resize-bspwm.sh"
 
-# Compositor: keep it in the foreground so start_once tracks the real PID.
-# compositor shall be invoked last to prevent glitches
 if ! pgrep -x -u "$UID" picom >/dev/null 2>&1; then
-    if [[ -r "$PICOM_CONF" ]]; then
+    if [[ -r $PICOM_CONF ]]; then
         start_if_available picom --config "$PICOM_CONF"
     else
         start_if_available picom
     fi
 fi
-
-###############################################################################
-# Done
-###############################################################################
-exit 0
