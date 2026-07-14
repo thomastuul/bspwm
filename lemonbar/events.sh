@@ -105,18 +105,19 @@ get_ws_updates() {
 }
 
 get_trayer_updates() {
-    local current_width line new_width
+    local current_width hints line new_width
 
     listener_producer_pid=""
     trap 'cleanup_listener_producer; exit 0' INT TERM HUP
 
-    # Wait until the Trayer window exposes a valid minimum width.
+    # Wait until the Trayer window exposes a valid minimum width. Keep the
+    # expected xprop failure inside the conditional so errexit does not fire.
     while :; do
-        current_width=$(
-            LC_ALL=C xprop -name "$SYSTRAY_WM_NAME" WM_NORMAL_HINTS \
-                2>/dev/null |
-                awk '/program specified minimum size/ { print $(NF - 2) }'
-        ) || current_width=""
+        current_width=""
+        if hints=$(LC_ALL=C xprop -name "$SYSTRAY_WM_NAME" WM_NORMAL_HINTS 2>/dev/null) &&
+            [[ $hints =~ program\ specified\ minimum\ size:[[:space:]]*([0-9]+) ]]; then
+            current_width=${BASH_REMATCH[1]}
+        fi
 
         if [[ $current_width =~ ^[0-9]+$ ]]; then
             break
