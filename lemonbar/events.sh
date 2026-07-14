@@ -14,11 +14,8 @@ set -o pipefail # Use last non-zero exit code in a pipeline
 set -o errtrace # Ensure the error trap handler is inherited
 
 source "${LEMONDIR}/config.sh"
-# shellcheck disable=SC1090
-if [[ -n "${BASH_ENV:-}" && -r "$BASH_ENV" ]]; then
-    # shellcheck source=lib/logging_env.sh
-    source "$BASH_ENV"
-else
+if ! declare -F log_error >/dev/null; then
+    printf 'logging bootstrap not loaded: %s\n' "${BASH_ENV:-unset}" >&2
     exit 1
 fi
 
