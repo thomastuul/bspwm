@@ -2,7 +2,7 @@
 #set -x
 # Purpose: Start bspwm session daemons exactly once and clean up stale PID-managed leftovers.
 # Notes:
-#   - Uses XDG_RUNTIME_DIR for lock and PID files.
+#   - Uses dedicated runtime directories for bspwm and lemonbar state.
 #   - Cleans up known stale PID files from supervised components.
 #   - Starts each component only if not already running.
 #   - Works across repeated bspwm restarts (bspc wm -r).
@@ -15,9 +15,10 @@ set -o pipefail
 # Environment and paths
 ###############################################################################
 : "${XDG_RUNTIME_DIR:="/run/user/$UID"}"
+export BSPWM_RUNTIME_DIR="${BSPWM_RUNTIME_DIR:-$XDG_RUNTIME_DIR/bspwm}"
 export LEMONBAR_RUNTIME_DIR="${LEMONBAR_RUNTIME_DIR:-$XDG_RUNTIME_DIR/lemonbar}"
-mkdir -p -- "$LEMONBAR_RUNTIME_DIR"
-chmod 700 -- "$LEMONBAR_RUNTIME_DIR"
+mkdir -p -- "$BSPWM_RUNTIME_DIR" "$LEMONBAR_RUNTIME_DIR"
+chmod 700 -- "$BSPWM_RUNTIME_DIR" "$LEMONBAR_RUNTIME_DIR"
 
 LEMONBAR_START="$HOME/.config/bspwm/lemonbar/start.sh"
 LEMONBAR_ARGS=(--log)
@@ -31,7 +32,7 @@ WALLPAPER="$HOME/Bilder/Wallpaper/Background.jpg"
 ###############################################################################
 # Single-instance lock for this script
 ###############################################################################
-exec 9>"$LEMONBAR_RUNTIME_DIR/autostart.lock"
+exec 9>"$BSPWM_RUNTIME_DIR/autostart.lock"
 if ! flock -n 9; then
     # Another autostart is active; exit quietly.
     exit 0
@@ -116,16 +117,12 @@ start_once() {
         return 2
     fi
 
-    # Ensure XDG_RUNTIME_DIR exists for this user
-    : "${XDG_RUNTIME_DIR:="/run/user/$(id -u)"}"
-    mkdir -p -- "$XDG_RUNTIME_DIR"
-
     # Build a unique key from command + args, then hash it for a safe filename
     local base key hash pidfile pidfile_tmp oldpid
     base="$(basename -- "$1")"
     key="$(printf '%q ' "$@")"
     hash="$(printf '%s' "$key" | sha256sum | awk '{print $1}')"
-    pidfile="$XDG_RUNTIME_DIR/${base}.${hash}.pid"
+    pidfile="$BSPWM_RUNTIME_DIR/${base}.${hash}.pid"
 
     # If pidfile exists and its process has the exact expected argv: do nothing
     if [[ -f "$pidfile" ]]; then
@@ -167,9 +164,10 @@ start_if_executable() { # $1=path, $2...=args
 ###############################################################################
 # Known PID files from your setup
 kill_pidfile "$LEMONBAR_RUNTIME_DIR/start.pid" "$LEMONBAR_START"
-# Remove the legacy Lemonbar PID file during migration to the private directory.
+# Remove legacy PID files during migration to dedicated runtime directories.
 kill_pidfile "$XDG_RUNTIME_DIR/start.sh.pid" "$LEMONBAR_START"
 kill_pidfile "$XDG_RUNTIME_DIR/trayer.pid" trayer
+kill_pidfile "$BSPWM_RUNTIME_DIR/trayer.pid" trayer
 
 ###############################################################################
 # Session bootstrap
