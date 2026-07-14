@@ -15,11 +15,14 @@ source "$LEMONDIR/config.sh"
 # signal number.
 
 getPid() {
-    if [ -f "$XDG_RUNTIME_DIR/sighandler.pid" ]; then
-        PID=$(cat "$XDG_RUNTIME_DIR/sighandler.pid")
+    local pid=""
+
+    if [[ -r "$LEMONBAR_RUNTIME_DIR/sighandler.pid" ]]; then
+        IFS= read -r pid <"$LEMONBAR_RUNTIME_DIR/sighandler.pid" || pid=""
     fi
 
-    echo $PID
+    [[ $pid =~ ^[0-9]+$ ]] && kill -0 "$pid" 2>/dev/null || return 1
+    printf '%s\n' "$pid"
 }
 
 TIME=$(date "+%d-%m-%Y-%H-%M-%S")
@@ -56,4 +59,6 @@ else
         echo $! > "$XDG_RUNTIME_DIR/screencast.pid"
 fi
 
-kill -s "$SIGNAL_SCREENCAST" "$(getPid)"
+if sighandler_pid=$(getPid); then
+    kill -s "$SIGNAL_SCREENCAST" "$sighandler_pid" 2>/dev/null || true
+fi
