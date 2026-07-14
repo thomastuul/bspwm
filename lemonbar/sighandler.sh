@@ -104,7 +104,12 @@ wsindicator() {
     update_block ws_string workspace "$LEMONDIR/modules/block_wsindicator.sh"
 }
 window_title() {
-    update_block title_string title "$LEMONDIR/modules/block_title_client.sh"
+    local title_cache
+
+    # tmp_dir is exported by start.sh and shared with title_server.sh.
+    # shellcheck disable=SC2154
+    title_cache="$tmp_dir/lemonbar_title.cache"
+    update_cache_block title_string "$title_cache"
 }
 launcher() {
     update_block launch_string launcher "$LEMONDIR/modules/block_launcher.sh"
