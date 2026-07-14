@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 #set -x
-# Purpose: Start bspwm session daemons exactly once, clean up leftovers, avoid duplicates.
+# Purpose: Start bspwm session daemons exactly once and clean up stale PID-managed leftovers.
 # Notes:
 #   - Uses XDG_RUNTIME_DIR for lock and PID files.
-#   - Kills old instances of typical session daemons.
+#   - Cleans up known stale PID files from supervised components.
 #   - Starts each component only if not already running.
 #   - Works across repeated bspwm restarts (bspc wm -r).
 
@@ -86,11 +86,6 @@ kill_pidfile() { # $1=pidfile path, $2=expected command
     rm -f -- "$pf"
 }
 
-stop_by_name() { # $1=exact process name
-    # Stop all user-owned processes with that exact name.
-    pkill -x -u "$UID" -- "$1" 2>/dev/null || true
-}
-
 # DESC: Start a command once per user session using a pidfile keyed by full argv
 # ARGS: $@  Command with all parameters
 # RET:  0 if already running or started successfully; 2 on bad usage
@@ -147,21 +142,13 @@ start_if_executable() { # $1=path, $2...=args
 }
 
 ###############################################################################
-# Pre-clean: kill leftovers to avoid grabs and double-daemons
+# Pre-clean: remove stale state from explicitly supervised components
 ###############################################################################
 # Known PID files from your setup
 kill_pidfile "$LEMONBAR_RUNTIME_DIR/start.pid" "$LEMONBAR_START"
 # Remove the legacy Lemonbar PID file during migration to the private directory.
 kill_pidfile "$XDG_RUNTIME_DIR/start.sh.pid" "$LEMONBAR_START"
 kill_pidfile "$XDG_RUNTIME_DIR/trayer.pid" trayer
-
-# Defensive stop of typical session daemons
-for p in sxhkd dunst picom xautolock xss-lock nextcloud; do
-    stop_by_name "$p"
-done
-
-# Give the kernel a moment to reap processes
-sleep 0.2
 
 ###############################################################################
 # Session bootstrap
