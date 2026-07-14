@@ -1,6 +1,7 @@
 # shellcheck disable=2034
 
 TERMINAL=${TERMINAL:-alacritty}
+LEMONBAR_RUNTIME_DIR=${LEMONBAR_RUNTIME_DIR:-${XDG_RUNTIME_DIR:-/run/user/${UID:-$(id -u)}}/lemonbar}
 
 # Linux realtime signal map shared by all Lemonbar senders and receivers.
 # Numeric values also work with minimal /bin/sh implementations such as dash.
