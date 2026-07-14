@@ -1,11 +1,11 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 # Enable xtrace if the DEBUG environment variable is set
 if [[ ${DEBUG-} =~ ^1|yes|true$ ]]; then
     set -o xtrace # Trace the execution of the script (debug)
 fi
 
-#set -o errexit      # Exit on most errors (see the manual)
+set -o errexit  # Exit on most errors (see the manual)
 set -o nounset  # Disallow expansion of unset variables
 set -o pipefail # Use last non-zero exit code in a pipeline
 # Enable errtrace or the error trap handler will not work as expected
@@ -21,10 +21,10 @@ else
     echo "logging_env.sh not found at: $BASH_ENV" >&2
 fi
 
-# check parameter count
-if [[ $# -lt 1 ]]; then
+# Check parameter count.
+if [[ $# -ne 1 || ! $1 =~ ^[0-9]+$ ]]; then
     echo "Usage: $0 <sighandler_pid>" >&2
-    exit 1
+    exit 2
 fi
 
 sighandler_pid=$1
@@ -49,85 +49,63 @@ trap_cleanup() {
     rm -f -- "$title_cache" "$title_cache_tmp"
 }
 
-# DESC: Errorhandler
-# ARGS: $1: Exit status code
-# OUTS: None
-trap_err() {
-    local code="$1"
-    if [[ ${code:-} -eq 143 ]]; then return 0; fi # xtmon.sh ends with 143 at stop
-}
-
 trap 'trap_cleanup' EXIT
 trap 'exit 130' INT
 trap 'exit 143' TERM
 trap 'exit 0' QUIT HUP
 
-# DESC: Check if given PID variable is a valid, running process
-# ARGS: $1 (string) PID value to check
-# OUTS: 0 if valid PID of running process, 1 otherwise
-check_pid() {
-    local pid="$1"
-
-    # must be a non-empty string of digits
-    [[ "$pid" =~ ^[0-9]+$ ]] || return 1
-
-    # test if process exists
-    if kill -0 "$pid" 2>/dev/null; then
-        return 0
-    fi
-
-    return 1
-}
-
-if [[ -n "${sighandler_pid-}" ]] && check_pid "$sighandler_pid"; then
+if kill -0 "$sighandler_pid" 2>/dev/null; then
     log_info "sighandler_pid is valid: PID=" "$sighandler_pid"
 else
     log_error "sighandler_pid is invalid: PID=" "$sighandler_pid"
     exit 1
 fi
 
-# DESC: Get title of active window
-# ARGS: None
-# OUTS: None
-activeWindow() {
-    coproc XTMON {
-        exec "$LEMONDIR/xtmon.sh"
-    }
+# Publish one formatted title and notify the renderer.
+publish_title() {
+    local title="${1:0:TITLE_MAX_LENGHT}"
 
-    # Bash creates XTMON_PID dynamically for the named coprocess.
-    # shellcheck disable=SC2153
-    xtmon_pid=$XTMON_PID
-    local xtmon_fd=${XTMON[0]}
+    if ! printf '%s\n' \
+        "%{B$COLOR_DEFAULT_BG}%{F$COLOR_FREE_FG}%{+u}$PADDING$title$PADDING%{-u}%{F-}%{B-}" \
+        >"$title_cache_tmp"; then
+        log_error "cannot write title cache: $title_cache_tmp"
+        return 1
+    fi
 
-    local truncated
+    if ! mv -f -- "$title_cache_tmp" "$title_cache"; then
+        log_error "cannot publish title cache: $title_cache"
+        return 1
+    fi
 
-    while IFS= read -r line <&"$xtmon_fd"; do
-        truncated="$(
-            printf '%s\n' "$line" |
-                awk -v m="$TITLE_MAX_LENGHT" '{print substr($0,1,m)}'
-        )"
-
-        if ! printf '%s\n' \
-            "%{B$COLOR_DEFAULT_BG}%{F$COLOR_FREE_FG}%{+u}$PADDING$truncated$PADDING%{-u}%{F-}%{B-}" \
-            >"$title_cache_tmp"; then
-            log_error "cannot write title cache: $title_cache_tmp"
-            break
-        fi
-
-        if ! mv -f -- "$title_cache_tmp" "$title_cache"; then
-            log_error "cannot publish title cache: $title_cache"
-            break
-        fi
-
-        if ! kill -s "$SIGNAL_TITLE" "$sighandler_pid" 2>/dev/null; then
-            log_error "sighandler not running: pid=$sighandler_pid"
-            break
-        fi
-    done
-
-    kill -TERM "$xtmon_pid" 2>/dev/null || true
-    wait "$xtmon_pid" 2>/dev/null || true
-    xtmon_pid=""
+    if ! kill -s "$SIGNAL_TITLE" "$sighandler_pid" 2>/dev/null; then
+        log_error "sighandler not running: pid=$sighandler_pid"
+        return 1
+    fi
 }
 
-activeWindow
+coproc XTMON {
+    exec "$LEMONDIR/xtmon.sh"
+}
+
+# Bash creates XTMON_PID dynamically for the named coprocess.
+# shellcheck disable=SC2153
+xtmon_pid=$XTMON_PID
+xtmon_fd=${XTMON[0]}
+
+while IFS= read -r line <&"$xtmon_fd"; do
+    publish_title "$line"
+done
+
+if wait "$xtmon_pid"; then
+    watcher_rc=0
+else
+    watcher_rc=$?
+fi
+xtmon_pid=""
+
+# A title watcher is expected to live as long as the signal handler.
+if kill -0 "$sighandler_pid" 2>/dev/null; then
+    log_error "title watcher stopped unexpectedly: rc=$watcher_rc"
+    ((watcher_rc != 0)) || watcher_rc=1
+    exit "$watcher_rc"
+fi
