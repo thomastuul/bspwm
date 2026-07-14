@@ -23,35 +23,55 @@ else
     exit 1
 fi
 
-read -r load_average _ </proc/loadavg
+stat_file=${CPU_STAT_FILE:-/proc/stat}
+state_file=${CPU_STATE_FILE:-${XDG_RUNTIME_DIR:-${TMPDIR:-/tmp}}/lemonbar_cpu_${UID}.state}
+state_max_age=${CPU_STATE_MAX_AGE:-15}
 
-# CPU directories correspond to the logical processors reported by nproc --all.
-shopt -s nullglob
-cpu_directories=(/sys/devices/system/cpu/cpu[0-9]*)
-shopt -u nullglob
-cpu_count=${#cpu_directories[@]}
-
-if ((cpu_count == 0)); then
-    log_error "no logical CPUs found"
+if [[ ! $state_max_age =~ ^[0-9]+$ ]] || ((state_max_age == 0)); then
+    log_error "invalid CPU_STATE_MAX_AGE: $state_max_age"
     exit 1
 fi
 
-# Convert the load average to thousandths and calculate tenths of a percent.
-load_whole=${load_average%%.*}
-load_fraction=${load_average#*.}000
-load_thousandths=$((10#$load_whole * 1000 + 10#${load_fraction:0:3}))
-load_tenths=$((load_thousandths / cpu_count))
-load_remainder=$((load_thousandths % cpu_count))
-
-# Match printf's round-half-to-even behavior at exactly half a tenth.
-if ((load_remainder * 2 > cpu_count ||
-    (load_remainder * 2 == cpu_count && load_tenths % 2 != 0))); then
-    ((++load_tenths))
+# The aggregate cpu line contains cumulative time counters since boot.
+if ! read -r label user nice system idle iowait irq softirq steal _ <"$stat_file" ||
+    [[ $label != cpu ]] ||
+    [[ ! $user =~ ^[0-9]+$ || ! $nice =~ ^[0-9]+$ ||
+        ! $system =~ ^[0-9]+$ || ! $idle =~ ^[0-9]+$ ||
+        ! $iowait =~ ^[0-9]+$ || ! $irq =~ ^[0-9]+$ ||
+        ! $softirq =~ ^[0-9]+$ || ! $steal =~ ^[0-9]+$ ]]; then
+    log_error "invalid aggregate CPU data: $stat_file"
+    exit 1
 fi
 
-printf -v load '%d.%d' "$((load_tenths / 10))" "$((load_tenths % 10))"
+total=$((user + nice + system + idle + iowait + irq + softirq + steal))
+idle_total=$((idle + iowait))
+usage_tenths=0
+
+# Calculate utilization from the difference to the preceding scheduler update.
+if [[ -r $state_file ]] &&
+    read -r previous_total previous_idle previous_time <"$state_file" &&
+    [[ $previous_total =~ ^[0-9]+$ && $previous_idle =~ ^[0-9]+$ &&
+        $previous_time =~ ^[0-9]+$ ]] &&
+    ((total > previous_total && idle_total >= previous_idle &&
+        EPOCHSECONDS >= previous_time &&
+        EPOCHSECONDS - previous_time <= state_max_age)); then
+    total_delta=$((total - previous_total))
+    idle_delta=$((idle_total - previous_idle))
+
+    if ((idle_delta <= total_delta)); then
+        active_delta=$((total_delta - idle_delta))
+        usage_tenths=$(((active_delta * 1000 + total_delta / 2) / total_delta))
+        ((usage_tenths > 1000)) && usage_tenths=1000
+    fi
+fi
+
+if ! printf '%s %s %s\n' "$total" "$idle_total" "$EPOCHSECONDS" >"$state_file"; then
+    log_error "could not update CPU state: $state_file"
+fi
+
+printf -v usage '%d.%d' "$((usage_tenths / 10))" "$((usage_tenths % 10))"
 
 icon=""
 cpu_action=$(lemonbar_action bash "$LEMONDIR/lib/click_action.sh" terminal btop)
 
-printf "%s" "%{A1:${cpu_action}:}%{B$COLOR_DEFAULT_BG}%{F$COLOR_SYS_FG}%{+u} $icon ${load}% %{-u}%{F-}%{B-}%{A}"
+printf "%s" "%{A1:${cpu_action}:}%{B$COLOR_DEFAULT_BG}%{F$COLOR_SYS_FG}%{+u} $icon ${usage}% %{-u}%{F-}%{B-}%{A}"
