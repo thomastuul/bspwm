@@ -31,6 +31,10 @@ trap_cleanup() {
         kill -TERM "$weather_worker_pid" 2>/dev/null || true
         wait "$weather_worker_pid" 2>/dev/null || true
     fi
+    if [[ ${network_worker_pid:-} =~ ^[0-9]+$ ]]; then
+        kill -TERM "$network_worker_pid" 2>/dev/null || true
+        wait "$network_worker_pid" 2>/dev/null || true
+    fi
     if [[ -n ${spid-} ]]; then
         kill "$spid" 2>/dev/null || true
     fi
@@ -65,7 +69,19 @@ power() { power_string="$("$LEMONDIR"/modules/block_power.sh)"; }
 volume() { vol_string="$("$LEMONDIR"/modules/block_volume.sh "$1")"; }
 monitor() { mon_string="$("$LEMONDIR"/modules/block_brightness.sh "$1" "$2")"; }
 tray() { tray_string="$("$LEMONDIR"/modules/block_trayer.sh)"; }
-network() { net_string="$("$LEMONDIR"/modules/block_network.sh)"; }
+network() {
+    local cache_root network_cache_dir display_cache
+
+    cache_root="${XDG_CACHE_HOME:-$HOME/.cache}"
+    network_cache_dir="${NETWORK_CACHE_DIR:-$cache_root/lemonbar}"
+    display_cache="$network_cache_dir/network.cache"
+
+    if [[ -r $display_cache ]]; then
+        net_string="$(<"$display_cache")"
+    else
+        net_string=""
+    fi
+}
 battery() { battery_string="$("$LEMONDIR"/modules/block_battery.sh)"; }
 screencast() { cast_string="$("$LEMONDIR"/modules/block_screencast.sh)"; }
 weather() {
@@ -94,7 +110,6 @@ tick() {
     fi
 
     if ((tick_count % 10 == 0)); then
-        run_or_log network
         run_or_log battery
     fi
 
@@ -109,6 +124,7 @@ pending_title=0
 pending_volume=0
 pending_monitor=""
 pending_tray=0
+pending_network=0
 pending_screencast=0
 
 # Process updates outside trap context so module calls cannot overlap.
@@ -138,6 +154,10 @@ process_pending_updates() {
         pending_tray=0
         run_or_log tray
     fi
+    if ((pending_network)); then
+        pending_network=0
+        run_or_log network
+    fi
     if ((pending_screencast)); then
         pending_screencast=0
         run_or_log screencast
@@ -158,12 +178,16 @@ sig_init() {
     trap -- 'pending_monitor="+"' "$SIGNAL_BRIGHTNESS_UP"
     trap -- 'pending_monitor="-"' "$SIGNAL_BRIGHTNESS_DOWN"
     trap -- 'pending_tray=1' "$SIGNAL_TRAY"
+    trap -- 'pending_network=1' "$SIGNAL_NETWORK"
     trap -- 'pending_screencast=1' "$SIGNAL_SCREENCAST"
 
     # own PID
     pid="$BASHPID"
 
     # Run network access and weather parsing outside this signal handler.
+    bash "$LEMONDIR/network_worker.sh" "$pid" &
+    network_worker_pid=$!
+
     "$LEMONDIR/weather_worker.sh" "$pid" &
     weather_worker_pid=$!
 
