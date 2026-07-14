@@ -14,6 +14,9 @@ SIGNAL_TRAY=43            # SIGRTMIN+9
 SIGNAL_NETWORK=44         # SIGRTMIN+10
 SIGNAL_SCREENCAST=45      # SIGRTMIN+11
 
+# Collect state-change bursts before updating and rendering the panel.
+SIGNAL_DEBOUNCE_DELAY=${SIGNAL_DEBOUNCE_DELAY:-0.03}
+
 # Dracula color palette
 BGlighter="#424450"
 BGlight="#343746"

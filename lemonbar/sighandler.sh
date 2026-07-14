@@ -170,13 +170,15 @@ pending_tick=0
 pending_workspace=0
 pending_title=0
 pending_volume=0
-pending_monitor=""
+pending_brightness=0
 pending_tray=0
 pending_network=0
 pending_screencast=0
 
 # Process updates outside trap context so module calls cannot overlap.
 process_pending_updates() {
+    local brightness_delta
+
     if ((pending_tick)); then
         pending_tick=0
         tick
@@ -193,10 +195,10 @@ process_pending_updates() {
         pending_volume=0
         volume "$pid"
     fi
-    if [[ -n $pending_monitor ]]; then
-        local monitor_action="$pending_monitor"
-        pending_monitor=""
-        monitor "$monitor_action" "$pid"
+    if ((pending_brightness != 0)); then
+        brightness_delta=$pending_brightness
+        pending_brightness=0
+        monitor "$brightness_delta" "$pid"
     fi
     if ((pending_tray)); then
         pending_tray=0
@@ -212,6 +214,38 @@ process_pending_updates() {
     fi
 }
 
+# Return success while at least one signal-triggered update is waiting.
+updates_pending() {
+    ((pending_tick ||
+        pending_workspace ||
+        pending_title ||
+        pending_volume ||
+        pending_brightness != 0 ||
+        pending_tray ||
+        pending_network ||
+        pending_screencast))
+}
+
+# Wait for one short collection window while still accepting signal traps.
+debounce_signals() {
+    local wait_status
+
+    sleep "$SIGNAL_DEBOUNCE_DELAY" &
+    spid=$!
+
+    while true; do
+        if wait "$spid" 2>/dev/null; then
+            break
+        else
+            wait_status=$?
+        fi
+
+        # Signals interrupt wait; other statuses mean the child is gone.
+        ((wait_status > 128)) || break
+    done
+    spid=""
+}
+
 # DESC: Initialize signals, print lemonbar strings
 # ARGS: $1 (required): Message to print (defaults to a green foreground)
 #       $2 (optional): Colour to print the message with. This can be an ANSI
@@ -223,8 +257,8 @@ sig_init() {
     trap -- 'pending_tick=1' "$SIGNAL_TICK"
     trap -- 'pending_title=1' "$SIGNAL_TITLE"
     trap -- 'pending_volume=1' "$SIGNAL_VOLUME"
-    trap -- 'pending_monitor="+"' "$SIGNAL_BRIGHTNESS_UP"
-    trap -- 'pending_monitor="-"' "$SIGNAL_BRIGHTNESS_DOWN"
+    trap -- 'pending_brightness=$((pending_brightness + 1))' "$SIGNAL_BRIGHTNESS_UP"
+    trap -- 'pending_brightness=$((pending_brightness - 1))' "$SIGNAL_BRIGHTNESS_DOWN"
     trap -- 'pending_tray=1' "$SIGNAL_TRAY"
     trap -- 'pending_network=1' "$SIGNAL_NETWORK"
     trap -- 'pending_screencast=1' "$SIGNAL_SCREENCAST"
@@ -263,7 +297,7 @@ render_line() {
 }
 
 main() {
-    local next_tick now
+    local next_tick now wait_rc
 
     sig_init
     log_info "initialized" "$0"
@@ -278,11 +312,28 @@ main() {
 
         process_pending_updates
         render_line
+
+        # Do not sleep with updates that arrived during processing or rendering.
+        if updates_pending; then
+            debounce_signals
+            continue
+        fi
+
         # A finite wait guarantees progress even if a wake-up signal is lost.
         sleep 1 &
         spid=$!
-        wait "$spid" || true
+        if wait "$spid"; then
+            wait_rc=0
+        else
+            wait_rc=$?
+        fi
         kill "$spid" 2>/dev/null || true
+        spid=""
+
+        # A non-zero wait means that an arriving signal interrupted the wait.
+        if ((wait_rc != 0)); then
+            debounce_signals
+        fi
     done
 }
 
