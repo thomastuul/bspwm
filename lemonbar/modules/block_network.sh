@@ -12,6 +12,8 @@ fi
 
 # shellcheck disable=SC1091
 source "$LEMONDIR/config.sh"
+# shellcheck source=../lib/lemonbar_action.sh
+source "$LEMONDIR/lib/lemonbar_action.sh"
 # shellcheck disable=SC1090
 if [[ -n "${BASH_ENV:-}" && -r "$BASH_ENV" ]]; then
     # shellcheck source=../lib/logging_env.sh
@@ -111,8 +113,10 @@ for interface_path in /sys/class/net/*; do
     fi
 done
 
-printf -v notify_action 'notify-send %q %q' "Network" "SSID: $ssid"
-notify_action=${notify_action//:/\\:}
+network_action=$(lemonbar_action \
+    bash "$LEMONDIR/lib/click_action.sh" terminal nmtui)
+notify_action=$(lemonbar_action \
+    bash "$LEMONDIR/lib/click_action.sh" notify "Network" "SSID: $ssid")
 
 printf '%s' \
-    "%{A1:/bin/sh -c 'setsid -f \"$TERMINAL\" -e nmtui >/dev/null 2>&1 &':}%{A3:${notify_action}:}%{B$COLOR_DEFAULT_BG}%{F$COLOR_NETWORK_FG}%{+u} ${eth_string} ${wlan_string} %{-u}%{F-}%{B-}%{A}%{A}"
+    "%{A1:${network_action}:}%{A3:${notify_action}:}%{B$COLOR_DEFAULT_BG}%{F$COLOR_NETWORK_FG}%{+u} ${eth_string} ${wlan_string} %{-u}%{F-}%{B-}%{A}%{A}"

@@ -13,6 +13,8 @@ set -o errtrace # Ensure the error trap handler is inherited
 
 # shellcheck disable=SC1091
 source "$LEMONDIR/config.sh"
+# shellcheck source=../lib/lemonbar_action.sh
+source "$LEMONDIR/lib/lemonbar_action.sh"
 # shellcheck disable=SC1090
 if [[ -n "${BASH_ENV:-}" && -r "$BASH_ENV" ]]; then
     # shellcheck source=../lib/logging_env.sh
@@ -22,7 +24,7 @@ else
 fi
 
 name=""
-run="$HOME/.config/bspwm/rofi/launcher/launcher.sh"
+run=$(lemonbar_action "$HOME/.config/bspwm/rofi/launcher/launcher.sh")
 
 launcher="%{A:$run:}%{F$COLOR_DEFAULT_FG}%{B$COLOR_DEFAULT_BG} ${name}$PADDING%{B-}%{F-}%{A}"
 
