@@ -23,13 +23,10 @@ trap_err() {
     # Disable the error trap handler to prevent potential recursion
     trap - ERR
 
-    # Consider any further errors non-fatal to ensure we run to completion
-    set +o errexit
-    set +o pipefail
-
     local loc="$1" rc="${2:-1}" cmd="${3:-}"
     local line="${loc%%/*}"
     log_error "line=${line:-0} rc=$rc cmd=$cmd"
+    return "$rc"
 }
 
 # Remove a PID file only when it still belongs to the expected process.
@@ -350,7 +347,7 @@ monitor_children() {
 # ARGS: $@ (optional): Arguments provided to the script
 # OUTS: None
 main() {
-    trap 'trap_err "${LINENO}/${BASH_LINENO}" "$?" "$BASH_COMMAND"' ERR
+    trap 'trap_err "${LINENO}/${BASH_LINENO[0]:-0}" "$?" "$BASH_COMMAND"' ERR
     trap 'trap_exit' EXIT
     trap 'exit 130' INT
     trap 'exit 143' TERM
