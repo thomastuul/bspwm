@@ -32,6 +32,26 @@ trap_err() {
     log_error "line=${line:-0} rc=$rc cmd=$cmd"
 }
 
+# Remove a PID file only when it still belongs to the expected process.
+remove_owned_pid_file() {
+    local pid_file=$1 expected_pid=$2 recorded_pid
+
+    [[ $expected_pid =~ ^[0-9]+$ && -r $pid_file ]] || return 0
+    IFS= read -r recorded_pid <"$pid_file" || return 0
+    [[ $recorded_pid == "$expected_pid" ]] || return 0
+    rm -f -- "$pid_file"
+}
+
+# Publish a PID atomically so readers never observe partial contents.
+publish_pid_file() {
+    local pid_file=$1 pid=$2 temporary_file
+
+    temporary_file="$pid_file.tmp.$$"
+    printf '%s\n' "$pid" >"$temporary_file"
+    chmod 600 -- "$temporary_file"
+    mv -f -- "$temporary_file" "$pid_file"
+}
+
 # DESC: Terminate all directly managed child processes
 # ARGS: None
 # OUTS: None
@@ -116,13 +136,9 @@ exit_handler() {
 trap_cleanup() {
     trap - TERM
 
-    # PID-Datei entfernen
-    if [ -n "${XDG_RUNTIME_DIR:-}" ]; then
-        rm -f "$XDG_RUNTIME_DIR/sighandler.pid"
-        if [ -n "${script_lock-}" ] && [ -e "${script_lock-}" ]; then
-            rm -f -- "$script_lock"
-        fi
-    fi
+    # Remove only PID files still owned by this instance.
+    remove_owned_pid_file "${sighandler_pid_file:-}" "${sighandler_pid:-}"
+    remove_owned_pid_file "${script_lock:-}" "$$"
 
     # FIFO entfernen
     if [ -n "${fifo:-}" ] && [ -e "$fifo" ]; then
@@ -174,59 +190,70 @@ parse_params() {
     done
 }
 
-# DESC: Acquire script lock via PID file in XDG_RUNTIME_DIR
-# ARGS: none
-# OUTS: $script_lock: Path to the PID file that represents the lock
-# NOTE: Uses O_EXCL-style creation (noclobber) to avoid races.
-lock_init() {
-    if [[ ! -d $XDG_RUNTIME_DIR || ! -w $XDG_RUNTIME_DIR ]]; then
-        printf 'Runtime dir not usable: %s\n' "$XDG_RUNTIME_DIR" >&2
-        return 2
-    fi
+# Return success if a PID belongs to a Lemonbar start.sh process.
+pid_is_lemonbar_start() {
+    local pid=$1 argument
+    local -a arguments=()
 
-    local pid_file="$XDG_RUNTIME_DIR/start.sh.pid"
-    local old_pid
+    [[ $pid =~ ^[0-9]+$ && -r /proc/$pid/cmdline ]] || return 1
+    mapfile -d '' -t arguments <"/proc/$pid/cmdline" || return 1
 
-    # Try to create atomically (noclobber) and write PID in one step
+    for argument in "${arguments[@]}"; do
+        case $argument in
+        "$LEMONDIR/start.sh" | ./start.sh | start.sh) return 0 ;;
+        esac
+    done
+
+    return 1
+}
+
+# Create this instance's lock file without replacing an existing file.
+create_lock_file() {
+    local pid_file=$1
+
     if (
         set -o noclobber
         printf '%s\n' "$$" >"$pid_file"
     ) 2>/dev/null; then
-        chmod 600 -- "$pid_file" 2>/dev/null || true
-        script_lock="$pid_file"
+        if ! chmod 600 -- "$pid_file"; then
+            rm -f -- "$pid_file"
+            return 1
+        fi
+        script_lock=$pid_file
         return 0
     fi
 
-    # PID file exists: check if stale
+    return 1
+}
+
+# DESC: Acquire script lock via PID file in LEMONBAR_RUNTIME_DIR
+# ARGS: none
+# OUTS: $script_lock: Path to the PID file that represents the lock
+# NOTE: Uses O_EXCL-style creation (noclobber) to avoid races.
+lock_init() {
+    if [[ ! -d $LEMONBAR_RUNTIME_DIR || ! -w $LEMONBAR_RUNTIME_DIR ]]; then
+        printf 'Runtime dir not usable: %s\n' "$LEMONBAR_RUNTIME_DIR" >&2
+        return 2
+    fi
+
+    local pid_file="$LEMONBAR_RUNTIME_DIR/start.pid"
+    local old_pid
+
+    create_lock_file "$pid_file" && return 0
+
+    # Keep a live Lemonbar lock, but reclaim invalid or stale PID files.
     if [[ -r "$pid_file" ]]; then
-        old_pid="$(<"$pid_file")"
-        if [[ "$old_pid" =~ ^[0-9]+$ ]]; then
-            if kill -0 "$old_pid" 2>/dev/null; then
-                printf 'Unable to acquire lock: %s (pid=%s)\nLOCKBUSY (200)\n' \
-                    "$pid_file" "$old_pid" >&2
-                return 200
-            else
-                rm -f -- "$pid_file"
-                if (
-                    set -o noclobber
-                    printf '%s\n' "$$" >"$pid_file"
-                ) 2>/dev/null; then
-                    chmod 600 -- "$pid_file" 2>/dev/null || true
-                    script_lock="$pid_file"
-                    return 0
-                fi
-            fi
-        else
-            rm -f -- "$pid_file"
-            if (
-                set -o noclobber
-                printf '%s\n' "$$" >"$pid_file"
-            ) 2>/dev/null; then
-                chmod 600 -- "$pid_file" 2>/dev/null || true
-                script_lock="$pid_file"
-                return 0
-            fi
+        IFS= read -r old_pid <"$pid_file" || old_pid=""
+        if [[ $old_pid =~ ^[0-9]+$ ]] &&
+            kill -0 "$old_pid" 2>/dev/null &&
+            pid_is_lemonbar_start "$old_pid"; then
+            printf 'Unable to acquire lock: %s (pid=%s)\nLOCKBUSY (200)\n' \
+                "$pid_file" "$old_pid" >&2
+            return 200
         fi
+
+        rm -f -- "$pid_file"
+        create_lock_file "$pid_file" && return 0
     fi
 
     printf 'Unable to acquire script lock: %s\n' "$pid_file" >&2
@@ -258,6 +285,10 @@ init() {
     export LEMONDIR="${XDG_CONFIG_HOME}/bspwm/lemonbar"
     export BASH_ENV="$LEMONDIR/lib/logging_env.sh"
     export XDG_RUNTIME_DIR="${XDG_RUNTIME_DIR:-/run/user/$UID}"
+    export LEMONBAR_RUNTIME_DIR="${LEMONBAR_RUNTIME_DIR:-$XDG_RUNTIME_DIR/lemonbar}"
+
+    mkdir -p -- "$LEMONBAR_RUNTIME_DIR"
+    chmod 700 -- "$LEMONBAR_RUNTIME_DIR"
 
     # shellcheck disable=SC1090
     if [[ -r "$BASH_ENV" ]]; then
@@ -291,7 +322,7 @@ monitor_children() {
         ;;
     "$sighandler_pid")
         child_name="sighandler.sh"
-        rm -f -- "$XDG_RUNTIME_DIR/sighandler.pid"
+        remove_owned_pid_file "$sighandler_pid_file" "$sighandler_pid"
         ;;
     "$events_pid")
         child_name="events.sh"
@@ -331,6 +362,7 @@ main() {
     sighandler_pid=""
     events_pid=""
     title_server_pid=""
+    sighandler_pid_file=""
 
     init "$@"
     parse_params "$@"
@@ -371,10 +403,9 @@ main() {
     "$LEMONDIR/sighandler.sh" >"$fifo" &
     sighandler_pid=$!
 
-    # file for exchanging sighandler_pid to sxhkd
-    if [[ -n "${XDG_RUNTIME_DIR:-}" ]]; then
-        echo "$sighandler_pid" >"$XDG_RUNTIME_DIR/sighandler.pid"
-    fi
+    # Publish the signal receiver PID for sxhkd and helper scripts.
+    sighandler_pid_file="$LEMONBAR_RUNTIME_DIR/sighandler.pid"
+    publish_pid_file "$sighandler_pid_file" "$sighandler_pid"
 
     "$LEMONDIR/events.sh" "$sighandler_pid" &
     events_pid=$!
