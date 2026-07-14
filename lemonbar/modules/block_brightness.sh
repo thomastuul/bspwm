@@ -35,8 +35,29 @@ fi
 change_level=$1
 sighandler_pid=$2
 
-[[ $change_level == " " || $change_level == "+" || $change_level == "-" ]] ||
-    die "invalid change: $change_level"
+case $change_level in
+" ")
+    change_steps=0
+    ;;
+"+")
+    change_steps=1
+    ;;
+"-")
+    change_steps=-1
+    ;;
+-*)
+    change_digits=${change_level#-}
+    [[ $change_digits =~ ^[0-9]+$ ]] ||
+        die "invalid change: $change_level"
+    change_steps=$((-10#$change_digits))
+    ;;
+*)
+    [[ $change_level =~ ^[0-9]+$ ]] ||
+        die "invalid change: $change_level"
+    change_steps=$((10#$change_level))
+    ;;
+esac
+
 [[ $sighandler_pid =~ ^[0-9]+$ ]] ||
     die "invalid sighandler PID: $sighandler_pid"
 
@@ -111,16 +132,9 @@ set_brightness() {
     brightness_int=$target
 }
 
-case "$change_level" in
-"+")
-    set_brightness "$((brightness_int + brightness_step))"
-    ;;
-"-")
-    set_brightness "$((brightness_int - brightness_step))"
-    ;;
-" ")
-    ;;
-esac
+if ((change_steps != 0)); then
+    set_brightness "$((brightness_int + brightness_step * change_steps))"
+fi
 
 inc=$(lemonbar_action \
     bash "$LEMONDIR/lib/click_action.sh" signal \
