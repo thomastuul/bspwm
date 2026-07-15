@@ -23,6 +23,13 @@ weather_worker_pid=""
 network_worker_started=0
 weather_worker_started=0
 
+trap_error() {
+    local rc=$1 line=$2 command=$3
+    trap - ERR
+    log_error "line=$line rc=$rc cmd=$command"
+    return "$rc"
+}
+
 stop_child() {
     local child_pid=${1:-}
     [[ $child_pid =~ ^[0-9]+$ ]] || return 0
@@ -38,6 +45,7 @@ trap_cleanup() {
     log_info "cleanup"
 }
 trap trap_cleanup EXIT
+trap 'trap_error "$?" "$LINENO" "$BASH_COMMAND"' ERR
 trap 'exit 130' INT
 trap 'exit 143' TERM
 trap 'exit 0' QUIT HUP
@@ -209,6 +217,12 @@ sig_init() {
     trap -- 'pending_screencast=1' "$SIGNAL_SCREENCAST"
 
     pid=$BASHPID
+
+    # Do not expose the receiver PID until all realtime signals have handlers.
+    if [[ -n ${SIGHANDLER_READY_FILE:-} ]]; then
+        printf '%s\n' "$pid" >"$SIGHANDLER_READY_FILE"
+    fi
+
     start_network_worker
     start_weather_worker
 
