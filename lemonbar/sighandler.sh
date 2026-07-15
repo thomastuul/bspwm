@@ -17,7 +17,7 @@ declare -F log_error >/dev/null || {
 }
 
 pid=""
-spid=""
+timer_fd=""
 network_worker_pid=""
 weather_worker_pid=""
 network_worker_started=0
@@ -44,7 +44,9 @@ trap_cleanup() {
     trap - INT TERM QUIT EXIT HUP ERR
     stop_child "$weather_worker_pid"
     stop_child "$network_worker_pid"
-    stop_child "$spid"
+    if [[ $timer_fd =~ ^[0-9]+$ ]]; then
+        exec {timer_fd}>&- || true
+    fi
     log_info "cleanup"
 }
 trap trap_cleanup EXIT
@@ -213,15 +215,13 @@ signal_tray() { last_signal="tray"; pending_tray=1; }
 signal_network() { last_signal="network"; pending_network=1; }
 signal_screencast() { last_signal="screencast"; pending_screencast=1; }
 
-debounce_signals() {
-    local wait_status
-    sleep "$SIGNAL_DEBOUNCE_DELAY" &
-    spid=$!
-    while true; do
-        if wait "$spid" 2>/dev/null; then break; else wait_status=$?; fi
-        ((wait_status > 128)) || break
-    done
-    spid=""
+wait_for_events() {
+    local timeout=$1
+
+    # A read/write FIFO descriptor stays blocked without needing a child
+    # process. Realtime signals may interrupt read, returning control directly
+    # to the event loop instead of stranding Bash in wait(2).
+    IFS= read -r -t "$timeout" -u "$timer_fd" || true
 }
 
 sig_init() {
@@ -270,10 +270,13 @@ render_line() {
 }
 
 main() {
-    local next_tick now wait_rc
+    local next_tick now timer_fifo
     sig_init
     log_info "initialized" "$0"
     next_tick=$((EPOCHSECONDS + 1))
+    timer_fifo="$tmp_dir/sighandler.timer"
+    mkfifo -m 600 -- "$timer_fifo"
+    exec {timer_fd}<>"$timer_fifo"
 
     while true; do
         ensure_workers
@@ -286,18 +289,11 @@ main() {
         render_line
 
         if updates_pending; then
-            debounce_signals
+            wait_for_events "$SIGNAL_DEBOUNCE_DELAY"
             continue
         fi
 
-        sleep 1 &
-        spid=$!
-        if wait "$spid"; then wait_rc=0; else wait_rc=$?; fi
-        kill "$spid" 2>/dev/null || true
-        spid=""
-        if ((wait_rc != 0)); then
-            debounce_signals
-        fi
+        wait_for_events 1
     done
 }
 
