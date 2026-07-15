@@ -199,6 +199,12 @@ updates_pending() {
         pending_screencast))
 }
 
+debounced_updates_pending() {
+    ((pending_tick || pending_workspace || pending_title ||
+        pending_brightness != 0 || pending_tray || pending_network ||
+        pending_screencast))
+}
+
 signal_workspace() { last_signal="workspace"; pending_workspace=1; }
 signal_tick() { last_signal="tick"; pending_tick=1; }
 signal_title() { last_signal="title"; pending_title=1; }
@@ -289,7 +295,12 @@ main() {
         render_line
 
         if updates_pending; then
-            wait_for_events "$SIGNAL_DEBOUNCE_DELAY"
+            # Volume scrolling is already serialized by Lemonbar's action
+            # consumer. Render consecutive volume changes without adding the
+            # global debounce used for more expensive asynchronous updates.
+            if debounced_updates_pending; then
+                wait_for_events "$SIGNAL_DEBOUNCE_DELAY"
+            fi
             continue
         fi
 
