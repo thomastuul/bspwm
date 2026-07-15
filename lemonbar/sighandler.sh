@@ -22,11 +22,14 @@ network_worker_pid=""
 weather_worker_pid=""
 network_worker_started=0
 weather_worker_started=0
+last_signal="startup"
 
 trap_error() {
     local rc=$1 line=$2 command=$3
+    local function_stack
     trap - ERR
-    log_error "line=$line rc=$rc cmd=$command"
+    function_stack=$(IFS=/; printf '%s' "${FUNCNAME[*]:1}")
+    log_error "line=$line rc=$rc signal=$last_signal stack=${function_stack:-main} cmd=$command"
     return "$rc"
 }
 
@@ -194,6 +197,22 @@ updates_pending() {
         pending_screencast))
 }
 
+signal_workspace() { last_signal="workspace"; pending_workspace=1; }
+signal_tick() { last_signal="tick"; pending_tick=1; }
+signal_title() { last_signal="title"; pending_title=1; }
+signal_volume() { last_signal="volume"; pending_volume=1; }
+signal_brightness_up() {
+    last_signal="brightness_up"
+    pending_brightness=$((pending_brightness + 1))
+}
+signal_brightness_down() {
+    last_signal="brightness_down"
+    pending_brightness=$((pending_brightness - 1))
+}
+signal_tray() { last_signal="tray"; pending_tray=1; }
+signal_network() { last_signal="network"; pending_network=1; }
+signal_screencast() { last_signal="screencast"; pending_screencast=1; }
+
 debounce_signals() {
     local wait_status
     sleep "$SIGNAL_DEBOUNCE_DELAY" &
@@ -206,15 +225,17 @@ debounce_signals() {
 }
 
 sig_init() {
-    trap -- 'pending_workspace=1' "$SIGNAL_WORKSPACE"
-    trap -- 'pending_tick=1' "$SIGNAL_TICK"
-    trap -- 'pending_title=1' "$SIGNAL_TITLE"
-    trap -- 'pending_volume=1' "$SIGNAL_VOLUME"
-    trap -- 'pending_brightness=$((pending_brightness + 1))' "$SIGNAL_BRIGHTNESS_UP"
-    trap -- 'pending_brightness=$((pending_brightness - 1))' "$SIGNAL_BRIGHTNESS_DOWN"
-    trap -- 'pending_tray=1' "$SIGNAL_TRAY"
-    trap -- 'pending_network=1' "$SIGNAL_NETWORK"
-    trap -- 'pending_screencast=1' "$SIGNAL_SCREENCAST"
+    # Keep trap commands trivial. Named handlers avoid reparsing assignments and
+    # arithmetic expressions while realtime signals arrive in quick succession.
+    trap -- signal_workspace "$SIGNAL_WORKSPACE"
+    trap -- signal_tick "$SIGNAL_TICK"
+    trap -- signal_title "$SIGNAL_TITLE"
+    trap -- signal_volume "$SIGNAL_VOLUME"
+    trap -- signal_brightness_up "$SIGNAL_BRIGHTNESS_UP"
+    trap -- signal_brightness_down "$SIGNAL_BRIGHTNESS_DOWN"
+    trap -- signal_tray "$SIGNAL_TRAY"
+    trap -- signal_network "$SIGNAL_NETWORK"
+    trap -- signal_screencast "$SIGNAL_SCREENCAST"
 
     pid=$BASHPID
 

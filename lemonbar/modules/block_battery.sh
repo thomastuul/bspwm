@@ -52,37 +52,50 @@ fi
 
 # Compute average percentage and combined status
 total_pct=0
+valid_batteries=0
 charging=false
 full=true
 
 for bd in "${BAT_DIRS[@]}"; do
     if [[ -r "${bd}/capacity" ]]; then
-        read -r c <"${bd}/capacity"
+        if ! IFS= read -r c <"${bd}/capacity"; then
+            continue
+        fi
     elif [[ -r "${bd}/charge_now" && -r "${bd}/charge_full" ]]; then
-        read -r now <"${bd}/charge_now"
-        read -r full_chg <"${bd}/charge_full"
+        if ! IFS= read -r now <"${bd}/charge_now" ||
+            ! IFS= read -r full_chg <"${bd}/charge_full"; then
+            continue
+        fi
         # Avoid division by zero
         ((full_chg == 0)) && full_chg=1
         c=$((now * 100 / full_chg))
     else
-        c=0
+        continue
     fi
     total_pct=$((total_pct + c))
+    valid_batteries=$((valid_batteries + 1))
 
     if [[ -r "${bd}/status" ]]; then
-        read -r st <"${bd}/status"
-        case "$st" in
-        [Cc]harging)
-            charging=true
-            full=false
-            ;;
-        [Ff]ull) full=true ;;
-        *) ;;
-        esac
+        if IFS= read -r st <"${bd}/status"; then
+            case "$st" in
+            [Cc]harging)
+                charging=true
+                full=false
+                ;;
+            [Ff]ull) full=true ;;
+            *) ;;
+            esac
+        fi
     fi
 done
 
-pct=$((total_pct / ${#BAT_DIRS[@]}))
+# A battery directory can disappear between glob expansion and file reads.
+if ((valid_batteries == 0)); then
+    printf "%s\n" "%{B$BG_COLOR}%{F$FG_COLOR}%{+u} $ICON_PLUG AC %{-u}%{F-}%{B-}"
+    exit 0
+fi
+
+pct=$((total_pct / valid_batteries))
 
 # Choose icon based on percentage
 battery_icon="$ICON_EMPTY"

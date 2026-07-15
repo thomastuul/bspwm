@@ -26,6 +26,10 @@ autostart
 
 `lemonbar/start.sh` supervises the critical panel processes. If lemonbar, the signal handler, the event listener, or the title server exits, the complete panel is shut down cleanly. The signal handler restarts failed network and weather workers automatically.
 
+Realtime signals are handled by named Bash functions and coalesced before
+rendering. Error records include the last handled signal and a function stack to
+make rare asynchronous failures diagnosable.
+
 ## Design goals
 
 - strict Bash mode (`errexit`, `nounset`, `pipefail`)
