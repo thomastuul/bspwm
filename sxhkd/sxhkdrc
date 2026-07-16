@@ -146,8 +146,8 @@ ctrl + alt + l
 
 # Hide-show lemonbar
 super + b
-    {xdo hide -a lemonbar; xdo hide -a panel; bspc config top_padding +0 ,\
-     xdo show -a lemonbar; xdo show -a panel; bspc config top_padding 25 }
+    {xdo hide -a lemonbar; xdo hide -a lemonbar-c; xdo hide -a panel; bspc config top_padding +0 ,\
+     xdo show -a lemonbar; xdo show -a lemonbar-c; xdo show -a panel; bspc config top_padding 25 }
 
 # make sxhkd reload its configuration files:
 super + Escape
