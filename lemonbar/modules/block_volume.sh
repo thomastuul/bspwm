@@ -27,12 +27,26 @@ sighandler_pid="$1"
 [[ $sighandler_pid =~ ^[0-9]+$ ]] || exit 2
 
 vol() {
+    local mixer_output level switched
+
     icon_on=""
     icon_off=""
     color_fg_on=$COLOR_VOLUME_FG
     color_fg_off=$COLOR_VOLUME_FG_MUTED
-    level=$(amixer get Master | grep -oP '\d+%' | head -n1 | sed 's/%//')
-    switched=$(amixer get Master | grep -o -m 1 "\[on\]\|\[off\]" | tr -d '[]')
+
+    mixer_output=$(amixer get Master)
+    if [[ $mixer_output =~ \[([0-9]+)%\] ]]; then
+        level=${BASH_REMATCH[1]}
+    else
+        log_error "cannot parse Master volume"
+        return 1
+    fi
+    if [[ $mixer_output =~ \[(on|off)\] ]]; then
+        switched=${BASH_REMATCH[1]}
+    else
+        log_error "cannot parse Master mute state"
+        return 1
+    fi
 
     if [[ "$switched" == "on" ]]; then
         vol_string="%{B$COLOR_DEFAULT_BG}%{F$color_fg_on}%{+u} $icon_on $level% %{-u}%{F-}%{B-}"

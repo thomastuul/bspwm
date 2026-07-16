@@ -30,6 +30,7 @@ sighandler_pid=$1
 title_cache="$tmp_dir/lemonbar_title.cache"
 title_cache_tmp="$title_cache.${BASHPID}"
 xtmon_pid=""
+last_published_title=""
 
 # DESC: Stop the title watcher and remove title cache files
 # ARGS: None
@@ -62,6 +63,10 @@ fi
 publish_title() {
     local title="${1:0:TITLE_MAX_LENGHT}"
 
+    # Dynamic titles can change outside the visible prefix many times per
+    # second. Do not wake the renderer when its displayed value is unchanged.
+    [[ $title != "$last_published_title" ]] || return 0
+
     if ! printf '%s\n' \
         "%{B$COLOR_DEFAULT_BG}%{F$COLOR_FREE_FG}%{+u}$PADDING$title$PADDING%{-u}%{F-}%{B-}" \
         >"$title_cache_tmp"; then
@@ -73,6 +78,8 @@ publish_title() {
         log_error "cannot publish title cache: $title_cache"
         return 1
     fi
+
+    last_published_title=$title
 
     if ! kill -s "$SIGNAL_TITLE" "$sighandler_pid" 2>/dev/null; then
         log_error "sighandler not running: pid=$sighandler_pid"

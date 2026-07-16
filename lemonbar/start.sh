@@ -49,6 +49,23 @@ publish_pid_file() {
     mv -f -- "$temporary_file" "$pid_file"
 }
 
+# Wait until sighandler.sh confirms that all realtime traps are installed.
+wait_for_sighandler() {
+    local ready_file=$1 expected_pid=$2 deadline recorded_pid
+    deadline=$((SECONDS + 5))
+
+    while ((SECONDS < deadline)); do
+        if [[ -r $ready_file ]]; then
+            IFS= read -r recorded_pid <"$ready_file" || recorded_pid=""
+            [[ $recorded_pid == "$expected_pid" ]] && return 0
+        fi
+        kill -0 "$expected_pid" 2>/dev/null || return 1
+        sleep 0.01
+    done
+
+    return 1
+}
+
 # DESC: Terminate all directly managed child processes
 # ARGS: None
 # OUTS: None
@@ -360,6 +377,7 @@ main() {
     events_pid=""
     title_server_pid=""
     sighandler_pid_file=""
+    sighandler_ready_file=""
 
     init "$@"
     parse_params "$@"
@@ -396,9 +414,16 @@ main() {
     lemonbar_pid=$!
 
     export tmp_dir
+    sighandler_ready_file="$tmp_dir/sighandler.ready"
+    export SIGHANDLER_READY_FILE="$sighandler_ready_file"
     # fifo-writer, starting after reader
     "$LEMONDIR/sighandler.sh" >"$fifo" &
     sighandler_pid=$!
+
+    if ! wait_for_sighandler "$sighandler_ready_file" "$sighandler_pid"; then
+        log_error "sighandler failed before becoming ready: pid=$sighandler_pid"
+        exit 1
+    fi
 
     # Publish the signal receiver PID for sxhkd and helper scripts.
     sighandler_pid_file="$LEMONBAR_RUNTIME_DIR/sighandler.pid"
