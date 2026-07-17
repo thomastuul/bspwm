@@ -27,66 +27,13 @@ For changed shell scripts:
 - Run `shellcheck` on every changed shell script.
 - Run `git diff --check` before committing.
 
-## C development
-
-The C project uses:
-
-- C17
-- CMake and CMake presets
-- CTest
-- GCC and Clang
-- clang-format
-- clang-tidy
-- AddressSanitizer and UndefinedBehaviorSanitizer
-- Docker or rootless Podman
-- Xvfb for automated X11 integration tests
-
-Follow `lemonbar_c/AGENTS.md` for detailed C and container rules.
-
-For normal C changes, use the reproducible container workflow:
-
-    ./lemonbar_c/scripts/container-build.sh
-
-This command is expected to run:
-
-- clang-format validation
-- clang-tidy
-- native release compilation
-- CLI-only compilation without XCB
-- CTest
-- ASan/UBSan tests
-- automated X11 tests under Xvfb
-
-Set `CONTAINER_ENGINE=podman` when rootless Podman should be used instead of
-Docker.
-
-A local build may be used for quick iteration:
-
-    cmake -S lemonbar_c -B build/lemonbar_c \
-      -DCMAKE_BUILD_TYPE=RelWithDebInfo
-    cmake --build build/lemonbar_c --parallel
-    ctest --test-dir build/lemonbar_c --output-on-failure
-
-The container build remains the authoritative validation before committing C
-changes.
-
 ## Tool usage
 
-Prefer these tools where appropriate:
-
-- `rg` for searching files and source code
-- `clang-format` for C formatting
-- `clang-tidy` for static C analysis
-- `cmake` for configuring and building the C project
-- `ctest` for C test execution
-- `shellcheck` and `bash -n` for shell validation
-- Docker or rootless Podman for reproducible builds
-- Xvfb for automated X11 tests
-- `git diff --check` for whitespace validation
-
-Use runtime tools such as `xprop`, `xrandr`, `xdotool`, `xwininfo`, `bspc`,
-`pactl`, `nmcli`, `ps`, and `strace` only when relevant to integration testing
-or runtime diagnosis.
+- Prefer `rg` for searching files and source code.
+- Use project-provided scripts and configuration instead of duplicating long
+  commands.
+- Use host runtime tools only when required for integration testing or
+  diagnosis.
 
 ## Validation and reporting
 
@@ -94,4 +41,3 @@ or runtime diagnosis.
 - Report exactly which checks were run and whether they passed.
 - Report checks that could not be run and explain why.
 - Do not claim that a runtime or visual test passed unless it was actually run.
-- Keep build artifacts outside source directories.
