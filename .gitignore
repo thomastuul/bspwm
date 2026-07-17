@@ -2,3 +2,4 @@ lemonbar/test.sh
 lemonbar/*.log
 build
 *.png
+*.pdf
