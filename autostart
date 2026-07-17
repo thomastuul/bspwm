@@ -14,9 +14,8 @@ chmod 700 -- "$BSPWM_RUNTIME_DIR" "$LEMONBAR_RUNTIME_DIR"
 AUTOSTART_LOG="${AUTOSTART_LOG:-${XDG_STATE_HOME:-$HOME/.local/state}/bspwm/autostart.log}"
 mkdir -p -- "$(dirname -- "$AUTOSTART_LOG")"
 
-LEMONBAR_START="$HOME/.config/bspwm/lemonbar/start.sh"
-LEMONBAR_ARGS=(--log)
-TRAYER_START="$HOME/.config/bspwm/trayer/start_trayer.sh"
+LEMONBAR_START="$HOME/.local/bin/lemonbar-panel"
+LEMONBAR_ARGS=(--config "$HOME/.config/bspwm/lemonbar_c/config/panel.conf")
 CONKY_CONFIG="${CONKY_CONFIG:-$HOME/.config/conky/conky.conf}"
 SXHKD_RC="$HOME/.config/bspwm/sxhkd/sxhkdrc"
 DUNST_CONF="$HOME/.config/bspwm/dunst/dunstrc"
@@ -39,9 +38,9 @@ pid_matches_argv() {
     [[ -r /proc/$pid/cmdline ]] || return 1
     mapfile -d '' -t actual <"/proc/$pid/cmdline" || return 1
 
-    if (( ${#actual[@]} == ${#expected[@]} )); then
+    if ((${#actual[@]} == ${#expected[@]})); then
         offset=0
-    elif (( ${#actual[@]} == ${#expected[@]} + 1 )); then
+    elif ((${#actual[@]} == ${#expected[@]} + 1)); then
         offset=1
     else
         return 1
@@ -127,7 +126,7 @@ fi
 
 # Lemonbar owns its own lock file; an already running panel exits with LOCKBUSY.
 start_if_executable "$LEMONBAR_START" "${LEMONBAR_ARGS[@]}"
-start_if_executable "$TRAYER_START"
+# start_if_executable "$TRAYER_START"
 
 # Start Conky directly so the tracked PID belongs to the long-running process.
 if [[ -r $CONKY_CONFIG ]]; then
