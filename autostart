@@ -16,7 +16,7 @@ mkdir -p -- "$(dirname -- "$AUTOSTART_LOG")"
 
 LEMONBAR_START="$HOME/.local/bin/lemonbar-panel"
 LEMONBAR_ARGS=(--config "$HOME/.config/bspwm/lemonbar_c/config/panel.conf")
-CONKY_START="$$HOME/.config/conky/start-conky.sh"
+CONKY_START="$HOME/.config/conky/start-conky.sh"
 SXHKD_RC="$HOME/.config/bspwm/sxhkd/sxhkdrc"
 DUNST_CONF="$HOME/.config/bspwm/dunst/dunstrc"
 PICOM_CONF="$HOME/.config/bspwm/picom/picom.conf"
