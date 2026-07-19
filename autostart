@@ -70,7 +70,9 @@ start_once() {
         rm -f -- "$pidfile"
     fi
 
-    "$@" >>"$AUTOSTART_LOG" 2>&1 &
+    # Do not let long-lived session processes keep the autostart lock across
+    # logout. Otherwise the next bspwm session skips its entire autostart.
+    "$@" 9>&- >>"$AUTOSTART_LOG" 2>&1 &
     pid=$!
     sleep 0.1
     if ! kill -0 "$pid" 2>/dev/null; then

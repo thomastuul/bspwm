@@ -60,7 +60,7 @@ bsp-layout set tall 9 -- --master-size 0.5
 #xsetroot -cursor_name left_ptr
 
 # workaround unclickable workspaces at removed second monitor
-bsp config remove_disabled_monitors     true
+bspc config remove_disabled_monitors    true
 
 # Startups
 "$HOME/.config/bspwm/autostart"
