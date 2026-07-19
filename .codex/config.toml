@@ -346,7 +346,7 @@ web_search = "cached"
 
 # path = "/path/to/skill/SKILL.md"
 
-# enabled = false
+enabled = false
 
 ################################################################################
 

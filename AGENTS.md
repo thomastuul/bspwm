@@ -41,3 +41,7 @@ For changed shell scripts:
 - Report exactly which checks were run and whether they passed.
 - Report checks that could not be run and explain why.
 - Do not claim that a runtime or visual test passed unless it was actually run.
+
+## Information [Context: "https://learn.chatgpt.com/learn/docs-mcp"]
+
+- Always use the OpenAI developer documentation MCP server if you need to work with the OpenAI API, ChatGPT Apps SDK, Codex,… without me having to explicitly ask.
