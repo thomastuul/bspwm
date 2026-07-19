@@ -129,6 +129,7 @@ fi
 # Lemonbar owns its own lock file; an already running panel exits with LOCKBUSY.
 start_if_executable "$LEMONBAR_START" "${LEMONBAR_ARGS[@]}"
 # start_if_executable "$TRAYER_START"
+start_if_available blueman-applet
 
 # Start Conky directly so the tracked PID belongs to the long-running process.
 if [[ -r $CONKY_START ]]; then
