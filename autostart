@@ -14,8 +14,8 @@ chmod 700 -- "$BSPWM_RUNTIME_DIR" "$LEMONBAR_RUNTIME_DIR"
 AUTOSTART_LOG="${AUTOSTART_LOG:-${XDG_STATE_HOME:-$HOME/.local/state}/bspwm/autostart.log}"
 mkdir -p -- "$(dirname -- "$AUTOSTART_LOG")"
 
-LEMONBAR_START="$HOME/.local/bin/lemonbar-panel"
-LEMONBAR_ARGS=(--config "$HOME/.config/bspwm/lemonbar_c/config/panel.conf")
+SLIVERBAR_START="$HOME/.local/bin/sliverbar"
+SLIVERBAR_ARGS=(--config "$HOME/.config/bspwm/sliverbar/config/panel.conf")
 CONKY_START="$HOME/.config/conky/start-conky.sh"
 SXHKD_RC="$HOME/.config/bspwm/sxhkd/sxhkdrc"
 DUNST_CONF="$HOME/.config/bspwm/dunst/dunstrc"
@@ -126,8 +126,8 @@ else
     start_if_available dunst
 fi
 
-# Lemonbar owns its own lock file; an already running panel exits with LOCKBUSY.
-start_if_executable "$LEMONBAR_START" "${LEMONBAR_ARGS[@]}"
+# Sliverbar owns its own lock file; an already running panel exits with LOCKBUSY.
+start_if_executable "$SLIVERBAR_START" "${SLIVERBAR_ARGS[@]}"
 # start_if_executable "$TRAYER_START"
 start_if_available blueman-applet
 

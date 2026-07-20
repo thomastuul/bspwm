@@ -14,7 +14,7 @@
 ## Project areas
 
 - `lemonbar/` contains the Bash implementation.
-- `lemonbar_c/` contains the C17 implementation.
+- `sliverbar/` contains the C17 implementation.
 - Treat the Bash implementation as a behavioral reference and fallback.
 - Follow additional instructions from nested `AGENTS.md` files.
 - Do not run the Bash and C panels simultaneously during visual tests.
