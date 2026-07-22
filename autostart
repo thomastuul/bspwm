@@ -15,7 +15,7 @@ AUTOSTART_LOG="${AUTOSTART_LOG:-${XDG_STATE_HOME:-$HOME/.local/state}/bspwm/auto
 mkdir -p -- "$(dirname -- "$AUTOSTART_LOG")"
 
 SLIVERBAR_START="$HOME/.local/bin/sliverbar"
-SLIVERBAR_ARGS=(--config "$HOME/.config/bspwm/sliverbar/config/panel.conf")
+SLIVERBAR_ARGS=()
 CONKY_START="$HOME/.config/conky/start-conky.sh"
 SXHKD_RC="$HOME/.config/bspwm/sxhkd/sxhkdrc"
 DUNST_CONF="$HOME/.config/bspwm/dunst/dunstrc"
