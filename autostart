@@ -14,10 +14,9 @@ chmod 700 -- "$BSPWM_RUNTIME_DIR" "$LEMONBAR_RUNTIME_DIR"
 AUTOSTART_LOG="${AUTOSTART_LOG:-${XDG_STATE_HOME:-$HOME/.local/state}/bspwm/autostart.log}"
 mkdir -p -- "$(dirname -- "$AUTOSTART_LOG")"
 
-LEMONBAR_START="$HOME/.config/bspwm/lemonbar/start.sh"
-LEMONBAR_ARGS=(--log)
-TRAYER_START="$HOME/.config/bspwm/trayer/start_trayer.sh"
-CONKY_CONFIG="${CONKY_CONFIG:-$HOME/.config/conky/conky.conf}"
+SLIVERBAR_START="$HOME/.local/bin/sliverbar"
+SLIVERBAR_ARGS=()
+CONKY_START="$HOME/.config/conky/start-conky.sh"
 SXHKD_RC="$HOME/.config/bspwm/sxhkd/sxhkdrc"
 DUNST_CONF="$HOME/.config/bspwm/dunst/dunstrc"
 PICOM_CONF="$HOME/.config/bspwm/picom/picom.conf"
@@ -39,9 +38,9 @@ pid_matches_argv() {
     [[ -r /proc/$pid/cmdline ]] || return 1
     mapfile -d '' -t actual <"/proc/$pid/cmdline" || return 1
 
-    if (( ${#actual[@]} == ${#expected[@]} )); then
+    if ((${#actual[@]} == ${#expected[@]})); then
         offset=0
-    elif (( ${#actual[@]} == ${#expected[@]} + 1 )); then
+    elif ((${#actual[@]} == ${#expected[@]} + 1)); then
         offset=1
     else
         return 1
@@ -71,7 +70,9 @@ start_once() {
         rm -f -- "$pidfile"
     fi
 
-    "$@" >>"$AUTOSTART_LOG" 2>&1 &
+    # Do not let long-lived session processes keep the autostart lock across
+    # logout. Otherwise the next bspwm session skips its entire autostart.
+    "$@" 9>&- >>"$AUTOSTART_LOG" 2>&1 &
     pid=$!
     sleep 0.1
     if ! kill -0 "$pid" 2>/dev/null; then
@@ -125,13 +126,14 @@ else
     start_if_available dunst
 fi
 
-# Lemonbar owns its own lock file; an already running panel exits with LOCKBUSY.
-start_if_executable "$LEMONBAR_START" "${LEMONBAR_ARGS[@]}"
-start_if_executable "$TRAYER_START"
+# Sliverbar owns its own lock file; an already running panel exits with LOCKBUSY.
+start_if_executable "$SLIVERBAR_START" "${SLIVERBAR_ARGS[@]}"
+# start_if_executable "$TRAYER_START"
+start_if_available blueman-applet
 
 # Start Conky directly so the tracked PID belongs to the long-running process.
-if [[ -r $CONKY_CONFIG ]]; then
-    start_if_available conky --config "$CONKY_CONFIG"
+if [[ -r $CONKY_START ]]; then
+    start_if_available "$CONKY_START"
 else
     start_if_available conky
 fi
