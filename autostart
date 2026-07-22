@@ -17,7 +17,7 @@ mkdir -p -- "$(dirname -- "$AUTOSTART_LOG")"
 LEMONBAR_START="$HOME/.config/bspwm/lemonbar/start.sh"
 LEMONBAR_ARGS=(--log)
 TRAYER_START="$HOME/.config/bspwm/trayer/start_trayer.sh"
-CONKY_CONFIG="${CONKY_CONFIG:-$HOME/.config/conky/conky.conf}"
+CONKY_START="${CONKY_START:-$HOME/.config/conky/start-conky.sh}"
 SXHKD_RC="$HOME/.config/bspwm/sxhkd/sxhkdrc"
 DUNST_CONF="$HOME/.config/bspwm/dunst/dunstrc"
 PICOM_CONF="$HOME/.config/bspwm/picom/picom.conf"
@@ -129,9 +129,10 @@ fi
 start_if_executable "$LEMONBAR_START" "${LEMONBAR_ARGS[@]}"
 start_if_executable "$TRAYER_START"
 
-# Start Conky directly so the tracked PID belongs to the long-running process.
-if [[ -r $CONKY_CONFIG ]]; then
-    start_if_available conky --config "$CONKY_CONFIG"
+# The launcher generates a monitor-aware configuration and daemonizes Conky.
+if [[ -x $CONKY_START ]]; then
+    "$CONKY_START" 9>&- >>"$AUTOSTART_LOG" 2>&1 ||
+        log "failed to start: $CONKY_START"
 else
     start_if_available conky
 fi
