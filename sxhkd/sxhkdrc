@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# vim: set ft=conf :
 # _____ _                                 _____           _
 #|_   _| |                               |_   _|         | |
 #  | | | |__   ___  _ __ ___   __ _ ___    | |_   _ _   _| |
@@ -139,6 +140,9 @@ Print + ctrl + shift
 
 # lock screen
 ctrl + alt + l
+    loginctl lock-session
+
+XF86ScreenSaver
     loginctl lock-session
 #
 # anything else
