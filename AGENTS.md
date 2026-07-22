@@ -14,7 +14,7 @@
 ## Project areas
 
 - `lemonbar/` contains the Bash implementation.
-- `lemonbar_c/` contains the C17 implementation.
+- `sliverbar/` contains the C17 implementation.
 - Treat the Bash implementation as a behavioral reference and fallback.
 - Follow additional instructions from nested `AGENTS.md` files.
 - Do not run the Bash and C panels simultaneously during visual tests.
@@ -41,3 +41,7 @@ For changed shell scripts:
 - Report exactly which checks were run and whether they passed.
 - Report checks that could not be run and explain why.
 - Do not claim that a runtime or visual test passed unless it was actually run.
+
+## Information [Context: "https://learn.chatgpt.com/learn/docs-mcp"]
+
+- Always use the OpenAI developer documentation MCP server if you need to work with the OpenAI API, ChatGPT Apps SDK, Codex,… without me having to explicitly ask.

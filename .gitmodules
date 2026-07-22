@@ -1,4 +1,4 @@
-[submodule "lemonbar_c"]
-	path = lemonbar_c
-	url = git@github.com:thomastuul/lemonbar_c.git
+[submodule "sliverbar"]
+	path = sliverbar
+	url = git@github.com:thomastuul/sliverbar.git
 	branch = main
