@@ -9,53 +9,55 @@
 #
 #   ~/.config/bspwm/sxhkd/sxhkdrc
 
-
 #
 # bspwm hotkeys
 #
 
 # Opens a new Terminal. Alacritty in my case
 super + shift + Return
-    alacritty
+alacritty
 
 # quit bspwm
 super + shift + r
-    bspc wm -r ;notify-send "bspwm neu gestartet"
+bspc wm -r
+notify-send "bspwm neu gestartet"
 
 super + shift + q
-    pkill -15 -x brave 2>/dev/null; sleep 0.3; bspc quit
+pkill -15 -x brave 2>/dev/null
+sleep 0.3
+bspc quit
 
 # kill client
 super + shift + c
-    bspc node -c
+bspc node -c
 
 # alternate between the tiled and monocle layout
 super + space
-    bspc desktop -l next
+bspc desktop -l next
 
 # send the newest marked node to the newest preselected node
 super + y
-    bspc node newest.marked.local -n newest.!automatic.local
+bspc node newest.marked.local -n newest.!automatic.local
 
 # swap the current node and the biggest node (inside same desktop)
 super + m
-    bspc node -s biggest.local
+bspc node -s biggest.local
 
 # STATE/FLAGS
 
 # set the window state
 super + {t,shift + t,s,f}
-    bspc node -t {tiled,pseudo_tiled,floating,fullscreen}
+bspc node -t {tiled,pseudo_tiled,floating,fullscreen}
 
 # set the node flags
 super + alt + {m,x,y,z}
-    bspc node -g {marked,locked,sticky,private}
+bspc node -g {marked,locked,sticky,private}
 
 # FOCUS/SWAP
 
 # focus the node in the given direction
 super + {_,shift + }{h,j,k,l}
-    bspc node -{f,s} {west,south,north,east}
+bspc node -{f,s} {west,south,north,east}
 
 # focus the node for the given path jump
 #super + {shift + p, shift + b, ctrl + f, ctrl + s}
@@ -63,155 +65,166 @@ super + {_,shift + }{h,j,k,l}
 
 # focus the next/previous node in the current desktop
 super + {_,shift + }n
-    bspc node -f {next,prev}.local
+bspc node -f {next,prev}.local
 
 # focus the next/previous desktop in the current monitor
 super + {Left, Right}
-    bspc desktop -f {prev,next}.local
+bspc desktop -f {prev,next}.local
 
 # focus the next/previous monitor
 super + {comma, period}
-    bspc monitor -f {prev,next}
+bspc monitor -f {prev,next}
 
 super + {shift + comma, shift + period}
-    bspc node -s {prev,next}
+bspc node -s {prev,next}
 
 # focus the last node/desktop
 super + {shift + Tab,Tab}
-    bspc {node,desktop} -f last
+bspc {node,desktop} -f last
 
 # focus the older or newer node in the focus history
 super + {o,i}
-    bspc wm -h off; \
-    bspc node {older,newer} -f; \
-    bspc wm -h on
+bspc wm -h off
+bspc node {older,newer} -f
+bspc wm -h on
 
 # focus or send to the given desktop
 super + {_,shift + }{1-9,0}
-    bspc {desktop -f,node -d} focused:'^{1-9,10}'
+bspc {desktop -f,node -d} focused:'^{1-9,10}'
 
 # PRESELECT
 
 # preselect the direction
 super + alt + {h,j,k,l}
-    bspc node -p {west,south,north,east}
+bspc node -p {west,south,north,east}
 
 # preselect the ratio
 super + alt + {1-9}
-    bspc node -o 0.{1-9}
+bspc node -o 0.{1-9}
 
 # cancel the preselection for the focused node
 super + alt + space
-    bspc node -p cancel
+bspc node -p cancel
 
 # cancel the preselection for the focused desktop
 super + alt + shift + space
-    bspc query -N -d | xargs -I id -n 1 bspc node id -p cancel
+bspc query -N -d | xargs -I id -n 1 bspc node id -p cancel
 
 # Move current window to a pre-selected space
 super + shift + m
-    bspc node -n last.!automatic
+bspc node -n last.!automatic
 
 # MOVE/RESIVE
 # shrink/expand
 super + ctrl + h
-    bspc node -z {left -20 0} || bspc node -z {right -20 0}
+bspc node -z {left -20 0} || bspc node -z {right -20 0}
 super + ctrl + j
-    bspc node -z {bottom 0 20} || bspc node -z {top 0 20}
+bspc node -z {bottom 0 20} || bspc node -z {top 0 20}
 super + ctrl + k
-    bspc node -z {bottom 0 -20} || bspc node -z {top 0 -20}
+bspc node -z {bottom 0 -20} || bspc node -z {top 0 -20}
 super + ctrl + l
-    bspc node -z {left 20 0} || bspc node -z {right 20 0}
+bspc node -z {left 20 0} || bspc node -z {right 20 0}
 
 # move a floating window
 super + {Left,Down,Up,Right}
-    bspc node -v {-20 0,0 20,0 -20,20 0}
+bspc node -v {-20 0,0 20,0 -20,20 0}
 
 # Screenshot/Screencut
 Print
-    scrot "$HOME/Bilder/screenshot-%d-%m-%Y-%H-%M-%S.png" -e "xclip -selection c -t image/png < $f" && sleep 1; notify-send "Screenshot abgelegt in ~/Bilder"
+scrot "$HOME/Bilder/screenshot-%d-%m-%Y-%H-%M-%S.png" -e "xclip -selection c -t image/png < $f" && sleep 1
+notify-send "Screenshot abgelegt in ~/Bilder"
 
 Print + ctrl
-    scrot -s "$HOME/Bilder/screencut-%d-%m-%Y-%H-%M-%S.png" -e "xclip -selection c -t image/png < $f" && sleep 1; notify-send "Screencut abgelegt in ~/Bilder"
+scrot -s "$HOME/Bilder/screencut-%d-%m-%Y-%H-%M-%S.png" -e "xclip -selection c -t image/png < $f" && sleep 1
+notify-send "Screencut abgelegt in ~/Bilder"
 
 Print + ctrl + shift
-    scrot -u "$HOME/Bilder/activewindow-%d-%m-%Y-%H-%M-%S.png" -e "xclip -selection c -t image/png < $f" && sleep 1; notify-send "Screenshot von Fenster abgelegt in ~/Bilder"
+scrot -u "$HOME/Bilder/activewindow-%d-%m-%Y-%H-%M-%S.png" -e "xclip -selection c -t image/png < $f" && sleep 1
+notify-send "Screenshot von Fenster abgelegt in ~/Bilder"
 
 # lock screen
 ctrl + alt + l
-    loginctl lock-session
+loginctl lock-session
 #
 # anything else
 #
 
 # Hide-show lemonbar
 super + b
-    {xdo hide -a lemonbar; xdo hide -a lemonbar-c; xdo hide -a panel; bspc config top_padding +0 ,\
-     xdo show -a lemonbar; xdo show -a lemonbar-c; xdo show -a panel; bspc config top_padding 25 }
+{xdo hide -a lemonbar
+xdo hide -a lemonbar-c
+xdo hide -a panel
+bspc config top_padding +0 , xdo show -a lemonbar
+xdo show -a lemonbar-c
+xdo show -a panel
+bspc config top_padding 25 }
 
 # make sxhkd reload its configuration files:
 super + Escape
-    pkill -USR1 -x sxhkd; \
-    notify-send "sxhkd neu gestartet"
+pkill -USR1 -x sxhkd
+notify-send "sxhkd neu gestartet"
 
 # run program launcher
 super + ctrl + p
-    rofi -show drun -config "$HOME/.config/bspwm/rofi/config.rasi"
+rofi -show drun -config "$HOME/.config/bspwm/rofi/config.rasi"
 
 # choose monitor
 super + ctrl + m
-    "$HOME/.local/share/rofi/rofi-monitor-layout.sh"
+"$HOME/.local/share/rofi/rofi-monitor-layout.sh"
 
 # usb mount
 super + ctrl + u
-    "$HOME/.local/share/rofi/rofi-usb-mount.sh"
+"$HOME/.local/share/rofi/rofi-usb-mount.sh"
 
 # show cheatsheets
 super + ctrl + s
-    "$HOME/.local/share/rofi/cht/rofi_scripts/cht.sh"
+"$HOME/.local/share/rofi/cht/rofi_scripts/cht.sh"
 
 # show/copy clipboard
 super + ctrl + c
-    rofi -modi "clipboard:~/.local/share/greenclip/greenclip print" -show clipboard -run-command '{cmd}'
+rofi -modi "clipboard:~/.local/share/greenclip/greenclip print" -show clipboard -run-command '{cmd}'
 
 # rofi-translate (using translate-shell)
 super + ctrl + t
-    "/home/thomas/.local/share/rofi/rofi-translate/rofi_trans"
+"/home/thomas/.local/share/rofi/rofi-translate/rofi_trans"
 
 super + alt + b
-    ~/.config/bspwm/bin/app-launcher.sh browser
+~/.config/bspwm/bin/app-launcher.sh browser
+
+XF86Mail
+~/.config/bspwm/bin/app-launcher.sh mail
 
 super + alt + e
-    ~/.config/bspwm/bin/app-launcher.sh mail
+~/.config/bspwm/bin/app-launcher.sh mail
 
 super + alt + t
-    ~/.config/bspwm/bin/app-launcher.sh file
+~/.config/bspwm/bin/app-launcher.sh file
 
 super + alt + c
-    /bin/sh -c "~/.config/bspwm/bin/camtoggle.sh"
+/bin/sh -c "~/.config/bspwm/bin/camtoggle.sh"
 
 super + alt + s
-    /bin/sh -c "~/.config/bspwm/bin/screencast.sh"
+/bin/sh -c "~/.config/bspwm/bin/screencast.sh"
 
 XF86AudioRaiseVolume
-    amixer set Master 2%+ > /dev/null;\
-    . "${XDG_CONFIG_HOME:-$HOME/.config}/bspwm/lemonbar/config.sh"; \
-    [ -f "$LEMONBAR_RUNTIME_DIR/sighandler.pid" ] && kill -s "$SIGNAL_VOLUME" "$(cat "$LEMONBAR_RUNTIME_DIR/sighandler.pid")"
+amixer set Master 2%+ >/dev/null
+. "${XDG_CONFIG_HOME:-$HOME/.config}/bspwm/lemonbar/config.sh"
+[ -f "$LEMONBAR_RUNTIME_DIR/sighandler.pid" ] && kill -s "$SIGNAL_VOLUME" "$(cat "$LEMONBAR_RUNTIME_DIR/sighandler.pid")"
 
 XF86AudioLowerVolume
-    amixer set Master 2%- > /dev/null;\
-    . "${XDG_CONFIG_HOME:-$HOME/.config}/bspwm/lemonbar/config.sh"; \
-    [ -f "$LEMONBAR_RUNTIME_DIR/sighandler.pid" ] && kill -s "$SIGNAL_VOLUME" "$(cat "$LEMONBAR_RUNTIME_DIR/sighandler.pid")"
+amixer set Master 2%- >/dev/null
+. "${XDG_CONFIG_HOME:-$HOME/.config}/bspwm/lemonbar/config.sh"
+[ -f "$LEMONBAR_RUNTIME_DIR/sighandler.pid" ] && kill -s "$SIGNAL_VOLUME" "$(cat "$LEMONBAR_RUNTIME_DIR/sighandler.pid")"
 
 XF86AudioMute
-    amixer set Master toggle > /dev/null;\
-    . "${XDG_CONFIG_HOME:-$HOME/.config}/bspwm/lemonbar/config.sh"; \
-    [ -f "$LEMONBAR_RUNTIME_DIR/sighandler.pid" ] && kill -s "$SIGNAL_VOLUME" "$(cat "$LEMONBAR_RUNTIME_DIR/sighandler.pid")"
+amixer set Master toggle >/dev/null
+. "${XDG_CONFIG_HOME:-$HOME/.config}/bspwm/lemonbar/config.sh"
+[ -f "$LEMONBAR_RUNTIME_DIR/sighandler.pid" ] && kill -s "$SIGNAL_VOLUME" "$(cat "$LEMONBAR_RUNTIME_DIR/sighandler.pid")"
 
 XF86MonBrightnessUp
-    . "${XDG_CONFIG_HOME:-$HOME/.config}/bspwm/lemonbar/config.sh"; \
-    [ -f "$LEMONBAR_RUNTIME_DIR/sighandler.pid" ] && kill -s "$SIGNAL_BRIGHTNESS_UP" "$(cat "$LEMONBAR_RUNTIME_DIR/sighandler.pid")"
+. "${XDG_CONFIG_HOME:-$HOME/.config}/bspwm/lemonbar/config.sh"
+[ -f "$LEMONBAR_RUNTIME_DIR/sighandler.pid" ] && kill -s "$SIGNAL_BRIGHTNESS_UP" "$(cat "$LEMONBAR_RUNTIME_DIR/sighandler.pid")"
 
 XF86MonBrightnessDown
-    . "${XDG_CONFIG_HOME:-$HOME/.config}/bspwm/lemonbar/config.sh"; \
-    [ -f "$LEMONBAR_RUNTIME_DIR/sighandler.pid" ] && kill -s "$SIGNAL_BRIGHTNESS_DOWN" "$(cat "$LEMONBAR_RUNTIME_DIR/sighandler.pid")"
+. "${XDG_CONFIG_HOME:-$HOME/.config}/bspwm/lemonbar/config.sh"
+[ -f "$LEMONBAR_RUNTIME_DIR/sighandler.pid" ] && kill -s "$SIGNAL_BRIGHTNESS_DOWN" "$(cat "$LEMONBAR_RUNTIME_DIR/sighandler.pid")"
