@@ -16,7 +16,7 @@ mkdir -p -- "$(dirname -- "$AUTOSTART_LOG")"
 
 SLIVERBAR_START="$HOME/.local/bin/sliverbar"
 SLIVERBAR_ARGS=()
-CONKY_START="$HOME/.config/conky/start-conky.sh"
+CONKY_START="${CONKY_START:-$HOME/.config/conky/start-conky.sh}"
 SXHKD_RC="$HOME/.config/bspwm/sxhkd/sxhkdrc"
 DUNST_CONF="$HOME/.config/bspwm/dunst/dunstrc"
 PICOM_CONF="$HOME/.config/bspwm/picom/picom.conf"
@@ -131,9 +131,10 @@ start_if_executable "$SLIVERBAR_START" "${SLIVERBAR_ARGS[@]}"
 # start_if_executable "$TRAYER_START"
 start_if_available blueman-applet
 
-# Start Conky directly so the tracked PID belongs to the long-running process.
-if [[ -r $CONKY_START ]]; then
-    start_if_available "$CONKY_START"
+# The launcher generates a monitor-aware configuration and daemonizes Conky.
+if [[ -x $CONKY_START ]]; then
+    "$CONKY_START" 9>&- >>"$AUTOSTART_LOG" 2>&1 ||
+        log "failed to start: $CONKY_START"
 else
     start_if_available conky
 fi
