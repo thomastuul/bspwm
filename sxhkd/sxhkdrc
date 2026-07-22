@@ -141,9 +141,6 @@ Print + ctrl + shift
 # lock screen
 ctrl + alt + l
     loginctl lock-session
-
-XF86ScreenSaver
-    loginctl lock-session
 #
 # anything else
 #
