@@ -23,6 +23,8 @@
 
 For changed shell scripts:
 
+- Use model `gpt-5.1-codex-mini` for formatting/linting-only work.
+- Use model `gpt-5.5` with medium reasoning for all other work.
 - Run `bash -n` on every changed shell script.
 - Run `shellcheck` on every changed shell script.
 - Run `git diff --check` before committing.
