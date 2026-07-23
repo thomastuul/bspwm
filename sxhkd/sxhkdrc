@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# vim: set ft=conf :
 # _____ _                                 _____           _
 #|_   _| |                               |_   _|         | |
 #  | | | |__   ___  _ __ ___   __ _ ___    | |_   _ _   _| |
@@ -144,10 +145,10 @@ ctrl + alt + l
 # anything else
 #
 
-# Hide-show lemonbar
+# Hide or show Sliverbar.
 super + b
-    {xdo hide -a lemonbar; xdo hide -a panel; bspc config top_padding +0 ,\
-     xdo show -a lemonbar; xdo show -a panel; bspc config top_padding 25 }
+    {xdo hide -a sliverbar; bspc config top_padding +0 ,\
+     xdo show -a sliverbar; bspc config top_padding 25 }
 
 # make sxhkd reload its configuration files:
 super + Escape
@@ -172,7 +173,7 @@ super + ctrl + s
 
 # show/copy clipboard
 super + ctrl + c
-    rofi -modi "clipboard:~/.local/bin/greenclip print" -show clipboard -run-command '{cmd}'
+    rofi -modi "clipboard:~/.local/share/greenclip/greenclip print" -show clipboard -run-command '{cmd}'
 
 # rofi-translate (using translate-shell)
 super + ctrl + t
@@ -180,6 +181,9 @@ super + ctrl + t
 
 super + alt + b
     ~/.config/bspwm/bin/app-launcher.sh browser
+
+XF86Mail
+    ~/.config/bspwm/bin/app-launcher.sh mail
 
 super + alt + e
     ~/.config/bspwm/bin/app-launcher.sh mail
@@ -195,18 +199,23 @@ super + alt + s
 
 XF86AudioRaiseVolume
     amixer set Master 2%+ > /dev/null;\
-    [ -f "$XDG_RUNTIME_DIR/sighandler.pid" ] && kill -RTMIN+6 $(cat "$XDG_RUNTIME_DIR/sighandler.pid")
+    . "${XDG_CONFIG_HOME:-$HOME/.config}/bspwm/lemonbar/config.sh"; \
+    [ -f "$LEMONBAR_RUNTIME_DIR/sighandler.pid" ] && kill -s "$SIGNAL_VOLUME" "$(cat "$LEMONBAR_RUNTIME_DIR/sighandler.pid")"
 
 XF86AudioLowerVolume
     amixer set Master 2%- > /dev/null;\
-    [ -f "$XDG_RUNTIME_DIR/sighandler.pid" ] && kill -RTMIN+6 $(cat "$XDG_RUNTIME_DIR/sighandler.pid")
+    . "${XDG_CONFIG_HOME:-$HOME/.config}/bspwm/lemonbar/config.sh"; \
+    [ -f "$LEMONBAR_RUNTIME_DIR/sighandler.pid" ] && kill -s "$SIGNAL_VOLUME" "$(cat "$LEMONBAR_RUNTIME_DIR/sighandler.pid")"
 
 XF86AudioMute
     amixer set Master toggle > /dev/null;\
-    [ -f "$XDG_RUNTIME_DIR/sighandler.pid" ] && kill -RTMIN+6 $(cat "$XDG_RUNTIME_DIR/sighandler.pid")
+    . "${XDG_CONFIG_HOME:-$HOME/.config}/bspwm/lemonbar/config.sh"; \
+    [ -f "$LEMONBAR_RUNTIME_DIR/sighandler.pid" ] && kill -s "$SIGNAL_VOLUME" "$(cat "$LEMONBAR_RUNTIME_DIR/sighandler.pid")"
 
 XF86MonBrightnessUp
-    [ -f "$XDG_RUNTIME_DIR/sighandler.pid" ] && kill -RTMIN+7 $(cat "$XDG_RUNTIME_DIR/sighandler.pid")
+    . "${XDG_CONFIG_HOME:-$HOME/.config}/bspwm/lemonbar/config.sh"; \
+    [ -f "$LEMONBAR_RUNTIME_DIR/sighandler.pid" ] && kill -s "$SIGNAL_BRIGHTNESS_UP" "$(cat "$LEMONBAR_RUNTIME_DIR/sighandler.pid")"
 
 XF86MonBrightnessDown
-    [ -f "$XDG_RUNTIME_DIR/sighandler.pid" ] && kill -RTMIN+8 $(cat "$XDG_RUNTIME_DIR/sighandler.pid")
+    . "${XDG_CONFIG_HOME:-$HOME/.config}/bspwm/lemonbar/config.sh"; \
+    [ -f "$LEMONBAR_RUNTIME_DIR/sighandler.pid" ] && kill -s "$SIGNAL_BRIGHTNESS_DOWN" "$(cat "$LEMONBAR_RUNTIME_DIR/sighandler.pid")"

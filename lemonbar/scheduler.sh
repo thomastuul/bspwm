@@ -2,45 +2,39 @@
 
 # Enable xtrace if the DEBUG environment variable is set
 if [[ ${DEBUG-} =~ ^1|yes|true$ ]]; then
-    set -o xtrace       # Trace the execution of the script (debug)
+    set -o xtrace # Trace the execution of the script (debug)
 fi
 
-set -o errexit      # Exit on most errors (see the manual)
-set -o nounset      # Disallow expansion of unset variables
-set -o pipefail     # Use last non-zero exit code in a pipeline
+set -o errexit  # Exit on most errors (see the manual)
+set -o nounset  # Disallow expansion of unset variables
+set -o pipefail # Use last non-zero exit code in a pipeline
 # Enable errtrace or the error trap handler will not work as expected
-set -o errtrace     # Ensure the error trap handler is inherited
+set -o errtrace # Ensure the error trap handler is inherited
 
+if ! declare -F log_error >/dev/null; then
+    printf 'logging bootstrap not loaded: %s\n' "${BASH_ENV:-unset}" >&2
+    exit 1
+fi
+
+# Signal plan:
+# SIGRTMIN+3 = periodic tick (1s)
 sighandler_pid="$1"
 
-dummy() {
-    :
+send_signal() {
+    local signal="$1"
+    local pid="$2"
+    local rc
+
+    if kill -s "$signal" "$pid" 2>/dev/null; then
+        return 0
+    else
+        rc=$?
+        log_error "kill failed: signal=$signal pid=$pid rc=$rc"
+        return "$rc"
+    fi
 }
 
-seconds=0
-
 while true; do
-    # every second
-    kill -RTMIN+3 "$sighandler_pid"
-    # delay necessary as second kill-signal may drop
-    sleep 0.1 || true
-    kill -RTMIN+4 "$sighandler_pid"
-
-    # every 5 seconds
-    if [[ $((seconds % 5)) -eq 0 ]]; then
-        dummy
-    fi
-
-    # every 10 seconds
-    if [[ $((seconds % 10)) -eq 0 ]]; then
-        kill -RTMIN+10 "$sighandler_pid"
-    fi
-
-    # every 60 seconds
-    if [[ $((seconds % 60)) -eq 0 ]]; then
-        kill -RTMIN+12 "$sighandler_pid"
-    fi
-
-    seconds=$((seconds+1))
+    send_signal SIGRTMIN+3 "$sighandler_pid"
     sleep 1 || true
 done

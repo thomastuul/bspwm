@@ -1,6 +1,27 @@
 # shellcheck disable=2034
 
 TERMINAL=${TERMINAL:-alacritty}
+LEMONBAR_RUNTIME_DIR=${LEMONBAR_RUNTIME_DIR:-${XDG_RUNTIME_DIR:-/run/user/${UID:-$(id -u)}}/lemonbar}
+
+# Derive realtime signals from the platform instead of assuming SIGRTMIN=34.
+SIGNAL_RTMIN=${SIGNAL_RTMIN:-$(kill -l RTMIN 2>/dev/null || printf '34')}
+case $SIGNAL_RTMIN in
+'' | *[!0-9]*) SIGNAL_RTMIN=34 ;;
+esac
+SIGNAL_WORKSPACE=$((SIGNAL_RTMIN + 2))
+SIGNAL_TICK=$((SIGNAL_RTMIN + 3))
+SIGNAL_TITLE=$((SIGNAL_RTMIN + 5))
+SIGNAL_VOLUME=$((SIGNAL_RTMIN + 6))
+SIGNAL_BRIGHTNESS_UP=$((SIGNAL_RTMIN + 7))
+SIGNAL_BRIGHTNESS_DOWN=$((SIGNAL_RTMIN + 8))
+SIGNAL_TRAY=$((SIGNAL_RTMIN + 9))
+SIGNAL_NETWORK=$((SIGNAL_RTMIN + 10))
+SIGNAL_SCREENCAST=$((SIGNAL_RTMIN + 11))
+
+# Collect state-change bursts before updating and rendering the panel.
+SIGNAL_DEBOUNCE_DELAY=${SIGNAL_DEBOUNCE_DELAY:-0.03}
+WORKER_RESTART_DELAY=${WORKER_RESTART_DELAY:-2}
+CACHE_STALE_MAX_AGE=${CACHE_STALE_MAX_AGE:-300}
 
 # Dracula color palette
 BGlighter="#424450"
@@ -8,7 +29,7 @@ BGlight="#343746"
 Background="#282A36"
 BGdark="#21222C"
 BGdarker="#191A21"
-Selection="#44475a"
+Selection="#bfbfbf"
 Foreground="#f8f8f2"
 Comment="#6272a4"
 Cyan="#8be9fd"
@@ -18,7 +39,6 @@ Pink="#ff79c6"
 Purple="#bd93f9"
 Red="#ff5555"
 Yellow="#f1fa8c"
-
 Color_0="#21222C"
 Color_1="#FF5555"
 Color_2="#50FA7B"
@@ -38,7 +58,6 @@ Color_15="#FFFFFF"
 
 COLOR_DEFAULT_FG="$Red"
 COLOR_DEFAULT_BG="$Background"
-COLOR_MONITOR_FG="$Cyan"
 COLOR_MONITOR_BG="$Background"
 COLOR_FREE_FG="$Selection"
 COLOR_FREE_BG="$BGdarker"
@@ -69,11 +88,13 @@ COLOR_BATTERY_CHARGING_FG="$Green"
 
 PADDING=" "
 CLICKABLE_AREAS=30
-PANEL_WIDTH=$(xdpyinfo | awk '/dimensions/{print $2}' | cut -d 'x' -f 1)
-PANEL_HEIGHT=$(bspc config top_padding)
 PANEL_HORIZONTAL_OFFSET=0
 PANEL_VERTICAL_OFFSET=0
 PANEL_FONT="JetBrainsMono:style=Regular:size=9"
 PANEL_ICON_FONT="Hack Nerd Font Mono:style=Regular:size=11"
 UNDERLINE_HEIGHT=0
 PANEL_WM_NAME="lemonbar"
+SYSTRAY_WM_NAME="panel" # The X11 window name, not the executable name.
+TITLE_MAX_LENGTH=${TITLE_MAX_LENGTH:-45}
+# Compatibility alias for older local modules.
+TITLE_MAX_LENGHT=$TITLE_MAX_LENGTH

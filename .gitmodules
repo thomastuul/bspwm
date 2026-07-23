@@ -1,0 +1,4 @@
+[submodule "sliverbar"]
+	path = sliverbar
+	url = git@github.com:thomastuul/sliverbar.git
+	branch = main

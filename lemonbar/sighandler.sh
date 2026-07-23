@@ -1,88 +1,258 @@
 #!/usr/bin/env bash
 
-set -o errexit      # Exit on most errors (see the manual)
-set -o nounset      # Disallow expansion of unset variables
-set -o pipefail     # Use last non-zero exit code in a pipeline
-# errtrace must not set here because wait throws errors at every
-# reception of a signal
+set -o errexit
+set -o nounset
+set -o pipefail
+set -o errtrace
 
-# Enable xtrace if the DEBUG environment variable is set
-if [[ ${DEBUG-} =~ ^1|yes|true$ ]]; then
-    set -o xtrace       # Trace the execution of the script (debug)
+if [[ ${DEBUG-} =~ ^(1|yes|true)$ ]]; then
+    set -o xtrace
 fi
 
-log()  { printf '[sighandler] %s\n' "$*" >&2; }
+# shellcheck source=config.sh
+source "$LEMONDIR/config.sh"
+declare -F log_error >/dev/null || {
+    printf 'logging bootstrap not loaded: %s\n' "${BASH_ENV:-unset}" >&2
+    exit 1
+}
 
-# DESC: Terminate subprocesses
-# ARGS: None
-# OUTS: None
+pid=""
+timer_fd=""
+network_worker_pid=""
+weather_worker_pid=""
+network_worker_started=0
+weather_worker_started=0
+last_signal="startup"
+
+trap_error() {
+    local rc=$1 line=$2 command=$3
+    local function_stack
+    trap - ERR
+    function_stack=$(IFS=/; printf '%s' "${FUNCNAME[*]:1}")
+    log_error "line=$line rc=$rc signal=$last_signal stack=${function_stack:-main} cmd=$command"
+    return "$rc"
+}
+
+stop_child() {
+    local child_pid=${1:-}
+    [[ $child_pid =~ ^[0-9]+$ ]] || return 0
+    kill -TERM "$child_pid" 2>/dev/null || true
+    wait "$child_pid" 2>/dev/null || true
+}
+
 trap_cleanup() {
     trap - INT TERM QUIT EXIT HUP ERR
-    kill "$scheduler_pid"
-    wait
-    kill "$BASHPID"
-    wait
-    log "cleanup"
+    stop_child "$weather_worker_pid"
+    stop_child "$network_worker_pid"
+    if [[ $timer_fd =~ ^[0-9]+$ ]]; then
+        exec {timer_fd}>&- || true
+    fi
+    log_info "cleanup"
+}
+trap trap_cleanup EXIT
+trap 'trap_error "$?" "$LINENO" "$BASH_COMMAND"' ERR
+trap 'exit 130' INT
+trap 'exit 143' TERM
+trap 'exit 0' QUIT HUP
+
+cpu_string=""
+clock_string=" --:--:-- "
+ws_string=""
+title_string=""
+launch_string=""
+power_string=""
+vol_string=""
+mon_string=""
+tray_string=""
+net_string=""
+battery_string=""
+cast_string=""
+weather_string=""
+
+update_block() {
+    local target=$1 block_name=$2 output rc
+    shift 2
+    [[ $target =~ ^[a-zA-Z_][a-zA-Z0-9_]*$ ]] || return 2
+    if output=$("$@"); then
+        printf -v "$target" '%s' "$output"
+    else
+        rc=$?
+        log_error "block update failed: name=$block_name rc=$rc"
+    fi
 }
 
-# DESC: Errorhandler
-# ARGS: $1: If only param -> Exit status code
-#           else line number of err occurence.
-#       $2: Exit status code
-#       $3: invoked command
-# OUTS: None
-trap_err() {
-    local parent_lineno="${1:-?}"
-    local code="${2:-?}"
-    local cmd="${3:-?}"
-    log "ERROR code=${code} at line ${parent_lineno}: ${cmd}"
-    return 0
+cache_is_fresh() {
+    local cache=$1 max_age=${2:-300} modified now
+    [[ -r $cache ]] || return 1
+    modified=$(stat -c %Y -- "$cache" 2>/dev/null) || return 1
+    now=$EPOCHSECONDS
+    ((now >= modified && now - modified <= max_age))
 }
 
-trap trap_cleanup INT TERM QUIT EXIT HUP
-trap 'trap_err "${LINENO}/${BASH_LINENO}" "$?" "$BASH_COMMAND"'  ERR
+update_cache_block() {
+    local target=$1 display_cache=$2 stale_value=${3:-}
+    [[ $target =~ ^[a-zA-Z_][a-zA-Z0-9_]*$ ]] || return 2
+    if cache_is_fresh "$display_cache" "$CACHE_STALE_MAX_AGE"; then
+        printf -v "$target" '%s' "$(<"$display_cache")"
+    elif [[ -n $stale_value ]]; then
+        printf -v "$target" '%s' "$stale_value"
+    else
+        printf -v "$target" '%s' ""
+    fi
+}
 
-cpu()          { cpu_string="$("$LEMONDIR"/modules/block_cpu.sh)"; }
-clock()        { clock_string="$("$LEMONDIR"/modules/block_clock.sh)"; }
-wsindicator()  { ws_string="$("$LEMONDIR"/modules/block_wsindicator.sh)"; }
-# shellcheck disable=SC2154
-window_title() { title_string="$(tmp_dir="$tmp_dir" "$LEMONDIR"/modules/block_title_client.sh)"; }
-launcher()     { launch_string="$("$LEMONDIR"/modules/block_launcher.sh)"; }
-power()        { power_string="$("$LEMONDIR"/modules/block_power.sh)"; }
-volume()       { vol_string="$("$LEMONDIR"/modules/block_volume.sh "$1")"; }
-monitor()      { mon_string="$("$LEMONDIR"/modules/block_brightness.sh "$1" "$2")"; }
-tray()         { tray_string="$("$LEMONDIR"/modules/block_trayer.sh)"; }
-network()      { net_string="$("$LEMONDIR"/modules/block_network.sh)"; }
-battery()      { battery_string="$("$LEMONDIR"/modules/block_battery.sh)"; }
-screencast()   { cast_string="$("$LEMONDIR"/modules/block_screencast.sh)"; }
-weather()      { weather_string="$("$LEMONDIR"/modules/block_weather.sh)"; }
+cpu() { update_block cpu_string cpu "$LEMONDIR/modules/block_cpu.sh"; }
+clock() { update_block clock_string clock "$LEMONDIR/modules/block_clock.sh"; }
+wsindicator() { update_block ws_string workspace "$LEMONDIR/modules/block_wsindicator.sh"; }
+window_title() { update_cache_block title_string "$tmp_dir/lemonbar_title.cache"; }
+launcher() { update_block launch_string launcher "$LEMONDIR/modules/block_launcher.sh"; }
+power() { update_block power_string power "$LEMONDIR/modules/block_power.sh"; }
+volume() { update_block vol_string volume "$LEMONDIR/modules/block_volume.sh" "$1"; }
+monitor() { update_block mon_string brightness "$LEMONDIR/modules/block_brightness.sh" "$1" "$2"; }
+tray() { update_block tray_string tray "$LEMONDIR/modules/block_trayer.sh"; }
+network() {
+    local cache_root=${XDG_CACHE_HOME:-$HOME/.cache}
+    update_cache_block net_string "${NETWORK_CACHE_DIR:-$cache_root/lemonbar}/network.cache"
+}
+battery() { update_block battery_string battery "$LEMONDIR/modules/block_battery.sh"; }
+screencast() { update_block cast_string screencast "$LEMONDIR/modules/block_screencast.sh"; }
+weather() {
+    local cache_root=${XDG_CACHE_HOME:-$HOME/.cache}
+    update_cache_block weather_string "${WEATHERREPORT:-$cache_root/weather}/lemonbar.cache"
+}
 
-# DESC: Initialize signals, print lemonbar strings
-# ARGS: $1 (required): Message to print (defaults to a green foreground)
-#       $2 (optional): Colour to print the message with. This can be an ANSI
-#                      escape code or one of the prepopulated colour variables.
-#       $3 (optional): Set to any value to not append a new line to the message
-# OUTS: None
+start_network_worker() {
+    bash "$LEMONDIR/network_worker.sh" "$pid" &
+    network_worker_pid=$!
+    network_worker_started=$EPOCHSECONDS
+    log_info "worker started: name=network pid=$network_worker_pid"
+}
+
+start_weather_worker() {
+    "$LEMONDIR/weather_worker.sh" "$pid" &
+    weather_worker_pid=$!
+    weather_worker_started=$EPOCHSECONDS
+    log_info "worker started: name=weather pid=$weather_worker_pid"
+}
+
+ensure_workers() {
+    local now=$EPOCHSECONDS
+    if ! [[ $network_worker_pid =~ ^[0-9]+$ ]] || ! kill -0 "$network_worker_pid" 2>/dev/null; then
+        if [[ -n $network_worker_pid ]]; then
+            wait "$network_worker_pid" 2>/dev/null || true
+            log_error "worker stopped: name=network pid=$network_worker_pid"
+        fi
+        network_worker_pid=""
+        if ((now - network_worker_started >= WORKER_RESTART_DELAY)); then
+            start_network_worker
+        fi
+    fi
+    if ! [[ $weather_worker_pid =~ ^[0-9]+$ ]] || ! kill -0 "$weather_worker_pid" 2>/dev/null; then
+        if [[ -n $weather_worker_pid ]]; then
+            wait "$weather_worker_pid" 2>/dev/null || true
+            log_error "worker stopped: name=weather pid=$weather_worker_pid"
+        fi
+        weather_worker_pid=""
+        if ((now - weather_worker_started >= WORKER_RESTART_DELAY)); then
+            start_weather_worker
+        fi
+    fi
+}
+
+tick_count=0
+tick() {
+    tick_count=$((tick_count + 1))
+    clock
+    if ((tick_count % 5 == 0)); then cpu; fi
+    if ((tick_count % 10 == 0)); then battery; fi
+    if ((tick_count % 60 == 0)); then weather; fi
+}
+
+pending_tick=0
+pending_workspace=0
+pending_title=0
+pending_volume=0
+pending_brightness=0
+pending_tray=0
+pending_network=0
+pending_screencast=0
+
+process_pending_updates() {
+    local brightness_delta
+    if ((pending_tick)); then pending_tick=0; tick; fi
+    if ((pending_workspace)); then pending_workspace=0; wsindicator; fi
+    if ((pending_title)); then pending_title=0; window_title; fi
+    if ((pending_volume)); then pending_volume=0; volume "$pid"; fi
+    if ((pending_brightness != 0)); then
+        brightness_delta=$pending_brightness
+        pending_brightness=0
+        monitor "$brightness_delta" "$pid"
+    fi
+    if ((pending_tray)); then pending_tray=0; tray; fi
+    if ((pending_network)); then pending_network=0; network; fi
+    if ((pending_screencast)); then pending_screencast=0; screencast; fi
+}
+
+updates_pending() {
+    ((pending_tick || pending_workspace || pending_title || pending_volume ||
+        pending_brightness != 0 || pending_tray || pending_network ||
+        pending_screencast))
+}
+
+debounced_updates_pending() {
+    ((pending_tick || pending_workspace || pending_title ||
+        pending_brightness != 0 || pending_tray || pending_network ||
+        pending_screencast))
+}
+
+signal_workspace() { last_signal="workspace"; pending_workspace=1; }
+signal_tick() { last_signal="tick"; pending_tick=1; }
+signal_title() { last_signal="title"; pending_title=1; }
+signal_volume() { last_signal="volume"; pending_volume=1; }
+signal_brightness_up() {
+    last_signal="brightness_up"
+    pending_brightness=$((pending_brightness + 1))
+}
+signal_brightness_down() {
+    last_signal="brightness_down"
+    pending_brightness=$((pending_brightness - 1))
+}
+signal_tray() { last_signal="tray"; pending_tray=1; }
+signal_network() { last_signal="network"; pending_network=1; }
+signal_screencast() { last_signal="screencast"; pending_screencast=1; }
+
+wait_for_events() {
+    local timeout=$1
+
+    # A read/write FIFO descriptor stays blocked without needing a child
+    # process. Realtime signals may interrupt read, returning control directly
+    # to the event loop instead of stranding Bash in wait(2).
+    IFS= read -r -t "$timeout" -u "$timer_fd" || true
+}
+
 sig_init() {
-    trap 'wsindicator'          RTMIN+2
-    trap 'cpu'                  RTMIN+3
-    trap 'clock'                RTMIN+4
-    trap 'window_title'         RTMIN+5
-    trap 'volume "$pid"'        RTMIN+6
-    trap 'monitor "+" "$pid"'   RTMIN+7
-    trap 'monitor "-" "$pid"'   RTMIN+8
-    trap 'tray'                 RTMIN+9
-    trap 'network; battery'     RTMIN+10
-    trap 'screencast'           RTMIN+11
-    trap 'weather'              RTMIN+12
+    # Keep trap commands trivial. Named handlers avoid reparsing assignments and
+    # arithmetic expressions while realtime signals arrive in quick succession.
+    trap -- signal_workspace "$SIGNAL_WORKSPACE"
+    trap -- signal_tick "$SIGNAL_TICK"
+    trap -- signal_title "$SIGNAL_TITLE"
+    trap -- signal_volume "$SIGNAL_VOLUME"
+    trap -- signal_brightness_up "$SIGNAL_BRIGHTNESS_UP"
+    trap -- signal_brightness_down "$SIGNAL_BRIGHTNESS_DOWN"
+    trap -- signal_tray "$SIGNAL_TRAY"
+    trap -- signal_network "$SIGNAL_NETWORK"
+    trap -- signal_screencast "$SIGNAL_SCREENCAST"
 
-    # own PID
-    pid="$BASHPID"
+    pid=$BASHPID
 
-    "$LEMONDIR"/scheduler.sh "$pid" &
-    scheduler_pid="$!"
+    # Do not expose the receiver PID until all realtime signals have handlers.
+    if [[ -n ${SIGHANDLER_READY_FILE:-} ]]; then
+        printf '%s\n' "$pid" >"$SIGHANDLER_READY_FILE"
+    fi
 
-    # init
+    start_network_worker
+    start_weather_worker
+
     window_title
     wsindicator
     cpu
@@ -99,20 +269,42 @@ sig_init() {
 }
 
 render_line() {
-    printf "%s" \
+    printf '%s%s%s\n' \
         "%{l}${launch_string}${ws_string}" \
         "%{c}${title_string}" \
         "%{r}${cast_string}${weather_string}${battery_string}${net_string}${mon_string}${vol_string}${cpu_string}${clock_string}${tray_string}${power_string}"
 }
 
-main () {
+main() {
+    local next_tick now timer_fifo
     sig_init
+    log_info "initialized" "$0"
+    next_tick=$((EPOCHSECONDS + 1))
+    timer_fifo="$tmp_dir/sighandler.timer"
+    mkfifo -m 600 -- "$timer_fifo"
+    exec {timer_fd}<>"$timer_fifo"
+
     while true; do
+        ensure_workers
+        now=$EPOCHSECONDS
+        if ((now >= next_tick)); then
+            next_tick=$((now + 1))
+            tick
+        fi
+        process_pending_updates
         render_line
-        sleep infinity &
-        spid=$!
-        wait "$spid" || true
-        kill "$spid" 2>/dev/null || true
+
+        if updates_pending; then
+            # Volume scrolling is already serialized by Lemonbar's action
+            # consumer. Render consecutive volume changes without adding the
+            # global debounce used for more expensive asynchronous updates.
+            if debounced_updates_pending; then
+                wait_for_events "$SIGNAL_DEBOUNCE_DELAY"
+            fi
+            continue
+        fi
+
+        wait_for_events 1
     done
 }
 

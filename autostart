@@ -1,44 +1,168 @@
 #!/usr/bin/env bash
+# Purpose: start bspwm session services once and clean up stale managed state.
 
-main() {
-    sxhkd -c "$HOME/.config/bspwm/sxhkd/sxhkdrc" &
+set -o errexit
+set -o nounset
+set -o pipefail
 
-    dunst -config "$HOME/.config/bspwm/dunst/dunstrc" &
+: "${XDG_RUNTIME_DIR:=/run/user/$UID}"
+export BSPWM_RUNTIME_DIR="${BSPWM_RUNTIME_DIR:-$XDG_RUNTIME_DIR/bspwm}"
+export LEMONBAR_RUNTIME_DIR="${LEMONBAR_RUNTIME_DIR:-$XDG_RUNTIME_DIR/lemonbar}"
+mkdir -p -- "$BSPWM_RUNTIME_DIR" "$LEMONBAR_RUNTIME_DIR"
+chmod 700 -- "$BSPWM_RUNTIME_DIR" "$LEMONBAR_RUNTIME_DIR"
 
-    blueman-applet &
+AUTOSTART_LOG="${AUTOSTART_LOG:-${XDG_STATE_HOME:-$HOME/.local/state}/bspwm/autostart.log}"
+mkdir -p -- "$(dirname -- "$AUTOSTART_LOG")"
 
-    nextcloud --background &
+SLIVERBAR_START="$HOME/.local/bin/sliverbar"
+SLIVERBAR_ARGS=()
+CONKY_START="${CONKY_START:-$HOME/.config/conky/start-conky.sh}"
+SXHKD_RC="$HOME/.config/bspwm/sxhkd/sxhkdrc"
+DUNST_CONF="$HOME/.config/bspwm/dunst/dunstrc"
+PICOM_CONF="$HOME/.config/bspwm/picom/picom.conf"
+WALLPAPER="${WALLPAPER:-$HOME/Bilder/Wallpaper/Background.jpg}"
+XSECURELOCK_DIMMER="${XSECURELOCK_DIMMER:-/usr/libexec/xsecurelock/dimmer}"
 
-    xsetroot -cursor_name left_ptr &
+exec 9>"$BSPWM_RUNTIME_DIR/autostart.lock"
+flock -n 9 || exit 0
 
-    xwallpaper --daemon --zoom "/home/thomas/Bilder/Wallpapers/back-erde.jpg" &>/dev/null
-
-    export DEBUG=no
-    setsid "$HOME/.config/bspwm/lemonbar/start.sh" -l &
-    sleep 0.2
-    "$HOME/.config/bspwm/trayer/start_trayer.sh" &
-
-    "$HOME/.config/conky/start-conky" &
-
-    # activate screensaver after 5 minutes
-    xset s 300 10 &
-    # activate DPMS
-    xset +dpms
-    # set DPMS Standby, Suspend, Off
-    xset dpms 400 600 900
-
-    XSECURELOCK_DIM_TIME_MS=10000 \
-        xss-lock -n /usr/libexec/xsecurelock/dimmer --transfer-sleep-lock -- xsecurelock &
-
-    xautolock -time 15 -detectsleep -locker "systemctl suspend-then-hibernate" &
-
-    # compositor shall be invoked last to prevent glitches
-    picom --config "$HOME/.config/bspwm/picom/picom.conf" --daemon
-
-    # Individual size of apps which are floating
-    "$HOME/.config/bspwm/bin/float-resize-bspwm.sh" &
+log() {
+    printf '%(%F %T)T\tautostart\t%s\n' -1 "$*" >>"$AUTOSTART_LOG" 2>/dev/null || true
 }
 
-main
+pid_matches_argv() {
+    local pid=$1 index offset
+    shift
+    local -a expected=("$@") actual=()
 
-# vim: syntax=bash
+    [[ -r /proc/$pid/cmdline ]] || return 1
+    mapfile -d '' -t actual <"/proc/$pid/cmdline" || return 1
+
+    if ((${#actual[@]} == ${#expected[@]})); then
+        offset=0
+    elif ((${#actual[@]} == ${#expected[@]} + 1)); then
+        offset=1
+    else
+        return 1
+    fi
+
+    for ((index = 0; index < ${#expected[@]}; index++)); do
+        [[ ${actual[index + offset]} == "${expected[index]}" ]] || return 1
+    done
+}
+
+start_once() {
+    (($# > 0)) || return 2
+
+    local base key hash pidfile pidfile_tmp oldpid pid
+    base=$(basename -- "$1")
+    key=$(printf '%q ' "$@")
+    hash=$(printf '%s' "$key" | sha256sum | awk '{print $1}')
+    pidfile="$BSPWM_RUNTIME_DIR/${base}.${hash}.pid"
+
+    if [[ -r $pidfile ]]; then
+        IFS= read -r oldpid <"$pidfile" || oldpid=""
+        if [[ $oldpid =~ ^[0-9]+$ ]] &&
+            kill -0 "$oldpid" 2>/dev/null &&
+            pid_matches_argv "$oldpid" "$@"; then
+            return 0
+        fi
+        rm -f -- "$pidfile"
+    fi
+
+    # Do not let long-lived session processes keep the autostart lock across
+    # logout. Otherwise the next bspwm session skips its entire autostart.
+    "$@" 9>&- >>"$AUTOSTART_LOG" 2>&1 &
+    pid=$!
+    sleep 0.1
+    if ! kill -0 "$pid" 2>/dev/null; then
+        wait "$pid" 2>/dev/null || true
+        log "failed to start: $key"
+        return 1
+    fi
+
+    pidfile_tmp="$pidfile.tmp.$$"
+    printf '%s\n' "$pid" >"$pidfile_tmp"
+    chmod 600 -- "$pidfile_tmp"
+    mv -f -- "$pidfile_tmp" "$pidfile"
+    log "started pid=$pid command=$key"
+}
+
+start_if_available() {
+    local command_name=$1
+    shift
+    command -v "$command_name" >/dev/null 2>&1 || {
+        log "optional command not found: $command_name"
+        return 0
+    }
+    start_once "$command_name" "$@" || true
+}
+
+start_if_executable() {
+    local executable=$1
+    shift
+    [[ -x $executable ]] || {
+        log "optional executable not found: $executable"
+        return 0
+    }
+    start_once "$executable" "$@" || true
+}
+
+xsetroot -cursor_name left_ptr || true
+if [[ -r $WALLPAPER ]] && command -v xwallpaper >/dev/null 2>&1; then
+    # xwallpaper sets the root pixmap and exits; daemon mode is unnecessary.
+    xwallpaper --zoom "$WALLPAPER" >>"$AUTOSTART_LOG" 2>&1 || true
+fi
+
+if [[ -r $SXHKD_RC ]]; then
+    start_if_available sxhkd -c "$SXHKD_RC"
+else
+    start_if_available sxhkd
+fi
+
+if [[ -r $DUNST_CONF ]]; then
+    start_if_available dunst -config "$DUNST_CONF"
+else
+    start_if_available dunst
+fi
+
+# Sliverbar owns its own lock file; an already running panel exits with LOCKBUSY.
+start_if_executable "$SLIVERBAR_START" "${SLIVERBAR_ARGS[@]}"
+# start_if_executable "$TRAYER_START"
+start_if_available blueman-applet
+
+# The launcher generates a monitor-aware configuration and daemonizes Conky.
+if [[ -x $CONKY_START ]]; then
+    "$CONKY_START" 9>&- >>"$AUTOSTART_LOG" 2>&1 ||
+        log "failed to start: $CONKY_START"
+else
+    start_if_available conky
+fi
+
+start_if_available nextcloud
+
+xset +dpms || true
+xset s 300 10 || true
+xset dpms 400 600 900 || true
+
+if command -v xss-lock >/dev/null 2>&1 &&
+    command -v xsecurelock >/dev/null 2>&1 &&
+    [[ -x $XSECURELOCK_DIMMER ]]; then
+    XSECURELOCK_DIM_TIME_MS="${XSECURELOCK_DIM_TIME_MS:-10000}" \
+        start_once xss-lock -n "$XSECURELOCK_DIMMER" \
+        --transfer-sleep-lock -- xsecurelock || true
+else
+    log "screen locker disabled: xss-lock, xsecurelock or dimmer missing"
+fi
+
+start_if_available xautolock -time 30 -detectsleep \
+    -locker 'systemctl suspend-then-hibernate'
+start_if_executable "$HOME/.config/bspwm/bin/float-resize-bspwm.sh"
+
+if ! pgrep -x -u "$UID" picom >/dev/null 2>&1; then
+    if [[ -r $PICOM_CONF ]]; then
+        start_if_available picom --config "$PICOM_CONF"
+    else
+        start_if_available picom
+    fi
+fi
