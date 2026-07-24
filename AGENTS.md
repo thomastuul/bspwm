@@ -34,10 +34,24 @@ For changed shell scripts:
 ## Tool usage
 
 - Prefer `rg` for searching files and source code.
+- Use `rg --files` first to inspect the repository structure before reading files.
+- Prefer targeted `rg` searches and read only files relevant to the task.
+- Exclude generated files, build directories, caches, dependencies, and `.git` unless they are explicitly relevant.
 - Use project-provided scripts and configuration instead of duplicating long
   commands.
 - Use host runtime tools only when required for integration testing or
   diagnosis.
+
+## Information sources
+
+- For facts about this repository, inspect local files, Git metadata, project
+  scripts, and test output first.
+- Use `rg --files` and targeted `rg` searches before considering web search.
+- Do not use web search for stable local facts.
+- Use web search only for current external information, official
+  documentation, changing APIs, security advisories, or when the user
+  explicitly requests online research.
+- If local evidence is insufficient, report that limitation before browsing.
 
 ## Validation and reporting
 
