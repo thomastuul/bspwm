@@ -23,8 +23,10 @@
 
 For changed shell scripts:
 
-- Use the Codex profile `fast` for formatting/linting-only work.
-- Use the Codex profile `dev` for all other work.
+- Start coding sessions with the Codex profile `dev`.
+- Run formatting and linting tools directly in the current session.
+- Do not attempt to switch Codex profiles within a running session.
+- Use a separate `codex --profile fast` session only for an optional AI review focused on formatting or linting.
 - Run `bash -n` on every changed shell script.
 - Run `shellcheck` on every changed shell script.
 - Run `git diff --check` before committing.
