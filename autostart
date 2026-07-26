@@ -5,6 +5,10 @@ set -o errexit
 set -o nounset
 set -o pipefail
 
+BSPWM_CONFIG_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/bspwm"
+# shellcheck source=lib/host-profile.sh
+source "$BSPWM_CONFIG_DIR/lib/host-profile.sh"
+
 : "${XDG_RUNTIME_DIR:=/run/user/$UID}"
 export BSPWM_RUNTIME_DIR="${BSPWM_RUNTIME_DIR:-$XDG_RUNTIME_DIR/bspwm}"
 export LEMONBAR_RUNTIME_DIR="${LEMONBAR_RUNTIME_DIR:-$XDG_RUNTIME_DIR/lemonbar}"
@@ -17,11 +21,15 @@ mkdir -p -- "$(dirname -- "$AUTOSTART_LOG")"
 SLIVERBAR_START="$HOME/.local/bin/sliverbar"
 SLIVERBAR_ARGS=()
 CONKY_START="${CONKY_START:-$HOME/.config/conky/start-conky.sh}"
-SXHKD_RC="$HOME/.config/bspwm/sxhkd/sxhkdrc"
-DUNST_CONF="$HOME/.config/bspwm/dunst/dunstrc"
-PICOM_CONF="$HOME/.config/bspwm/picom/picom.conf"
-WALLPAPER="${WALLPAPER:-$HOME/Bilder/Wallpaper/Background.jpg}"
+SXHKD_RC="$BSPWM_CONFIG_DIR/sxhkd/sxhkdrc"
+DUNST_CONF="$BSPWM_CONFIG_DIR/dunst/dunstrc"
+PICOM_CONF="$BSPWM_CONFIG_DIR/picom/picom.conf"
+WALLPAPER="${WALLPAPER:-$BSPWM_WALLPAPER}"
 XSECURELOCK_DIMMER="${XSECURELOCK_DIMMER:-/usr/libexec/xsecurelock/dimmer}"
+
+if [[ -n $SLIVERBAR_CONFIG ]]; then
+    SLIVERBAR_ARGS+=(--config "$SLIVERBAR_CONFIG")
+fi
 
 exec 9>"$BSPWM_RUNTIME_DIR/autostart.lock"
 flock -n 9 || exit 0
@@ -127,25 +135,34 @@ else
 fi
 
 # Sliverbar owns its own lock file; an already running panel exits with LOCKBUSY.
-start_if_executable "$SLIVERBAR_START" "${SLIVERBAR_ARGS[@]}"
+if bspwm_feature_enabled BSPWM_ENABLE_SLIVERBAR; then
+    start_if_executable "$SLIVERBAR_START" "${SLIVERBAR_ARGS[@]}"
+fi
 # start_if_executable "$TRAYER_START"
-start_if_available blueman-applet
-
-# The launcher generates a monitor-aware configuration and daemonizes Conky.
-if [[ -x $CONKY_START ]]; then
-    "$CONKY_START" 9>&- >>"$AUTOSTART_LOG" 2>&1 ||
-        log "failed to start: $CONKY_START"
-else
-    start_if_available conky
+if bspwm_feature_enabled BSPWM_ENABLE_BLUEMAN; then
+    start_if_available blueman-applet
 fi
 
-start_if_available nextcloud
+# The launcher generates a monitor-aware configuration and daemonizes Conky.
+if bspwm_feature_enabled BSPWM_ENABLE_CONKY; then
+    if [[ -x $CONKY_START ]]; then
+        "$CONKY_START" 9>&- >>"$AUTOSTART_LOG" 2>&1 ||
+            log "failed to start: $CONKY_START"
+    else
+        start_if_available conky
+    fi
+fi
+
+if bspwm_feature_enabled BSPWM_ENABLE_NEXTCLOUD; then
+    start_if_available nextcloud
+fi
 
 xset +dpms || true
 xset s 300 10 || true
 xset dpms 400 600 900 || true
 
-if command -v xss-lock >/dev/null 2>&1 &&
+if bspwm_feature_enabled BSPWM_ENABLE_SCREEN_LOCK &&
+    command -v xss-lock >/dev/null 2>&1 &&
     command -v xsecurelock >/dev/null 2>&1 &&
     [[ -x $XSECURELOCK_DIMMER ]]; then
     XSECURELOCK_DIM_TIME_MS="${XSECURELOCK_DIM_TIME_MS:-10000}" \
@@ -155,11 +172,14 @@ else
     log "screen locker disabled: xss-lock, xsecurelock or dimmer missing"
 fi
 
-start_if_available xautolock -time 30 -detectsleep \
-    -locker 'systemctl suspend-then-hibernate'
+if bspwm_feature_enabled BSPWM_ENABLE_AUTOLOCK; then
+    start_if_available xautolock -time 30 -detectsleep \
+        -locker 'systemctl suspend-then-hibernate'
+fi
 start_if_executable "$HOME/.config/bspwm/bin/float-resize-bspwm.sh"
 
-if ! pgrep -x -u "$UID" picom >/dev/null 2>&1; then
+if bspwm_feature_enabled BSPWM_ENABLE_PICOM &&
+    ! pgrep -x -u "$UID" picom >/dev/null 2>&1; then
     if [[ -r $PICOM_CONF ]]; then
         start_if_available picom --config "$PICOM_CONF"
     else
