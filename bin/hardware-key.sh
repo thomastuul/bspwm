@@ -27,9 +27,12 @@ sliverbar_action() {
 }
 
 audio_sink() {
-    local operation=$1
+    local operation=$1 sliverbar_operation=$1
 
-    sliverbar_action volume "$operation" && return 0
+    if [[ $sliverbar_operation == mute ]]; then
+        sliverbar_operation=toggle
+    fi
+    sliverbar_action volume "$sliverbar_operation" && return 0
     if command_exists wpctl; then
         case $operation in
             up)
