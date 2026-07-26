@@ -11,8 +11,8 @@ BSPWM_CONFIG_DIR="${BSPWM_CONFIG_DIR:-$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")
 BSPWM_HOST_NAME="${BSPWM_HOST_OVERRIDE:-$(hostname -s 2>/dev/null || hostname)}"
 
 case ${BSPWM_HOST_NAME,,} in
-    ikarus | ikarus2)
-        BSPWM_HOST_NAME=Ikarus
+    ikarus2)
+        BSPWM_HOST_NAME=Ikarus2
         ;;
     pegasus4)
         BSPWM_HOST_NAME=Pegasus4

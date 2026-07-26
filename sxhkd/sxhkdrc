@@ -198,33 +198,58 @@ super + alt + s
     /bin/sh -c "~/.config/bspwm/bin/screencast.sh"
 
 XF86AudioRaiseVolume
-    amixer set Master 2%+ > /dev/null;\
-    . "${XDG_CONFIG_HOME:-$HOME/.config}/bspwm/lemonbar/config.sh"; \
-    [ -f "$LEMONBAR_RUNTIME_DIR/sighandler.pid" ] && kill -s "$SIGNAL_VOLUME" "$(cat "$LEMONBAR_RUNTIME_DIR/sighandler.pid")"
+    ~/.config/bspwm/bin/hardware-key.sh volume-up
 
 XF86AudioLowerVolume
-    amixer set Master 2%- > /dev/null;\
-    . "${XDG_CONFIG_HOME:-$HOME/.config}/bspwm/lemonbar/config.sh"; \
-    [ -f "$LEMONBAR_RUNTIME_DIR/sighandler.pid" ] && kill -s "$SIGNAL_VOLUME" "$(cat "$LEMONBAR_RUNTIME_DIR/sighandler.pid")"
+    ~/.config/bspwm/bin/hardware-key.sh volume-down
 
 XF86AudioMute
-    amixer set Master toggle > /dev/null;\
-    . "${XDG_CONFIG_HOME:-$HOME/.config}/bspwm/lemonbar/config.sh"; \
-    [ -f "$LEMONBAR_RUNTIME_DIR/sighandler.pid" ] && kill -s "$SIGNAL_VOLUME" "$(cat "$LEMONBAR_RUNTIME_DIR/sighandler.pid")"
+    ~/.config/bspwm/bin/hardware-key.sh volume-mute
+
+XF86AudioMicMute
+    ~/.config/bspwm/bin/hardware-key.sh microphone-mute
 
 XF86MonBrightnessUp
-    . "${XDG_CONFIG_HOME:-$HOME/.config}/bspwm/lemonbar/config.sh"; \
-    [ -f "$LEMONBAR_RUNTIME_DIR/sighandler.pid" ] && kill -s "$SIGNAL_BRIGHTNESS_UP" "$(cat "$LEMONBAR_RUNTIME_DIR/sighandler.pid")"
+    ~/.config/bspwm/bin/hardware-key.sh brightness-up
 
 XF86MonBrightnessDown
-    . "${XDG_CONFIG_HOME:-$HOME/.config}/bspwm/lemonbar/config.sh"; \
-    [ -f "$LEMONBAR_RUNTIME_DIR/sighandler.pid" ] && kill -s "$SIGNAL_BRIGHTNESS_DOWN" "$(cat "$LEMONBAR_RUNTIME_DIR/sighandler.pid")"
+    ~/.config/bspwm/bin/hardware-key.sh brightness-down
 
 XF86KbdBrightnessUp
-    "${XDG_CONFIG_HOME:-$HOME/.config}/bspwm/bin/kbd-backlight.sh" up
+    ~/.config/bspwm/bin/hardware-key.sh keyboard-brightness-up
 
 XF86KbdBrightnessDown
-    "${XDG_CONFIG_HOME:-$HOME/.config}/bspwm/bin/kbd-backlight.sh" down
+    ~/.config/bspwm/bin/hardware-key.sh keyboard-brightness-down
 
 XF86KbdLightOnOff
-    "${XDG_CONFIG_HOME:-$HOME/.config}/bspwm/bin/kbd-backlight.sh" toggle
+    ~/.config/bspwm/bin/hardware-key.sh keyboard-brightness-toggle
+
+XF86WLAN
+    ~/.config/bspwm/bin/hardware-key.sh airplane-toggle
+
+XF86Bluetooth
+    ~/.config/bspwm/bin/hardware-key.sh bluetooth-toggle
+
+XF86AudioPlay
+    ~/.config/bspwm/bin/hardware-key.sh media-play-pause
+
+XF86AudioNext
+    ~/.config/bspwm/bin/hardware-key.sh media-next
+
+XF86AudioPrev
+    ~/.config/bspwm/bin/hardware-key.sh media-previous
+
+XF86AudioStop
+    ~/.config/bspwm/bin/hardware-key.sh media-stop
+
+XF86TouchpadToggle
+    ~/.config/bspwm/bin/hardware-key.sh touchpad-toggle
+
+XF86DisplayOff
+    ~/.config/bspwm/bin/hardware-key.sh display-off
+
+{XF86Display,XF86DisplayToggle}
+    ~/.config/bspwm/bin/hardware-key.sh display-toggle
+
+XF86Sleep
+    ~/.config/bspwm/bin/hardware-key.sh suspend
