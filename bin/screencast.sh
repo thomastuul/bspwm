@@ -7,15 +7,22 @@
 # 01.01.2022
 # Version 0.1
 
+LEMONDIR="${LEMONDIR:-${XDG_CONFIG_HOME:-$HOME/.config}/bspwm/lemonbar}"
+# shellcheck source=../lemonbar/config.sh
+source "$LEMONDIR/config.sh"
+
 # You can also run kill -39 $(pidof dwmblocks) which will have the same effect, but is faster. Just add 34 to your typical
 # signal number.
 
 getPid() {
-    if [ -f "$XDG_RUNTIME_DIR/sighandler.pid" ]; then
-        PID=$(cat "$XDG_RUNTIME_DIR/sighandler.pid")
+    local pid=""
+
+    if [[ -r "$LEMONBAR_RUNTIME_DIR/sighandler.pid" ]]; then
+        IFS= read -r pid <"$LEMONBAR_RUNTIME_DIR/sighandler.pid" || pid=""
     fi
 
-    echo $PID
+    [[ $pid =~ ^[0-9]+$ ]] && kill -0 "$pid" 2>/dev/null || return 1
+    printf '%s\n' "$pid"
 }
 
 TIME=$(date "+%d-%m-%Y-%H-%M-%S")
@@ -52,4 +59,6 @@ else
         echo $! > "$XDG_RUNTIME_DIR/screencast.pid"
 fi
 
-kill -RTMIN+11 "$(getPid)"
+if sighandler_pid=$(getPid); then
+    kill -s "$SIGNAL_SCREENCAST" "$sighandler_pid" 2>/dev/null || true
+fi

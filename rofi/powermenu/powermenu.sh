@@ -113,12 +113,14 @@ action_for_choice() {
   case "$choice" in
     "$LBL_LOCK")     loginctl lock-session ;;
     "$LBL_LOGOUT")
-        if command -v gnome-session-quit >/dev/null; then
-          gnome-session-quit --logout --no-prompt
-        elif command -v bspc >/dev/null; then
+        if command -v bspc >/dev/null 2>&1; then
           bspc quit
-        else
-          loginctl terminate-user "$(id -u)"
+        elif command -v loginctl >/dev/null 2>&1; then
+          if [[ -n ${XDG_SESSION_ID:-} ]]; then
+            loginctl terminate-session "$XDG_SESSION_ID" && return 0
+          fi
+            # Falls keine Session-ID vorhanden: gesamten User abmelden
+            loginctl terminate-user "$UID" && return 0
         fi
         ;;
     "$LBL_SUSPEND")   systemctl suspend-then-hibernate ;;

@@ -2,38 +2,99 @@
 
 # Enable xtrace if the DEBUG environment variable is set
 if [[ ${DEBUG-} =~ ^1|yes|true$ ]]; then
-    set -o xtrace       # Trace the execution of the script (debug)
+    #export PS4='+ $(date "+%F %T") ${BASH_SOURCE##*/}:${LINENO}: '
+    #export BASH_XTRACEFD=3
+    set -o xtrace # Trace the execution of the script (debug)
 fi
 
-set -o errexit      # Exit on most errors (see the manual)
-set -o nounset      # Disallow expansion of unset variables
-set -o pipefail     # Use last non-zero exit code in a pipeline
+set -o errexit            # Exit on most errors (see the manual)
+set -o nounset            # Disallow expansion of unset variables
+set -o pipefail           # Use last non-zero exit code in a pipeline
+shopt -s lastpipe || true # Don't use subshell after pipe and never fail
 # Enable errtrace or the error trap handler will not work as expected
-set -o errtrace     # Ensure the error trap handler is inherited
+set -o errtrace # Ensure the error trap handler is inherited
 
 # DESC: Errorhandler
-# ARGS: $1: If only param -> Exit status code
-#           else line number of err occurence.
+# ARGS: $1: line number of err occurence.
 #       $2: Exit status code
 #       $3: invoked command
 # OUTS: None
 trap_err() {
-    local exit_code=1
     # Disable the error trap handler to prevent potential recursion
     trap - ERR
 
-    # Consider any further errors non-fatal to ensure we run to completion
-    set +o errexit
-    set +o pipefail
+    local loc="$1" rc="${2:-1}" cmd="${3:-}"
+    local line="${loc%%/*}"
+    log_error "line=${line:-0} rc=$rc cmd=$cmd"
+    return "$rc"
+}
 
-    if [[ $# -eq 1 ]] && [[ ${1-} =~ ^[0-9]+$ ]]; then
-        exit_code="$1"
-        exit "$exit_code"
-    else
-        local parent_lineno="$1"
-        local code="$2"
-        local commands="$3"
-        echo "Error exit status $code (SIG$(kill -l "$code" 2>/dev/null)), at file $0 on or near line $parent_lineno: $commands"
+# Remove a PID file only when it still belongs to the expected process.
+remove_owned_pid_file() {
+    local pid_file=$1 expected_pid=$2 recorded_pid
+
+    [[ $expected_pid =~ ^[0-9]+$ && -r $pid_file ]] || return 0
+    IFS= read -r recorded_pid <"$pid_file" || return 0
+    [[ $recorded_pid == "$expected_pid" ]] || return 0
+    rm -f -- "$pid_file"
+}
+
+# Publish a PID atomically so readers never observe partial contents.
+publish_pid_file() {
+    local pid_file=$1 pid=$2 temporary_file
+
+    temporary_file="$pid_file.tmp.$$"
+    printf '%s\n' "$pid" >"$temporary_file"
+    chmod 600 -- "$temporary_file"
+    mv -f -- "$temporary_file" "$pid_file"
+}
+
+# Wait until sighandler.sh confirms that all realtime traps are installed.
+wait_for_sighandler() {
+    local ready_file=$1 expected_pid=$2 deadline recorded_pid
+    deadline=$((SECONDS + 5))
+
+    while ((SECONDS < deadline)); do
+        if [[ -r $ready_file ]]; then
+            IFS= read -r recorded_pid <"$ready_file" || recorded_pid=""
+            [[ $recorded_pid == "$expected_pid" ]] && return 0
+        fi
+        kill -0 "$expected_pid" 2>/dev/null || return 1
+        sleep 0.01
+    done
+
+    return 1
+}
+
+# DESC: Terminate all directly managed child processes
+# ARGS: None
+# OUTS: None
+terminate_children() {
+    local pid
+
+    # Stop data producers first.
+    for pid in \
+        "${events_pid:-}" \
+        "${title_server_pid:-}" \
+        "${sighandler_pid:-}"; do
+        if [[ "$pid" =~ ^[0-9]+$ ]] && kill -0 "$pid" 2>/dev/null; then
+            kill -TERM "$pid" 2>/dev/null || true
+        fi
+    done
+
+    for pid in \
+        "${events_pid:-}" \
+        "${title_server_pid:-}" \
+        "${sighandler_pid:-}"; do
+        if [[ "$pid" =~ ^[0-9]+$ ]]; then
+            wait "$pid" 2>/dev/null || true
+        fi
+    done
+
+    # Stop lemonbar after its producers.
+    if [[ "${lemonbar_pid:-}" =~ ^[0-9]+$ ]]; then
+        kill -TERM "$lemonbar_pid" 2>/dev/null || true
+        wait "$lemonbar_pid" 2>/dev/null || true
     fi
 }
 
@@ -41,50 +102,46 @@ trap_err() {
 # ARGS: None
 # OUTS: None
 trap_exit() {
-    cd "$orig_cwd"
+    local ec=$?
 
-    # Output debug data if in Cron mode
-    if [[ -n ${log-} ]]; then
-        # Restore original file output descriptors
-        if [[ -n ${log_file-} ]]; then
-            exec 1>&3 2>&4
-        fi
-    fi
+    trap - EXIT INT TERM QUIT HUP PIPE ERR
+    set +o errexit
+    set +o pipefail
 
-    # Remove script execution lock
-    if [[ -d ${script_lock-} ]]; then
-        rmdir "$script_lock"
-    fi
+    log_info "EXIT rc=$ec"
 
-    kill -- -$$
-    wait
+    terminate_children
+    trap_cleanup
+
+    cd "$orig_cwd" || true
+    exit "$ec"
 }
 
 # DESC: Exit script with the given message
 # ARGS: $1 (required): Message to print on exit
 #       $2 (optional): Exit code (defaults to 0)
 # OUTS: None
-# NOTE: The convention used in this script for exit codes is:
-#       0: Normal exit
-#       1: Abnormal exit due to external error
-#       2: Abnormal exit due to script error
 exit_handler() {
-    if [[ $# -eq 1 ]]; then
-        printf '%s\n' "$1"
-        exit 0
+    if [[ $# -lt 1 || $# -gt 2 ]]; then
+        printf '%s\n' 'Missing required argument to exit_handler()!' >&2
+        exit 2
     fi
 
-    if [[ ${2-} =~ ^[0-9]+$ ]]; then
-        printf '%b\n' "$1"
-        # If we've been provided a non-zero exit code run the error trap
-        if [[ $2 -ne 0 ]]; then
-            trap_err "$2"
-        else
-            exit 0
-        fi
+    local message="$1"
+    local rc="${2:-0}"
+
+    if [[ ! "$rc" =~ ^[0-9]+$ ]] || ((rc > 255)); then
+        printf 'Invalid exit code: %s\n' "$rc" >&2
+        exit 2
     fi
 
-    exit_handler 'Missing required argument to exit_handler()!' 2
+    printf '%b\n' "$message"
+
+    if ((rc != 0)); then
+        log_error "exit rc=$rc message=$message"
+    fi
+
+    exit "$rc"
 }
 
 # DESC: remove FIFO at termination
@@ -93,12 +150,17 @@ exit_handler() {
 trap_cleanup() {
     trap - TERM
 
-    # FIFO (pipe) must be removed AFTER terminating sighandler
-    if [[ -e "${fifo-}" ]]; then
-        rm "$fifo"
+    # Remove only PID files still owned by this instance.
+    remove_owned_pid_file "${sighandler_pid_file:-}" "${sighandler_pid:-}"
+    remove_owned_pid_file "${script_lock:-}" "$$"
+
+    # FIFO entfernen
+    if [ -n "${fifo:-}" ] && [ -e "$fifo" ]; then
+        rm -f "$fifo"
     fi
 
-    if [[ -e "${tmp_dir-}" ]]; then
+    # tmp_dir entfernen
+    if [ -n "${tmp_dir:-}" ] && [ -d "$tmp_dir" ]; then
         rm -rf "$tmp_dir"
     fi
 
@@ -109,10 +171,10 @@ trap_cleanup() {
 # ARGS: None
 # OUTS: None
 usage() {
-    cat << EOF
+    cat <<EOF
 Usage:
      -h|--help                  Displays this help
-     -l|--log                   Run silently unless we encounter an error
+     -l|--log                   Enables INFO and ERROR logging
 EOF
 }
 
@@ -125,61 +187,91 @@ parse_params() {
         param="$1"
         shift
         case $param in
-            -h | --help)
-                usage
-                exit 0
-                ;;
-            -l | --log)
-                log=true
-                ;;
-            *)
-                exit_handler "Invalid parameter was provided: $param" 1
-                ;;
+        -h | --help)
+            # Disable EXIT trap so help does not trigger cleanup
+            trap - EXIT
+            usage
+            exit 0
+            ;;
+        -l | --log)
+            LOG_INFO_ENABLED=1
+            export LOG_INFO_ENABLED
+            ;;
+        *)
+            exit_handler "Invalid parameter was provided: $param" 1
+            ;;
         esac
     done
 }
 
-# DESC: Initialise log mode
-# ARGS: None
-# OUTS: $log_file: Path to the file stdout & stderr was redirected to
-log_init() {
-    if [[ -n ${log-} ]]; then
-        log_file="$TMPDIR/lemonbar.$(date +"%Y_%m_%d_%I_%M_%S").log"
-        readonly log_file
-        # Redirect all output to a temporary file
-        touch "$log_file"
-        exec 3>&1 4>&2 1> "$log_file" 2>&1
-        # redirect xtrace to file
-        if [[ ${DEBUG-} =~ ^1|yes|true$ ]]; then
-            exec 5> "$TMPDIR/lemonbar.debug.$(date +"%Y_%m_%d_%I_%M_%S").log"
-            BASH_XTRACEFD="5"
-        fi
-    fi
+# Return success if a PID belongs to a Lemonbar start.sh process.
+pid_is_lemonbar_start() {
+    local pid=$1 argument
+    local -a arguments=()
+
+    [[ $pid =~ ^[0-9]+$ && -r /proc/$pid/cmdline ]] || return 1
+    mapfile -d '' -t arguments <"/proc/$pid/cmdline" || return 1
+
+    for argument in "${arguments[@]}"; do
+        case $argument in
+        "$LEMONDIR/start.sh" | ./start.sh | start.sh) return 0 ;;
+        esac
+    done
+
+    return 1
 }
 
-# DESC: Acquire script lock
-# ARGS: $1 (optional): Scope of script execution lock (system or user)
-# OUTS: $script_lock: Path to the directory indicating we have the script lock
-# NOTE: This lock implementation is extremely simple but should be reliable
-#       across all platforms. It does *not* support locking a script with
-#       symlinks or multiple hardlinks as there's no portable way of doing so.
-#       If the lock was acquired it's automatically released on script exit.
-lock_init() {
-    local lock_dir
-    if [[ $1 = 'system' ]]; then
-        lock_dir="$TMPDIR/$script_name.lock"
-    elif [[ $1 = 'user' ]]; then
-        lock_dir="$TMPDIR/$script_name.$UID.lock"
-    else
-        exit_handler 'Missing or invalid argument to lock_init()!' 2
+# Create this instance's lock file without replacing an existing file.
+create_lock_file() {
+    local pid_file=$1
+
+    if (
+        set -o noclobber
+        printf '%s\n' "$$" >"$pid_file"
+    ) 2>/dev/null; then
+        if ! chmod 600 -- "$pid_file"; then
+            rm -f -- "$pid_file"
+            return 1
+        fi
+        script_lock=$pid_file
+        return 0
     fi
 
-    if mkdir "$lock_dir" 2> /dev/null; then
-        readonly script_lock="$lock_dir"
-        printf "%s\n" "Acquired script lock: $script_lock"
-    else
-        exit_handler "Unable to acquire script lock: $lock_dir" 1
+    return 1
+}
+
+# DESC: Acquire script lock via PID file in LEMONBAR_RUNTIME_DIR
+# ARGS: none
+# OUTS: $script_lock: Path to the PID file that represents the lock
+# NOTE: Uses O_EXCL-style creation (noclobber) to avoid races.
+lock_init() {
+    if [[ ! -d $LEMONBAR_RUNTIME_DIR || ! -w $LEMONBAR_RUNTIME_DIR ]]; then
+        printf 'Runtime dir not usable: %s\n' "$LEMONBAR_RUNTIME_DIR" >&2
+        return 2
     fi
+
+    local pid_file="$LEMONBAR_RUNTIME_DIR/start.pid"
+    local old_pid
+
+    create_lock_file "$pid_file" && return 0
+
+    # Keep a live Lemonbar lock, but reclaim invalid or stale PID files.
+    if [[ -r "$pid_file" ]]; then
+        IFS= read -r old_pid <"$pid_file" || old_pid=""
+        if [[ $old_pid =~ ^[0-9]+$ ]] &&
+            kill -0 "$old_pid" 2>/dev/null &&
+            pid_is_lemonbar_start "$old_pid"; then
+            printf 'Unable to acquire lock: %s (pid=%s)\nLOCKBUSY (200)\n' \
+                "$pid_file" "$old_pid" >&2
+            return 200
+        fi
+
+        rm -f -- "$pid_file"
+        create_lock_file "$pid_file" && return 0
+    fi
+
+    printf 'Unable to acquire script lock: %s\n' "$pid_file" >&2
+    return 200
 }
 
 # DESC: Generic script initialisation
@@ -205,54 +297,146 @@ init() {
     export XDG_CONFIG_HOME="${XDG_CONFIG_HOME:-$HOME/.config}"
     export TMPDIR="${TMPDIR:-/tmp}"
     export LEMONDIR="${XDG_CONFIG_HOME}/bspwm/lemonbar"
+    export BASH_ENV="$LEMONDIR/lib/logging_env.sh"
+    export XDG_RUNTIME_DIR="${XDG_RUNTIME_DIR:-/run/user/$UID}"
+    export LEMONBAR_RUNTIME_DIR="${LEMONBAR_RUNTIME_DIR:-$XDG_RUNTIME_DIR/lemonbar}"
+
+    mkdir -p -- "$LEMONBAR_RUNTIME_DIR"
+    chmod 700 -- "$LEMONBAR_RUNTIME_DIR"
+
+    # shellcheck disable=SC1090
+    if [[ -r "$BASH_ENV" ]]; then
+        # shellcheck source=lib/logging_env.sh
+        source "$BASH_ENV"
+    else
+        echo "logging_env.sh not found at: $BASH_ENV" >&2
+    fi
+}
+
+# DESC: Wait for the first critical child process to exit
+# ARGS: None
+# OUTS: None
+# NOTE: Any child exit stops the complete panel to avoid a partial session.
+monitor_children() {
+    local exited_pid rc exit_rc child_name
+
+    if wait -n -p exited_pid \
+        "$lemonbar_pid" \
+        "$sighandler_pid" \
+        "$events_pid" \
+        "$title_server_pid"; then
+        rc=0
+    else
+        rc=$?
+    fi
+
+    case "${exited_pid:-}" in
+    "$lemonbar_pid")
+        child_name="lemonbar"
+        ;;
+    "$sighandler_pid")
+        child_name="sighandler.sh"
+        remove_owned_pid_file "$sighandler_pid_file" "$sighandler_pid"
+        ;;
+    "$events_pid")
+        child_name="events.sh"
+        ;;
+    "$title_server_pid")
+        child_name="title_server.sh"
+        ;;
+    *)
+        child_name="unknown"
+        ;;
+    esac
+
+    if ((rc == 0)); then
+        log_error "unexpected child exit: name=$child_name pid=${exited_pid:-unknown} rc=0"
+        exit_rc=1
+    else
+        log_error "child exit: name=$child_name pid=${exited_pid:-unknown} rc=$rc"
+        exit_rc=$rc
+    fi
+
+    exit "$exit_rc"
 }
 
 # DESC: Main control flow
 # ARGS: $@ (optional): Arguments provided to the script
 # OUTS: None
 main() {
-    trap 'trap_err "${LINENO}/${BASH_LINENO}" "$?" "$BASH_COMMAND"'  ERR
-    trap trap_exit                                                   EXIT
-    trap trap_cleanup                                                INT TERM QUIT HUP PIPE
+    trap 'trap_err "${LINENO}/${BASH_LINENO[0]:-0}" "$?" "$BASH_COMMAND"' ERR
+    trap 'trap_exit' EXIT
+    trap 'exit 130' INT
+    trap 'exit 143' TERM
+    trap 'exit 0' QUIT HUP PIPE
 
     tmp_dir=""
     fifo=""
+    lemonbar_pid=""
+    sighandler_pid=""
+    events_pid=""
+    title_server_pid=""
+    sighandler_pid_file=""
+    sighandler_ready_file=""
 
     init "$@"
     parse_params "$@"
+    log_info "initialized" "$0"
 
     tmp_dir=$(mktemp -p "$TMPDIR" -d lemonbar.XXXX)
 
-    log_init
-    lock_init user
+    if lock_init; then
+        :
+    else
+        rc=$?
+        exit "$rc"
+    fi
 
+    # shellcheck disable=SC1091
     source "$LEMONDIR/config.sh"
+    # shellcheck source=panel_runtime.sh
+    source "$LEMONDIR/panel_runtime.sh"
 
     # create named pipe
     fifo="${tmp_dir}/lemonbar.fifo"
     readonly fifo
     if [[ -e "$fifo" ]]; then
-        rm "$fifo"
+        rm -f "$fifo"
     fi
-    mkfifo "$fifo"
+    mkfifo -m 600 "$fifo"
 
-    tmp_dir="$tmp_dir" "$LEMONDIR/sighandler.sh" > "$fifo" &
-    sighandler_pid=$!
-
-    # file for exchanging sighandler_pid to sxhkd
-    if [[ -n "${XDG_RUNTIME_DIR:-}" ]]; then
-        echo "$sighandler_pid" > "$XDG_RUNTIME_DIR/sighandler.pid"
-    fi
-
+    # fifo-reader, starting first
     lemonbar -p -a "$CLICKABLE_AREAS" \
         -g "$PANEL_WIDTH"x"$PANEL_HEIGHT"+"$PANEL_HORIZONTAL_OFFSET"+"$PANEL_VERTICAL_OFFSET" \
         -f "$PANEL_FONT" -f "$PANEL_ICON_FONT" -F "$COLOR_DEFAULT_FG" -B "$COLOR_PANEL_BG" \
-        -u "$UNDERLINE_HEIGHT" -n "$PANEL_WM_NAME" < "$fifo" | sh &
+        -u "$UNDERLINE_HEIGHT" -n "$PANEL_WM_NAME" \
+        <"$fifo" > >(bash) &
+    lemonbar_pid=$!
 
-    sighandler_pid="$sighandler_pid" tmp_dir="$tmp_dir" "$LEMONDIR/events.sh" &
+    export tmp_dir
+    sighandler_ready_file="$tmp_dir/sighandler.ready"
+    export SIGHANDLER_READY_FILE="$sighandler_ready_file"
+    # fifo-writer, starting after reader
+    "$LEMONDIR/sighandler.sh" >"$fifo" &
+    sighandler_pid=$!
 
-    # wait for subprocesses to be finished except one fails
-    wait -n
+    if ! wait_for_sighandler "$sighandler_ready_file" "$sighandler_pid"; then
+        log_error "sighandler failed before becoming ready: pid=$sighandler_pid"
+        exit 1
+    fi
+
+    # Publish the signal receiver PID for sxhkd and helper scripts.
+    sighandler_pid_file="$LEMONBAR_RUNTIME_DIR/sighandler.pid"
+    publish_pid_file "$sighandler_pid_file" "$sighandler_pid"
+
+    "$LEMONDIR/events.sh" "$sighandler_pid" &
+    events_pid=$!
+
+    "$LEMONDIR/title_server.sh" "$sighandler_pid" &
+    title_server_pid=$!
+
+    # Stop the complete panel as soon as one critical child exits.
+    monitor_children
 }
 
 main "$@"

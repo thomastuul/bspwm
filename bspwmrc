@@ -1,5 +1,9 @@
 #!/usr/bin/env bash
 
+BSPWM_CONFIG_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/bspwm"
+# shellcheck source=lib/host-profile.sh
+source "$BSPWM_CONFIG_DIR/lib/host-profile.sh"
+
 for monitor in $(bspc query -M); do
     # set the workspaces on each monitor to 1-9
     bspc monitor "$monitor" -d 1 2 3 4 5 6 7 8 9
@@ -30,13 +34,13 @@ bspc config pointer_action1               move
 bspc config pointer_action2               resize_side
 bspc config pointer_action3               resize_corner
 
-bspc config top_padding 25
+bspc config top_padding "$BSPWM_TOP_PADDING"
 
 # check with 'xprop'
 bspc rule -a Gimp-2.10 desktop='^6' state=floating follow=on
 bspc rule -a Brave-browser desktop='^2'
 bspc rule -a thunderbird-default desktop='^5'
-bspc rule -a Evolution desktop='^5'
+bspc rule -a Org.gnome.Evolution desktop='^5'
 bspc rule -a Thunar desktop='^3'
 bspc rule -a org.gnome.Nautilus desktop='^3'
 bspc rule -a KeePassXC state=floating follow=on
@@ -60,7 +64,7 @@ bsp-layout set tall 9 -- --master-size 0.5
 #xsetroot -cursor_name left_ptr
 
 # workaround unclickable workspaces at removed second monitor
-bsp config remove_disabled_monitors     true
+bspc config remove_disabled_monitors    true
 
 # Startups
-"$HOME/.config/bspwm/autostart"
+"$BSPWM_CONFIG_DIR/autostart"
