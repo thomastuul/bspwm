@@ -44,7 +44,12 @@ fi
 
 BSPWM_HOST_PROFILE_LOADED=1
 export BSPWM_CONFIG_DIR BSPWM_HOST_DIR BSPWM_HOST_NAME BSPWM_HOST_ROLE
-export BSPWM_WALLPAPER SLIVERBAR_CONFIG
+export BSPWM_WALLPAPER
+if [[ -n $SLIVERBAR_CONFIG ]]; then
+    export SLIVERBAR_CONFIG
+else
+    export -n SLIVERBAR_CONFIG
+fi
 
 bspwm_feature_enabled() {
     local variable=$1 value

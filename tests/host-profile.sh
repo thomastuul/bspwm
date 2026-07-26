@@ -33,6 +33,10 @@ export BSPWM_CONFIG_DIR BSPWM_HOST_OVERRIDE
 # shellcheck disable=SC1091
 source "$repository_root/lib/host-profile.sh"
 bspwm_feature_enabled BSPWM_ENABLE_SLIVERBAR
+if env bash -c '[[ -v SLIVERBAR_CONFIG ]]'; then
+    printf 'empty Sliverbar configuration was exported\n' >&2
+    exit 1
+fi
 # The feature helper reads this value through indirect expansion.
 # shellcheck disable=SC2034
 BSPWM_ENABLE_SLIVERBAR=disabled
