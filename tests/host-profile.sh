@@ -7,6 +7,8 @@ set -o pipefail
 repository_root=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)
 
 load_profile() {
+    # Variables are intentionally expanded by the nested shell.
+    # shellcheck disable=SC2016
     env -i \
         HOME="$HOME" \
         PATH="$PATH" \
@@ -26,14 +28,23 @@ load_profile() {
 
 BSPWM_CONFIG_DIR="$repository_root"
 BSPWM_HOST_OVERRIDE=Ikarus
-# shellcheck source=../lib/host-profile.sh
+export BSPWM_CONFIG_DIR BSPWM_HOST_OVERRIDE
+# The absolute test path is resolved at runtime inside and outside containers.
+# shellcheck disable=SC1091
 source "$repository_root/lib/host-profile.sh"
 bspwm_feature_enabled BSPWM_ENABLE_SLIVERBAR
+# The feature helper reads this value through indirect expansion.
+# shellcheck disable=SC2034
 BSPWM_ENABLE_SLIVERBAR=disabled
-! bspwm_feature_enabled BSPWM_ENABLE_SLIVERBAR
+if bspwm_feature_enabled BSPWM_ENABLE_SLIVERBAR; then
+    printf 'disabled feature evaluated as enabled\n' >&2
+    exit 1
+fi
 
 child_result=$(
     export BSPWM_HOST_PROFILE_LOADED=1
+    # Variables are intentionally expanded by the nested shell.
+    # shellcheck disable=SC2016
     env BSPWM_HOST_OVERRIDE=Pegasus4 bash -c '
         unset BSPWM_HOST_PROFILE_LOADED
         source "$BSPWM_CONFIG_DIR/lib/host-profile.sh"

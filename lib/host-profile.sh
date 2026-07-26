@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 # Load generic bspwm defaults and an optional machine-specific profile.
+# The assignments are consumed by scripts that source this library.
+# shellcheck disable=SC2034
 
 if [[ ${BSPWM_HOST_PROFILE_LOADED:-0} == 1 ]]; then
     return 0
