@@ -215,6 +215,37 @@ media_control() {
     playerctl "$1"
 }
 
+touchpad_toggle() {
+    local schema=org.gnome.desktop.peripherals.touchpad state
+
+    command_exists gsettings || return 0
+    state=$(gsettings get "$schema" send-events 2>/dev/null) || return 0
+    if [[ $state == "'enabled'" ]]; then
+        gsettings set "$schema" send-events disabled
+    else
+        gsettings set "$schema" send-events enabled
+    fi
+}
+
+display_off() {
+    command_exists xset || return 0
+    sleep 0.5
+    xset dpms force off
+}
+
+display_toggle() {
+    if command_exists autorandr; then
+        autorandr --cycle
+    elif command_exists xrandr; then
+        xrandr --auto
+    fi
+}
+
+suspend_system() {
+    command_exists systemctl || return 0
+    systemctl suspend
+}
+
 case ${1:-} in
     volume-up)
         audio_sink up
@@ -263,6 +294,18 @@ case ${1:-} in
         ;;
     media-stop)
         media_control stop
+        ;;
+    touchpad-toggle)
+        touchpad_toggle
+        ;;
+    display-off)
+        display_off
+        ;;
+    display-toggle)
+        display_toggle
+        ;;
+    suspend)
+        suspend_system
         ;;
     *)
         printf 'Usage: %s ACTION\n' "${0##*/}" >&2

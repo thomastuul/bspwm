@@ -241,3 +241,15 @@ XF86AudioPrev
 
 XF86AudioStop
     ~/.config/bspwm/bin/hardware-key.sh media-stop
+
+XF86TouchpadToggle
+    ~/.config/bspwm/bin/hardware-key.sh touchpad-toggle
+
+XF86DisplayOff
+    ~/.config/bspwm/bin/hardware-key.sh display-off
+
+{XF86Display,XF86DisplayToggle}
+    ~/.config/bspwm/bin/hardware-key.sh display-toggle
+
+XF86Sleep
+    ~/.config/bspwm/bin/hardware-key.sh suspend
