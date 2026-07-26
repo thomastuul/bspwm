@@ -219,3 +219,12 @@ XF86MonBrightnessUp
 XF86MonBrightnessDown
     . "${XDG_CONFIG_HOME:-$HOME/.config}/bspwm/lemonbar/config.sh"; \
     [ -f "$LEMONBAR_RUNTIME_DIR/sighandler.pid" ] && kill -s "$SIGNAL_BRIGHTNESS_DOWN" "$(cat "$LEMONBAR_RUNTIME_DIR/sighandler.pid")"
+
+XF86KbdBrightnessUp
+    "${XDG_CONFIG_HOME:-$HOME/.config}/bspwm/bin/kbd-backlight.sh" up
+
+XF86KbdBrightnessDown
+    "${XDG_CONFIG_HOME:-$HOME/.config}/bspwm/bin/kbd-backlight.sh" down
+
+XF86KbdLightOnOff
+    "${XDG_CONFIG_HOME:-$HOME/.config}/bspwm/bin/kbd-backlight.sh" toggle

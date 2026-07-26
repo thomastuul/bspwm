@@ -1,5 +1,7 @@
 lemonbar/test.sh
 lemonbar/*.log
+.codex/
+.local/bin/
 build
 *.png
 *.pdf
