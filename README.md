@@ -55,6 +55,35 @@ It uses XCB, Cairo, Pango, GLib/GIO, Fontconfig, and an EWMH-compatible window
 manager. See [sliverbar/README.md](sliverbar/README.md) for runtime
 dependencies, configuration, packaging, and the supported C17 build workflow.
 
+## Host profiles
+
+The bspwm configuration is shared by all machines. Generic defaults live in
+`lib/host-profile.sh`; machine-specific overrides live in:
+
+```text
+hosts/
+├── Ikarus/
+│   └── profile.sh
+└── Pegasus4/
+    └── profile.sh
+```
+
+The short hostname selects the profile case-insensitively. Set
+`BSPWM_HOST_OVERRIDE=Ikarus` or `BSPWM_HOST_OVERRIDE=Pegasus4` to test another
+profile without changing the system hostname. Unknown hosts use only the
+generic defaults.
+
+Profiles may override `BSPWM_TOP_PADDING`, `BSPWM_WALLPAPER`,
+`BSPWM_ENABLE_SLIVERBAR`, `BSPWM_ENABLE_CONKY`, `BSPWM_ENABLE_BLUEMAN`,
+`BSPWM_ENABLE_NEXTCLOUD`, `BSPWM_ENABLE_SCREEN_LOCK`,
+`BSPWM_ENABLE_AUTOLOCK`, and `BSPWM_ENABLE_PICOM`. Boolean switches accept
+`1/0`, `true/false`, `yes/no`, `on/off`, and `enabled/disabled`.
+
+Sliverbar remains machine-independent. If a host needs an exceptional panel
+configuration, place it at `hosts/<hostname>/sliverbar.conf` or set
+`SLIVERBAR_CONFIG` in that host's `profile.sh`. Otherwise Sliverbar uses its
+normal configuration search.
+
 ### Bash fallback
 
 The Bash panel additionally uses lemonbar, trayer, and the tools required by

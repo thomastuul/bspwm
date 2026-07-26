@@ -28,7 +28,8 @@ For changed shell scripts:
 - Do not attempt to switch Codex profiles within a running session.
 - Use a separate `codex --profile fast` session only for an optional AI review focused on formatting or linting.
 - Run `bash -n` on every changed shell script.
-- Run `shellcheck` on every changed shell script.
+- Run ShellCheck on every changed shell script through the official
+  `koalaman/shellcheck:stable` Docker image and mount the repository read-only.
 - Run `git diff --check` before committing.
 
 ## Tool usage
