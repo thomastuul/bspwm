@@ -62,16 +62,16 @@ The bspwm configuration is shared by all machines. Generic defaults live in
 
 ```text
 hosts/
-├── Ikarus/
+├── <hostname-1>/
 │   └── profile.sh
-└── Pegasus4/
+└── <hostname-2>/
     └── profile.sh
 ```
 
 The short hostname selects the profile case-insensitively. Set
-`BSPWM_HOST_OVERRIDE=Ikarus` or `BSPWM_HOST_OVERRIDE=Pegasus4` to test another
-profile without changing the system hostname. Unknown hosts use only the
-generic defaults.
+`BSPWM_HOST_OVERRIDE=<hostname>` to test another profile without changing the
+system hostname. Replace `<hostname>` with the name of a directory below
+`hosts/`. Unknown hosts use only the generic defaults.
 
 Profiles may override `BSPWM_TOP_PADDING`, `BSPWM_WALLPAPER`,
 `BSPWM_ENABLE_SLIVERBAR`, `BSPWM_ENABLE_CONKY`, `BSPWM_ENABLE_BLUEMAN`,
