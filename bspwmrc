@@ -4,6 +4,17 @@ BSPWM_CONFIG_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/bspwm"
 # shellcheck source=lib/host-profile.sh
 source "$BSPWM_CONFIG_DIR/lib/host-profile.sh"
 
+# Start GNOME Keyring's SSH agent and publish its socket to this session.
+keyring_environment=$(
+    /usr/bin/gnome-keyring-daemon --start --components=ssh
+)
+eval "$keyring_environment"
+unset keyring_environment
+export SSH_AUTH_SOCK
+
+# Propagate the agent socket to D-Bus- and systemd-activated applications.
+dbus-update-activation-environment --systemd SSH_AUTH_SOCK 2>/dev/null || true
+
 for monitor in $(bspc query -M); do
     # set the workspaces on each monitor to 1-9
     bspc monitor "$monitor" -d 1 2 3 4 5 6 7 8 9
