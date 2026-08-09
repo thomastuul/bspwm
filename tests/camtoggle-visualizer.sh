@@ -72,6 +72,16 @@ fi
 
 printf 'PASS: brightness mode visualizes video luminance without audio\n'
 
+run_preview hud env CAMERA_PREVIEW_VISUALIZER=hud
+
+grep -Fx -- '--mute=yes' "$TEMP_DIR/hud.args" >/dev/null
+grep -Fx -- "--external-file=$ROOT_DIR/assets/camera-hud-overlay.png" "$TEMP_DIR/hud.args" >/dev/null
+grep -F -- '[vid2]' "$TEMP_DIR/hud.args" >/dev/null
+grep -F -- 'showvolume=' "$TEMP_DIR/hud.args" >/dev/null
+grep -F -- 'c=0x78ff6a' "$TEMP_DIR/hud.args" >/dev/null
+
+printf 'PASS: hud mode combines the transparent HUD with an audio level meter\n'
+
 run_preview invalid env CAMERA_PREVIEW_VISUALIZER=unknown
 
 grep -F -- 'showspectrum=' "$TEMP_DIR/invalid.args" >/dev/null

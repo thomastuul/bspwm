@@ -192,7 +192,7 @@ super + alt + t
     ~/.config/bspwm/bin/app-launcher.sh file
 
 super + alt + c
-    /bin/sh -c "~/.config/bspwm/bin/camtoggle.sh"
+    /bin/sh -c "CAMERA_PREVIEW_VISUALIZER=hud ~/.config/bspwm/bin/camtoggle.sh"
 
 super + alt + s
     /bin/sh -c "~/.config/bspwm/bin/screencast.sh"
