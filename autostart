@@ -26,6 +26,7 @@ DUNST_CONF="$BSPWM_CONFIG_DIR/dunst/dunstrc"
 PICOM_CONF="$BSPWM_CONFIG_DIR/picom/picom.conf"
 WALLPAPER="${WALLPAPER:-$BSPWM_WALLPAPER}"
 XSECURELOCK_DIMMER="${XSECURELOCK_DIMMER:-/usr/libexec/xsecurelock/dimmer}"
+POLKIT_AGENT="${POLKIT_AGENT:-/usr/lib/policykit-1-gnome/polkit-gnome-authentication-agent-1}"
 
 if [[ -n $SLIVERBAR_CONFIG ]]; then
     SLIVERBAR_ARGS+=(--config "$SLIVERBAR_CONFIG")
@@ -133,6 +134,10 @@ if [[ -r $DUNST_CONF ]]; then
 else
     start_if_available dunst
 fi
+
+# bspwm does not start an authentication agent through a desktop session.
+# Without one, Polkit-protected actions fail instead of showing a password dialog.
+start_if_executable "$POLKIT_AGENT"
 
 # Sliverbar owns its own lock file; an already running panel exits with LOCKBUSY.
 if bspwm_feature_enabled BSPWM_ENABLE_SLIVERBAR; then
