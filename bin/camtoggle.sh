@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 # Toggle a small preview window for the preferred visible-light camera.
+# CAMERA_PREVIEW_VISUALIZER selects spectrum (default), wave, brightness, or none.
+# CAMERA_PREVIEW_AUDIO_SOURCE selects the PulseAudio/PipeWire source for audio modes.
 
 set -o nounset
 
@@ -8,6 +10,11 @@ readonly PID_FILE="$RUNTIME_DIR/bspwm-camera-preview-${UID}.pid"
 readonly LOCK_FILE="$RUNTIME_DIR/bspwm-camera-preview-${UID}.lock"
 readonly WINDOW_TITLE="bspwm-camera-preview"
 readonly DEFAULT_PREFERRED_CAMERA="Poly"
+readonly DEFAULT_AUDIO_SOURCE="default"
+readonly DEFAULT_VISUALIZER="spectrum"
+readonly SPECTRUM_FILTER='[aid1]asetpts=PTS-STARTPTS,showspectrum=s=640x120:mode=combined:color=rainbow:slide=scroll:scale=log:legend=0,format=rgba,colorchannelmixer=aa=0.72[spectrum];[vid1]setpts=PTS-STARTPTS[video];[video][spectrum]overlay=x=0:y=H-h[vo]'
+readonly WAVE_FILTER='[aid1]asetpts=PTS-STARTPTS,showwaves=s=640x120:mode=cline:colors=0x00ffff@0.85:scale=sqrt:draw=full,format=rgba,colorchannelmixer=aa=0.72[wave];[vid1]setpts=PTS-STARTPTS[video];[video][wave]overlay=x=0:y=H-h[vo]'
+readonly BRIGHTNESS_FILTER='[vid1]setpts=PTS-STARTPTS,split=2[base][stats];[stats]signalstats,drawgraph=m1=lavfi.signalstats.YAVG:fg1=0xff00ffff:bg=black@0.35:min=0:max=255:mode=line:slide=scroll:s=640x120,format=rgba[brightness];[base][brightness]overlay=x=0:y=H-h[vo]'
 
 find_camera() {
     local preferred=$1 device name index
@@ -82,14 +89,49 @@ cleanup_stale_pid_file
 
 command -v mpv >/dev/null 2>&1 || exit 0
 node=$(wait_for_camera) || exit 0
+audio_source=${CAMERA_PREVIEW_AUDIO_SOURCE:-$DEFAULT_AUDIO_SOURCE}
+visualizer=${CAMERA_PREVIEW_VISUALIZER:-$DEFAULT_VISUALIZER}
+case $visualizer in
+none | spectrum | wave | brightness) ;;
+*) visualizer=$DEFAULT_VISUALIZER ;;
+esac
 
-mpv \
-    --title="$WINDOW_TITLE" \
-    --geometry=-0-0 \
-    --autofit=20% \
-    --profile=low-latency \
-    --no-audio \
-    "av://v4l2:${node}" &
+mpv_args=(
+    "--title=$WINDOW_TITLE"
+    --geometry=-0-0
+    --autofit=20%
+    --profile=low-latency
+)
+
+case $visualizer in
+none)
+    mpv_args+=(--no-audio)
+    ;;
+spectrum)
+    mpv_args+=(
+        --mute=yes
+        --aid=no
+        "--audio-file=av://pulse:${audio_source}"
+        "--lavfi-complex=$SPECTRUM_FILTER"
+    )
+    ;;
+wave)
+    mpv_args+=(
+        --mute=yes
+        --aid=no
+        "--audio-file=av://pulse:${audio_source}"
+        "--lavfi-complex=$WAVE_FILTER"
+    )
+    ;;
+brightness)
+    mpv_args+=(
+        --no-audio
+        "--lavfi-complex=$BRIGHTNESS_FILTER"
+    )
+    ;;
+esac
+
+mpv "${mpv_args[@]}" "av://v4l2:${node}" &
 mpv_pid=$!
 printf '%s\n' "$mpv_pid" >"$PID_FILE"
 
