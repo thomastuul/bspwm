@@ -130,13 +130,13 @@ super + {Left,Down,Up,Right}
 
 # Screenshot/Screencut
 Print
-    scrot "$HOME/Bilder/screenshot-%d-%m-%Y-%H-%M-%S.png" -e "xclip -selection c -t image/png < $f" && sleep 1; notify-send "Screenshot abgelegt in ~/Bilder"
+    scrot "$HOME/Bilder/screenshot-%d-%m-%Y-%H-%M-%S.png" -e 'xclip -selection clipboard -target image/png -i "$f" && notify-send "Screenshot abgelegt in ~/Bilder und in die Zwischenablage kopiert"'
 
 Print + ctrl
-    scrot -s "$HOME/Bilder/screencut-%d-%m-%Y-%H-%M-%S.png" -e "xclip -selection c -t image/png < $f" && sleep 1; notify-send "Screencut abgelegt in ~/Bilder"
+    scrot -s "$HOME/Bilder/screencut-%d-%m-%Y-%H-%M-%S.png" -e 'xclip -selection clipboard -target image/png -i "$f" && notify-send "Screencut abgelegt in ~/Bilder und in die Zwischenablage kopiert"'
 
 Print + ctrl + shift
-    scrot -u "$HOME/Bilder/activewindow-%d-%m-%Y-%H-%M-%S.png" -e "xclip -selection c -t image/png < $f" && sleep 1; notify-send "Screenshot von Fenster abgelegt in ~/Bilder"
+    scrot -u "$HOME/Bilder/activewindow-%d-%m-%Y-%H-%M-%S.png" -e 'xclip -selection clipboard -target image/png -i "$f" && notify-send "Screenshot von Fenster abgelegt in ~/Bilder und in die Zwischenablage kopiert"'
 
 # lock screen
 ctrl + alt + l
