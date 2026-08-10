@@ -82,6 +82,17 @@ grep -F -- 'c=0x78ff6a' "$TEMP_DIR/hud.args" >/dev/null
 
 printf 'PASS: hud mode combines the transparent HUD with an audio level meter\n'
 
+run_preview hud-spectrum env CAMERA_PREVIEW_VISUALIZER=hud-spectrum
+
+grep -Fx -- '--mute=yes' "$TEMP_DIR/hud-spectrum.args" >/dev/null
+grep -Fx -- "--external-file=$ROOT_DIR/assets/camera-hud-overlay.png" "$TEMP_DIR/hud-spectrum.args" >/dev/null
+grep -F -- '[vid2]' "$TEMP_DIR/hud-spectrum.args" >/dev/null
+grep -F -- 'showspectrum=s=210x32' "$TEMP_DIR/hud-spectrum.args" >/dev/null
+grep -F -- '[hudspectrum]' "$TEMP_DIR/hud-spectrum.args" >/dev/null
+grep -F -- 'overlay=x=(W-w)/2:y=H-h-16[vo]' "$TEMP_DIR/hud-spectrum.args" >/dev/null
+
+printf 'PASS: hud-spectrum mode combines the transparent HUD with a spectrum tray\n'
+
 run_preview invalid env CAMERA_PREVIEW_VISUALIZER=unknown
 
 grep -F -- 'showspectrum=' "$TEMP_DIR/invalid.args" >/dev/null

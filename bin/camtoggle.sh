@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Toggle a small preview window for the preferred visible-light camera.
-# CAMERA_PREVIEW_VISUALIZER selects spectrum (default), wave, brightness, hud, or none.
+# CAMERA_PREVIEW_VISUALIZER selects spectrum (default), wave, brightness, hud,
+# hud-spectrum, or none.
 # CAMERA_PREVIEW_AUDIO_SOURCE selects the PulseAudio/PipeWire source for audio modes.
 
 set -o nounset
@@ -19,6 +20,7 @@ readonly SPECTRUM_FILTER='[aid1]asetpts=PTS-STARTPTS,showspectrum=s=640x120:mode
 readonly WAVE_FILTER='[aid1]asetpts=PTS-STARTPTS,showwaves=s=640x120:mode=cline:colors=0x00ffff@0.85:scale=sqrt:draw=full,format=rgba,colorchannelmixer=aa=0.72[wave];[vid1]setpts=PTS-STARTPTS[video];[video][wave]overlay=x=0:y=H-h[vo]'
 readonly BRIGHTNESS_FILTER='[vid1]setpts=PTS-STARTPTS,split=2[base][stats];[stats]signalstats,drawgraph=m1=lavfi.signalstats.YAVG:fg1=0xff00ffff:bg=black@0.35:min=0:max=255:mode=line:slide=scroll:s=640x120,format=rgba[brightness];[base][brightness]overlay=x=0:y=H-h[vo]'
 readonly HUD_FILTER='[aid1]asetpts=PTS-STARTPTS,showvolume=w=190:h=12:f=0.8:b=1:c=0x78ff6a:t=0:v=0:o=h:p=0:m=p:ds=log,format=rgba[hudmeter];[vid1]setpts=PTS-STARTPTS[video];[vid2]format=rgba,setpts=PTS-STARTPTS[hud];[video][hud]overlay=eof_action=repeat:repeatlast=1[framed];[framed][hudmeter]overlay=x=(W-w)/2:y=H-h-12[vo]'
+readonly HUD_SPECTRUM_FILTER='[aid1]asetpts=PTS-STARTPTS,showspectrum=s=210x32:mode=combined:color=rainbow:slide=scroll:scale=log:legend=0,format=rgba,colorchannelmixer=aa=0.74[hudspectrum];[vid1]setpts=PTS-STARTPTS[video];[vid2]format=rgba,setpts=PTS-STARTPTS[hud];[video][hud]overlay=eof_action=repeat:repeatlast=1[framed];[framed][hudspectrum]overlay=x=(W-w)/2:y=H-h-16[vo]'
 
 find_camera() {
     local preferred=$1 device name index
@@ -96,7 +98,7 @@ node=$(wait_for_camera) || exit 0
 audio_source=${CAMERA_PREVIEW_AUDIO_SOURCE:-$DEFAULT_AUDIO_SOURCE}
 visualizer=${CAMERA_PREVIEW_VISUALIZER:-$DEFAULT_VISUALIZER}
 case $visualizer in
-none | spectrum | wave | brightness | hud) ;;
+none | spectrum | wave | brightness | hud | hud-spectrum) ;;
 *) visualizer=$DEFAULT_VISUALIZER ;;
 esac
 
@@ -140,6 +142,15 @@ hud)
         "--audio-file=av://pulse:${audio_source}"
         "--external-file=$HUD_OVERLAY"
         "--lavfi-complex=$HUD_FILTER"
+    )
+    ;;
+hud-spectrum)
+    mpv_args+=(
+        --mute=yes
+        --aid=no
+        "--audio-file=av://pulse:${audio_source}"
+        "--external-file=$HUD_OVERLAY"
+        "--lavfi-complex=$HUD_SPECTRUM_FILTER"
     )
     ;;
 esac
