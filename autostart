@@ -143,7 +143,7 @@ start_if_executable "$POLKIT_AGENT"
 if bspwm_feature_enabled BSPWM_ENABLE_SLIVERBAR; then
     start_if_executable "$SLIVERBAR_START" "${SLIVERBAR_ARGS[@]}"
 fi
-# start_if_executable "$TRAYER_START"
+
 if bspwm_feature_enabled BSPWM_ENABLE_BLUEMAN; then
     start_if_available blueman-applet
 fi
