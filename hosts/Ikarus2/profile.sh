@@ -3,4 +3,4 @@
 # shellcheck disable=SC2034
 
 BSPWM_HOST_ROLE=laptop
-BSPWM_WALLPAPER="${HOME}/Bilder/Wallpaper/Background"
+BSPWM_WALLPAPER="${HOME}/Bilder/Wallpaper/sixtinische-haende-unicode-wallpaper.png"
