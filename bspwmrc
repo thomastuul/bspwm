@@ -39,6 +39,7 @@ bspc config focus_follows_pointer         true
 bspc config pointer_follows_focus         false
 bspc config pointer_motion_interval       5
 bspc config remove_disabled_monitors      true
+bspc config remove_unplugged_monitors     false
 
 bspc config pointer_modifier              mod4
 bspc config pointer_action1               move
@@ -73,9 +74,6 @@ bsp-layout set tall 8 -- --master-size 0.5
 bsp-layout set tall 9 -- --master-size 0.5
 # Fix cursor
 #xsetroot -cursor_name left_ptr
-
-# workaround unclickable workspaces at removed second monitor
-bspc config remove_disabled_monitors    true
 
 # Startups
 "$BSPWM_CONFIG_DIR/autostart"

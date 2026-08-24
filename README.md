@@ -84,6 +84,29 @@ configuration, place it at `hosts/<hostname>/sliverbar.conf` or set
 `SLIVERBAR_CONFIG` in that host's `profile.sh`. Otherwise Sliverbar uses its
 normal configuration search.
 
+### Laptop display profiles
+
+On X11 laptops, `bspwmrc` retains disabled RandR outputs until autorandr's
+`postswitch` hook has reconciled their desktops. The hook merges duplicate
+workspace names, transfers every window to the remaining active monitor,
+removes the inactive bspwm monitor, and synchronizes its rectangle with
+RandR. It then recreates the root wallpaper for the new framebuffer size. It
+also restarts Sliverbar through the idempotent session launcher if the panel
+exited during the topology change.
+
+Ikarus2 uses Debian's `autorandr` integration and these profiles below
+`~/.config/autorandr/`:
+
+- `mobile`: internal `eDP-1` only
+- `dock-open`: internal `eDP-1` and external `HDMI-1`
+- `dock-closed`: external `HDMI-1` as primary; internal output disabled
+
+The packaged `autorandr-lid-listener.service` selects between the open and
+closed dock profiles when the lid state changes. The global autorandr
+`postswitch` symlink points to `bin/autorandr-postswitch.sh`. To undo the
+display-specific configuration, remove those three profile directories and
+the symlink, then remove the two monitor-removal settings from `bspwmrc`.
+
 ### Bash fallback
 
 The Bash panel additionally uses lemonbar, trayer, and the tools required by
