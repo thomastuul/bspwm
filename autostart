@@ -117,10 +117,38 @@ start_if_executable() {
     start_once "$executable" "$@" || true
 }
 
+xwallpaper_running() {
+    local pid
+
+    while IFS= read -r pid; do
+        pid_matches_argv "$pid" xwallpaper --daemon --maximize "$WALLPAPER" &&
+            return 0
+    done < <(pgrep -u "$UID" -x xwallpaper 2>/dev/null || true)
+    return 1
+}
+
+start_xwallpaper() {
+    command -v xwallpaper >/dev/null 2>&1 || {
+        log "optional command not found: xwallpaper"
+        return 0
+    }
+    xwallpaper_running && return 0
+
+    # xwallpaper forks itself in daemon mode, so start_once cannot track its
+    # original PID. Verify the daemon by its complete argument vector instead.
+    xwallpaper --daemon --maximize "$WALLPAPER" || true
+    sleep 0.1
+    if xwallpaper_running; then
+        log "started command=xwallpaper --daemon --maximize $WALLPAPER"
+    else
+        log "failed to start: xwallpaper --daemon --maximize $WALLPAPER"
+    fi
+}
+
 xsetroot -cursor_name left_ptr || true
-if [[ -r $WALLPAPER ]] && command -v xwallpaper >/dev/null 2>&1; then
-    # xwallpaper sets the root pixmap and exits; daemon mode is unnecessary.
-    xwallpaper --zoom "$WALLPAPER" >>"$AUTOSTART_LOG" 2>&1 || true
+if [[ -r $WALLPAPER ]]; then
+    # Keep one wallpaper owner alive so RandR topology changes are redrawn.
+    start_xwallpaper
 fi
 
 if [[ -r $SXHKD_RC ]]; then
