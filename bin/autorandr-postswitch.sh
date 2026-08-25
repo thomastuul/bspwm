@@ -10,7 +10,6 @@ BSPWM_CONFIG_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/bspwm"
 source "$BSPWM_CONFIG_DIR/lib/host-profile.sh"
 STATE_DIR="${XDG_STATE_HOME:-$HOME/.local/state}/bspwm"
 PROFILE="${AUTORANDR_CURRENT_PROFILE:-${1:-}}"
-WALLPAPER="${WALLPAPER:-$BSPWM_WALLPAPER}"
 
 mkdir -p -- "$STATE_DIR"
 
@@ -132,12 +131,6 @@ sync_monitor_geometry() {
     )
 }
 
-refresh_wallpaper() {
-    [[ -r $WALLPAPER ]] || return 0
-    command -v xwallpaper >/dev/null 2>&1 || return 0
-    xwallpaper --zoom "$WALLPAPER"
-}
-
 case $PROFILE in
     dock-closed)
         consolidate_monitor eDP-1 HDMI-1
@@ -152,7 +145,6 @@ case $PROFILE in
 esac
 
 sync_monitor_geometry
-refresh_wallpaper
 
 # The panel normally follows RandR and bspwm events. Restart it through the
 # existing idempotent session launcher only if it exited during the switch.
