@@ -13,9 +13,9 @@
 
 ## Project areas
 
-- `lemonbar/` contains the Bash implementation.
+- Lemonbar was removed in commit `0cd26fe` (#126); its Bash source remains in Git history.
 - `sliverbar/` contains the C17 implementation.
-- Treat the Bash implementation as a behavioral reference and fallback.
+- Treat historical Bash code as a behavioral reference, not an available fallback.
 - Follow additional instructions from nested `AGENTS.md` files.
 - Do not run the Bash and C panels simultaneously during visual tests.
 

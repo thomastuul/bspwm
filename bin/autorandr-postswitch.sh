@@ -131,27 +131,36 @@ sync_monitor_geometry() {
     )
 }
 
-case $PROFILE in
-    dock-closed)
-        consolidate_monitor eDP-1 HDMI-1
-        ;;
-    mobile)
-        consolidate_monitor HDMI-1 eDP-1
-        ;;
-    dock-open)
-        normalize_monitor eDP-1
-        normalize_monitor HDMI-1
-        ;;
-esac
+# Desktop consolidation is only meaningful for an explicitly configured pair.
+if [[ -n $BSPWM_INTERNAL_OUTPUT && -n $BSPWM_EXTERNAL_OUTPUT ]]; then
+    case $PROFILE in
+        dock-closed)
+            consolidate_monitor "$BSPWM_INTERNAL_OUTPUT" "$BSPWM_EXTERNAL_OUTPUT"
+            ;;
+        mobile)
+            consolidate_monitor "$BSPWM_EXTERNAL_OUTPUT" "$BSPWM_INTERNAL_OUTPUT"
+            ;;
+        dock-open)
+            normalize_monitor "$BSPWM_INTERNAL_OUTPUT"
+            normalize_monitor "$BSPWM_EXTERNAL_OUTPUT"
+            ;;
+    esac
+fi
 
 sync_monitor_geometry
 
 # The panel normally follows RandR and bspwm events. Restart it through the
 # existing idempotent session launcher only if it exited during the switch.
-if [[ -x $HOME/.local/bin/sliverbar ]] &&
+if bspwm_feature_enabled BSPWM_ENABLE_SLIVERBAR &&
+    [[ -x $HOME/.local/bin/sliverbar ]] &&
     ! pgrep -u "$UID" -x sliverbar >/dev/null; then
     "$BSPWM_CONFIG_DIR/autostart" ||
         log "session launcher failed while restarting Sliverbar"
+fi
+
+# Refresh generated geometry independently of panel liveness.
+if bspwm_feature_enabled BSPWM_ENABLE_CONKY; then
+    "$BSPWM_CONFIG_DIR/bin/conky-refresh.sh" || log "Conky refresh failed"
 fi
 
 log "reconciled profile=${PROFILE:-unknown} monitors=$(bspc query -M --names | paste -sd, -)"
