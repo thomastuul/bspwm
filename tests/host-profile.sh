@@ -101,7 +101,7 @@ done
 # shellcheck disable=SC2016
 env -i HOME="$HOME" PATH="$PATH" BSPWM_CONFIG_DIR="$repository_root" BSPWM_HOST_OVERRIDE=Pegasus4 bash -eu -c '
     source "$BSPWM_CONFIG_DIR/lib/host-profile.sh"
-    [[ $BSPWM_WALLPAPER == "$HOME/Bilder/Wallpaper/Background.jpg" ]]
+    [[ $BSPWM_WALLPAPER == "$HOME/Bilder/Wallpaper/sixtinische-haende-unicode-wallpaper-3840x2160.png" ]]
     [[ -z $BSPWM_INTERNAL_OUTPUT && -z $BSPWM_EXTERNAL_OUTPUT ]]
     [[ $BSPWM_ENABLE_AUTOLOCK == 1 && $BSPWM_ENABLE_SCREEN_LOCK == 1 ]]
 '
