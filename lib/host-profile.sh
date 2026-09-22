@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Load generic bspwm defaults and an optional machine-specific profile.
+# Load defaults and one of the two supported machine profiles.
 # The assignments are consumed by scripts that source this library.
 # shellcheck disable=SC2034
 
@@ -17,6 +17,9 @@ case ${BSPWM_HOST_NAME,,} in
     pegasus4)
         BSPWM_HOST_NAME=Pegasus4
         ;;
+    *)
+        printf 'bspwm: unsupported host %q; using emergency defaults (Ikarus2 or Pegasus4 required)\n' "$BSPWM_HOST_NAME" >&2
+        ;;
 esac
 
 BSPWM_HOST_ROLE=generic
@@ -29,16 +32,20 @@ BSPWM_ENABLE_NEXTCLOUD=1
 BSPWM_ENABLE_SCREEN_LOCK=1
 BSPWM_ENABLE_AUTOLOCK=1
 BSPWM_ENABLE_PICOM=1
+BSPWM_INTERNAL_OUTPUT=""
+BSPWM_EXTERNAL_OUTPUT=""
 SLIVERBAR_CONFIG=""
 
 BSPWM_HOST_DIR="${BSPWM_CONFIG_DIR}/hosts/${BSPWM_HOST_NAME}"
 BSPWM_HOST_PROFILE="${BSPWM_HOST_DIR}/profile.sh"
-if [[ -r $BSPWM_HOST_PROFILE ]]; then
+if [[ $BSPWM_HOST_NAME == Ikarus2 || $BSPWM_HOST_NAME == Pegasus4 ]] &&
+    [[ -r $BSPWM_HOST_PROFILE ]]; then
     # shellcheck source=/dev/null
     source "$BSPWM_HOST_PROFILE"
 fi
 
-if [[ -z $SLIVERBAR_CONFIG && -r $BSPWM_HOST_DIR/sliverbar.conf ]]; then
+if [[ $BSPWM_HOST_NAME == Ikarus2 || $BSPWM_HOST_NAME == Pegasus4 ]] &&
+    [[ -z $SLIVERBAR_CONFIG && -r $BSPWM_HOST_DIR/sliverbar.conf ]]; then
     SLIVERBAR_CONFIG="$BSPWM_HOST_DIR/sliverbar.conf"
 fi
 

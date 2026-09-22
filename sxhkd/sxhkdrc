@@ -147,8 +147,7 @@ ctrl + alt + l
 
 # Hide or show Sliverbar.
 super + b
-    {xdo hide -a sliverbar; bspc config top_padding +0 ,\
-     xdo show -a sliverbar; bspc config top_padding 25 }
+    bash -c 'BSPWM_CONFIG_DIR="$XDG_CONFIG_HOME/bspwm"; [[ -n $XDG_CONFIG_HOME ]] || BSPWM_CONFIG_DIR="$HOME/.config/bspwm"; unset BSPWM_HOST_PROFILE_LOADED; source "$BSPWM_CONFIG_DIR/lib/host-profile.sh" || exit; if [[ $(bspc config top_padding) == 0 ]]; then xdo show -a sliverbar && bspc config top_padding "$BSPWM_TOP_PADDING"; else xdo hide -a sliverbar && bspc config top_padding 0; fi'
 
 # make sxhkd reload its configuration files:
 super + Escape
