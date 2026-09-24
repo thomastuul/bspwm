@@ -149,6 +149,8 @@ fi
 
 sync_monitor_geometry
 
+"$BSPWM_CONFIG_DIR/bin/wallpaper-refresh.sh" || log "wallpaper refresh failed"
+
 # The panel normally follows RandR and bspwm events. Restart it through the
 # existing idempotent session launcher only if it exited during the switch.
 if bspwm_feature_enabled BSPWM_ENABLE_SLIVERBAR &&
