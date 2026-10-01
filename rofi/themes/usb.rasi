@@ -1,0 +1,32 @@
+/**
+ * USB action picker derived from the shared Dracula desktop launcher theme.
+ */
+
+@import "desktop.rasi"
+
+window {
+    width: 800px;
+}
+
+mainbox {
+    children: [ "inputbar", "listview", "message" ];
+}
+
+entry {
+    placeholder: "USB-Aktion oder Laufwerk suchen …";
+}
+
+listview {
+    columns: 1;
+    lines: 6;
+    fixed-columns: true;
+    fixed-height: false;
+}
+
+element-icon {
+    enabled: false;
+}
+
+mode-switcher {
+    enabled: false;
+}
