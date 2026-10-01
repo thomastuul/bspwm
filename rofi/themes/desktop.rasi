@@ -1,0 +1,229 @@
+/**
+ * Dracula launcher theme aligned with the bspwm and Sliverbar desktop.
+ */
+
+@import "../shared/colors.rasi"
+@import "../shared/fonts.rasi"
+
+* {
+    font:                       "JetBrains Mono Nerd Font 12";
+    desktop-background:         #191A21F2;
+    desktop-surface:            var(background-alt);
+    desktop-surface-raised:     #343746FF;
+    desktop-border:             #6272A4FF;
+    desktop-muted:              #BFBFBFFF;
+}
+
+window {
+    enabled:                    true;
+    transparency:               "real";
+    location:                   center;
+    anchor:                     center;
+    fullscreen:                 false;
+    width:                      1040px;
+    margin:                     0px;
+    padding:                    0px;
+    border:                     2px solid;
+    border-radius:              10px;
+    border-color:               var(desktop-border);
+    background-color:           var(desktop-background);
+    cursor:                     "default";
+}
+
+mainbox {
+    enabled:                    true;
+    spacing:                    12px;
+    margin:                     0px;
+    padding:                    16px;
+    border:                     0px;
+    background-color:           transparent;
+    children:                   [ "inputbar", "listview", "mode-switcher", "message" ];
+}
+
+inputbar {
+    enabled:                    true;
+    spacing:                    10px;
+    margin:                     0px;
+    padding:                    8px;
+    border:                     0px;
+    border-radius:              8px;
+    background-color:           var(desktop-surface);
+    text-color:                 var(foreground);
+    children:                   [ "prompt", "textbox-prompt-colon", "entry", "num-filtered-rows", "textbox-num-sep", "num-rows" ];
+}
+
+prompt {
+    enabled:                    true;
+    padding:                    7px 12px;
+    border-radius:              6px;
+    background-color:           var(selected);
+    text-color:                 var(background);
+}
+
+textbox-prompt-colon {
+    enabled:                    true;
+    expand:                     false;
+    padding:                    7px 0px 7px 4px;
+    str:                        "";
+    background-color:           transparent;
+    text-color:                 var(selected);
+}
+
+entry {
+    enabled:                    true;
+    expand:                     true;
+    padding:                    7px 0px;
+    background-color:           transparent;
+    text-color:                 var(foreground);
+    cursor:                     text;
+    placeholder:                "Anwendung suchen …";
+    placeholder-color:          var(desktop-muted);
+}
+
+num-filtered-rows,
+textbox-num-sep,
+num-rows {
+    enabled:                    true;
+    expand:                     false;
+    padding:                    7px 0px;
+    background-color:           transparent;
+    text-color:                 var(desktop-muted);
+}
+
+textbox-num-sep {
+    str:                        "/";
+}
+
+listview {
+    enabled:                    true;
+    columns:                    2;
+    lines:                      7;
+    cycle:                      true;
+    dynamic:                    true;
+    scrollbar:                  false;
+    layout:                     vertical;
+    reverse:                    false;
+    fixed-height:               true;
+    fixed-columns:              true;
+    spacing:                    6px;
+    margin:                     0px;
+    padding:                    0px;
+    border:                     0px;
+    background-color:           transparent;
+    text-color:                 var(foreground);
+    cursor:                     "default";
+}
+
+element {
+    enabled:                    true;
+    spacing:                    12px;
+    margin:                     0px;
+    padding:                    10px 12px;
+    border:                     0px 0px 0px 3px;
+    border-radius:              7px;
+    border-color:               transparent;
+    background-color:           transparent;
+    text-color:                 var(foreground);
+    cursor:                     pointer;
+}
+
+element normal.normal,
+element alternate.normal {
+    background-color:           transparent;
+    text-color:                 var(foreground);
+}
+
+element normal.urgent,
+element alternate.urgent {
+    background-color:           transparent;
+    text-color:                 var(urgent);
+}
+
+element normal.active,
+element alternate.active {
+    background-color:           transparent;
+    text-color:                 var(active);
+}
+
+element selected.normal,
+element selected.urgent,
+element selected.active {
+    border-color:               var(selected);
+    background-color:           var(desktop-surface-raised);
+    text-color:                 var(foreground);
+}
+
+element-icon {
+    background-color:           transparent;
+    text-color:                 inherit;
+    size:                       34px;
+    cursor:                     inherit;
+}
+
+element-text {
+    background-color:           transparent;
+    text-color:                 inherit;
+    highlight:                  var(selected);
+    cursor:                     inherit;
+    vertical-align:             0.5;
+    horizontal-align:           0.0;
+}
+
+mode-switcher {
+    enabled:                    true;
+    expand:                     false;
+    orientation:                horizontal;
+    spacing:                    6px;
+    margin:                     0px;
+    padding:                    6px;
+    border:                     0px;
+    border-radius:              8px;
+    background-color:           var(desktop-surface);
+    text-color:                 var(desktop-muted);
+}
+
+button {
+    padding:                    7px 14px;
+    border:                     0px 0px 2px 0px;
+    border-radius:              5px;
+    border-color:               transparent;
+    background-color:           transparent;
+    text-color:                 inherit;
+    cursor:                     pointer;
+}
+
+button selected {
+    border-color:               var(selected);
+    background-color:           var(desktop-surface-raised);
+    text-color:                 var(selected);
+}
+
+message {
+    enabled:                    true;
+    margin:                     0px;
+    padding:                    0px;
+    border:                     0px;
+    background-color:           transparent;
+    text-color:                 var(foreground);
+}
+
+textbox {
+    padding:                    10px 12px;
+    border:                     0px;
+    border-radius:              8px;
+    background-color:           var(desktop-surface);
+    text-color:                 var(foreground);
+    vertical-align:             0.5;
+    horizontal-align:           0.0;
+    highlight:                  var(selected);
+    placeholder-color:          var(desktop-muted);
+}
+
+error-message {
+    padding:                    12px;
+    border:                     2px solid;
+    border-radius:              8px;
+    border-color:               var(urgent);
+    background-color:           var(desktop-background);
+    text-color:                 var(foreground);
+}

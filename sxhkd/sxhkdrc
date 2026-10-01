@@ -176,7 +176,7 @@ super + ctrl + c
 
 # rofi-translate (using translate-shell)
 super + ctrl + t
-    "/home/thomas/.local/share/rofi/rofi-translate/rofi_trans"
+    "$HOME/.config/bspwm/bin/rofi-translate.sh"
 
 super + alt + b
     ~/.config/bspwm/bin/app-launcher.sh browser
