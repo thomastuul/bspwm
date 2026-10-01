@@ -1,0 +1,29 @@
+/**
+ * Translation dialogs derived from the shared Dracula desktop theme.
+ */
+
+@import "desktop.rasi"
+
+window {
+    width: 1040px;
+}
+
+mainbox {
+    children: [ "inputbar", "listview", "message" ];
+}
+
+entry {
+    placeholder: "Text eingeben oder Verlauf durchsuchen …";
+}
+
+listview {
+    columns: 1;
+    lines: 10;
+    fixed-columns: true;
+    fixed-height: false;
+}
+
+element-icon,
+mode-switcher {
+    enabled: false;
+}
