@@ -160,19 +160,19 @@ super + ctrl + p
 
 # choose monitor
 super + ctrl + m
-    "$HOME/.local/share/rofi/rofi-monitor-layout.sh"
+    "$HOME/.config/bspwm/bin/rofi-monitor-layout.sh"
 
 # usb mount
 super + ctrl + u
-    "$HOME/.local/share/rofi/rofi-usb-mount.sh"
+    "$HOME/.config/bspwm/bin/rofi-usb.sh"
 
 # show cheatsheets
 super + ctrl + s
-    "$HOME/.local/share/rofi/cht/rofi_scripts/cht.sh"
+    "$HOME/.config/bspwm/bin/rofi-cheatsheets.sh"
 
 # show/copy clipboard
 super + ctrl + c
-    rofi -modi "clipboard:~/.local/share/greenclip/greenclip print" -show clipboard -run-command '{cmd}'
+    "$HOME/.config/bspwm/bin/rofi-clipboard.sh"
 
 # rofi-translate (using translate-shell)
 super + ctrl + t
