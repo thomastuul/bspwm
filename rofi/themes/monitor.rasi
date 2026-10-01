@@ -1,0 +1,29 @@
+/**
+ * Monitor layout picker derived from the shared Dracula desktop theme.
+ */
+
+@import "desktop.rasi"
+
+window {
+    width: 900px;
+}
+
+mainbox {
+    children: [ "inputbar", "listview", "message" ];
+}
+
+entry {
+    placeholder: "Monitoranordnung suchen …";
+}
+
+listview {
+    columns: 1;
+    lines: 8;
+    fixed-columns: true;
+    fixed-height: false;
+}
+
+element-icon,
+mode-switcher {
+    enabled: false;
+}

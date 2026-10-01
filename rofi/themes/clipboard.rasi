@@ -1,0 +1,25 @@
+/**
+ * Clipboard picker derived from the shared Dracula desktop theme.
+ */
+
+@import "desktop.rasi"
+
+mainbox {
+    children: [ "inputbar", "listview", "message" ];
+}
+
+entry {
+    placeholder: "Zwischenablage durchsuchen …";
+}
+
+listview {
+    columns: 1;
+    lines: 12;
+    fixed-columns: true;
+    fixed-height: true;
+}
+
+element-icon,
+mode-switcher {
+    enabled: false;
+}
