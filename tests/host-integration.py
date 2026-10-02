@@ -27,7 +27,7 @@ with tempfile.TemporaryDirectory(prefix="bspwm-integration-") as temporary:
     config = tmp / "config"
     repo = config / "bspwm"
     repo.mkdir(parents=True)
-    for directory in ("lib", "hosts", "bin"):
+    for directory in ("lib", "hosts", "bin", "conky"):
         shutil.copytree(ROOT / directory, repo / directory)
     runtime = tmp / "runtime"
     runtime.mkdir(mode=0o700)
@@ -154,11 +154,21 @@ CONFIG
         run(str(helper), env=env)
         assert "xinerama_head = 1" in conky_config.read_text()
         assert "1920x1080+3840+200" in conky_config.read_text()
+        assert "compact-config.lua')(1920," in conky_config.read_text()
         previous = conky_config.read_bytes()
         executable("xrandr", "printf '%s\\n' 'eDP-1 connected primary 1920x1080-1920+0'\n")
         assert subprocess.run([str(helper)], env=env, capture_output=True).returncode != 0
         assert conky_config.read_bytes() == previous
         print("Conky topology fixtures: primary selection, nonzero offsets and unsupported geometry passed")
+        executable("xrandr", "printf '%s\\n' 'eDP-1 connected 1920x1080+0+0' 'HDMI-1 connected primary 3840x1600+1920+0'\n")
+        executable("xdpyinfo", "printf '%s\\n' '  head #0: 1920x1080 @ 0,0' '  head #1: 3840x1600 @ 1920,0'\n")
+        run(str(helper), env=env)
+        assert "compact-config.lua" not in conky_config.read_text()
+        executable("xrandr", "printf '%s\\n' 'eDP-1 connected primary 1920x1080+0+0'\n")
+        executable("xdpyinfo", "printf '%s\\n' '  head #0: 1920x1080 @ 0,0'\n")
+        run(str(helper), env=env)
+        assert "compact-config.lua')(1920," in conky_config.read_text()
+        print("Conky layouts: compact laptop, unchanged tall primary, and return to laptop passed")
     finally:
         for pid in managed_pids():
             try:

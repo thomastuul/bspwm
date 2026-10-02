@@ -51,6 +51,17 @@ head=$(xdpyinfo -ext XINERAMA | awk -v wanted="$before" '
 [[ $head =~ ^[0-9]+$ ]] || { printf 'conky: target Xinerama head unavailable\n' >&2; exit 1; }
 CONKY_GENERATE_ONLY=1 XDG_RUNTIME_DIR="$staging" "$launcher" >/dev/null
 [[ -s $staging/conky-$UID.conf ]] || { printf 'conky: generator produced no configuration\n' >&2; exit 1; }
+# Keep the external dashboard on tall displays; select the compact Lua layout
+# through the same primary-monitor geometry used by the existing refresh path.
+screen_width=${before%%x*}
+screen_height=${before#*x}
+screen_height=${screen_height%%+*}
+if ((screen_height <= 1080)); then
+    lua_directory=${BSPWM_CONFIG_DIR//\\/\\\\}
+    lua_directory=${lua_directory//\'/\\\'}
+    printf "\ndofile('%s/conky/compact-config.lua')(%s, '%s/conky/compact.lua')\n" \
+        "$lua_directory" "$screen_width" "$lua_directory" >>"$staging/conky-$UID.conf"
+fi
 printf '\n-- bspwm target rectangle: %s\nconky.config.xinerama_head = %s\n' "$before" "$head" >>"$staging/conky-$UID.conf"
 [[ $(geometry) == "$before" ]] || { printf 'conky: topology changed during generation; next hook will retry\n' >&2; exit 1; }
 
