@@ -158,6 +158,10 @@ super + Escape
 super + ctrl + p
     rofi -show drun -config "$HOME/.config/bspwm/rofi/config.rasi"
 
+# show window switcher
+super + ctrl + f
+    rofi -show window -config "$HOME/.config/bspwm/rofi/config.rasi"
+
 # choose monitor
 super + ctrl + m
     "$HOME/.config/bspwm/bin/rofi-monitor-layout.sh"
