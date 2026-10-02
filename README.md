@@ -258,9 +258,34 @@ A lock serializes generation and reload. Generation happens in a temporary
 directory, followed by atomic publication. Only current-user Conky processes
 with the exact managed `--config=.../conky-$UID.conf` argument receive `SIGUSR1`.
 Other Conky instances are untouched. If none exists, the helper starts one.
-Unchanged configuration and a running instance require no reload. Do not run the
-external launcher directly in parallel: its legacy `pkill -x conky` is still
-outside this integration's ownership.
+Unchanged configuration and a running instance require no reload. The inspected
+launcher delegates direct starts to this helper; other host launchers must not
+start or stop Conky independently in parallel.
+
+For primary displays up to 1080 pixels high, the helper applies
+`conky/compact-config.lua` after generation. Compatible `dashboard` hooks use
+`conky/compact.lua`, with CPU/RAM/root ring gauges, per-thread load bars, network
+rates, two processes per resource and a rightmost shortcut column. Sensor, battery
+and network detection still come from the external generator. Unknown hooks are
+left unchanged. Taller displays keep the original generated layout.
+
+At 1920×1080 the compact window targets 132 physical pixels (133 measured on the
+laptop after DPI rounding, versus the former 306), with the existing 16-pixel
+bottom margin. At widths below 1600/1000
+pixels, the six metric sections wrap to three/two columns (264/396 pixels high),
+with a separate shortcut column on the right.
+Geometry retains the generator's Xft DPI compensation. The cutoff is in
+`bin/conky-refresh.sh`; row heights are in `compact-config.lua` and
+the renderer. To revert, remove the compact-layout conditional in the helper
+and run `bin/conky-refresh.sh`. The original external template and Lua renderer
+are not modified. No additional service or watcher is installed.
+
+The implementation uses the documented Lua draw hook and Cairo bindings; see
+the [Debian Conky manual](https://manpages.debian.org/trixie/conky-all/conky.1.en.html)
+and [Ubuntu Conky manual](https://manpages.ubuntu.com/manpages/noble/man1/conky.1.html).
+The existing explicit `cairo_xlib` import is retained for the split binding
+reported in [Debian #1070100](https://bugs.debian.org/1070100); no new workaround
+or package modification is needed.
 
 The primary active output is the target, otherwise the first active output.
 The matching Xinerama rectangle selects the head, including monitor offsets;
