@@ -9,6 +9,9 @@ BSPWM_CONFIG_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/bspwm"
 ROFI_THEME="$BSPWM_CONFIG_DIR/rofi/themes/translate.rasi"
 TRANSLATION_HISTORY=${ROFI_TRANSLATE_HISTORY:-"$HOME/.rofi_trans"}
 TARGET_LANGUAGE=${ROFI_TRANSLATE_TARGET:-de}
+SOURCE_LANGUAGE=auto
+AUTOMATIC_DIRECTION=true
+[[ -z ${ROFI_TRANSLATE_TARGET:-} ]] || AUTOMATIC_DIRECTION=false
 PRIMARY_ENGINE=${ROFI_TRANSLATE_PRIMARY_ENGINE:-google}
 SECONDARY_ENGINE=${ROFI_TRANSLATE_SECONDARY_ENGINE:-bing}
 VERBOSE_ENTRY="Ausführlich übersetzen …"
@@ -47,10 +50,51 @@ choose_text() {
 }
 
 choose_request() {
+    local prompt="DE ↔ EN"
+    [[ $AUTOMATIC_DIRECTION == true ]] || prompt="Text nach $TARGET_LANGUAGE übersetzen"
     {
         printf '%s\n' "$VERBOSE_ENTRY" "$CLEAR_HISTORY_ENTRY"
         history_entries
-    } | run_rofi "Text nach $TARGET_LANGUAGE übersetzen"
+    } | run_rofi "$prompt"
+}
+
+resolve_direction() {
+    local text=$1
+    local allow_manual=${2:-true}
+    local engine identification language choice
+    [[ $AUTOMATIC_DIRECTION == true ]] || return 0
+
+    for engine in "$PRIMARY_ENGINE" "$SECONDARY_ENGINE"; do
+        if identification=$(timeout 15 trans --no-init --identify --engine "$engine" \
+            --no-ansi -- "$text" 2>/dev/null); then
+            language=$(awk '$1 == "Code" { print $2; exit }' <<<"$identification")
+            case $language in
+            de) SOURCE_LANGUAGE=de; TARGET_LANGUAGE=en; return 0 ;;
+            en) SOURCE_LANGUAGE=en; TARGET_LANGUAGE=de; return 0 ;;
+            esac
+        fi
+    done
+
+    if [[ $allow_manual == false ]]; then
+        notify_error "Die Sprache konnte nicht als Deutsch oder Englisch erkannt werden."
+        return 1
+    fi
+    choice=$(printf '%s\n' "Deutsch → Englisch" "Englisch → Deutsch" | \
+        run_rofi "Richtung wählen" -no-custom \
+            -mesg "Sprache nicht eindeutig erkannt. Bitte Übersetzungsrichtung wählen.") || return 1
+    case $choice in
+    "Deutsch → Englisch") SOURCE_LANGUAGE=de; TARGET_LANGUAGE=en ;;
+    "Englisch → Deutsch") SOURCE_LANGUAGE=en; TARGET_LANGUAGE=de ;;
+    *) return 1 ;;
+    esac
+}
+
+direction_label() {
+    case "$SOURCE_LANGUAGE:$TARGET_LANGUAGE" in
+    de:en) printf 'DE → EN\n' ;;
+    en:de) printf 'EN → DE\n' ;;
+    *) printf 'Übersetzung nach %s\n' "$TARGET_LANGUAGE" ;;
+    esac
 }
 
 translation_command() {
@@ -58,6 +102,7 @@ translation_command() {
     local engine=$2
     local text=$3
     local -a command=(trans --target="$TARGET_LANGUAGE" --engine "$engine" --no-ansi)
+    [[ $AUTOMATIC_DIRECTION == false ]] || command+=(--no-init --source="$SOURCE_LANGUAGE")
     [[ $mode == brief ]] && command+=(--brief)
     command+=(-- "$text")
     printf '%q ' "${command[@]}"
@@ -72,6 +117,7 @@ translate_text() {
 
     for engine in "$PRIMARY_ENGINE" "$SECONDARY_ENGINE"; do
         command=(trans --target="$TARGET_LANGUAGE" --engine "$engine" --no-ansi)
+        [[ $AUTOMATIC_DIRECTION == false ]] || command+=(--no-init --source="$SOURCE_LANGUAGE")
         [[ $mode == brief ]] && command+=(--brief)
         command+=(-- "$text")
         if result=$("${command[@]}" 2>/dev/null) && [[ -n $result ]]; then
@@ -110,7 +156,7 @@ copy_result() {
 
 speak_text() {
     local text=$1
-    setsid -f trans --target="$TARGET_LANGUAGE" --speak -- "$text" \
+    setsid -f trans --source="$SOURCE_LANGUAGE" --target="$TARGET_LANGUAGE" --speak -- "$text" \
         >/dev/null 2>&1
 }
 
@@ -121,8 +167,10 @@ show_result() {
     local action
     while true; do
         action="$(
-            printf '%s\n' "Kopieren" "Vorlesen" "Schließen" | \
-                run_rofi "Übersetzung" -mesg "$result" \
+            {
+                printf '%s\n' "Kopieren" "Vorlesen" "Schließen"
+                [[ $AUTOMATIC_DIRECTION == false ]] || printf '%s\n' "Richtung wechseln"
+            } | run_rofi "$(direction_label)" -mesg "$result" \
                     -theme-str 'entry { placeholder: "Weiteren Text eingeben und Enter drücken …"; }'
         )" || return 0
 
@@ -130,8 +178,18 @@ show_result() {
         "Kopieren") copy_result "$result"; return ;;
         "Vorlesen") speak_text "$text"; return ;;
         "Schließen" | "") return 0 ;;
+        "Richtung wechseln")
+            if [[ $AUTOMATIC_DIRECTION == true ]]; then
+                action=$SOURCE_LANGUAGE
+                SOURCE_LANGUAGE=$TARGET_LANGUAGE
+                TARGET_LANGUAGE=$action
+                result=$(translate_text "$mode" "$text") || return 1
+                update_history "$text" "$result"
+            fi
+            ;;
         *)
             text=$action
+            resolve_direction "$text" || return 0
             result=$(translate_text "$mode" "$text") || return 1
             update_history "$text" "$result"
             ;;
@@ -160,7 +218,7 @@ interactive() {
     case $request in
     "$VERBOSE_ENTRY")
         mode=verbose
-        text=$(choose_text "Text ausführlich nach $TARGET_LANGUAGE übersetzen") || \
+        text=$(choose_text "Text ausführlich übersetzen") || \
             return 0
         ;;
     "$CLEAR_HISTORY_ENTRY")
@@ -174,6 +232,7 @@ interactive() {
     esac
 
     [[ -n $text ]] || return 0
+    resolve_direction "$text" || return 0
     result=$(translate_text "$mode" "$text") || return 1
     update_history "$text" "$result"
     show_result "$text" "$result" "$mode"
@@ -190,6 +249,7 @@ main() {
             printf 'Usage: %s --dry-run brief|verbose TEXT\n' "${0##*/}" >&2
             return 2
         }
+        resolve_direction "$3" false || return 1
         translation_command "$2" "$PRIMARY_ENGINE" "$3"
         return 0
     fi
