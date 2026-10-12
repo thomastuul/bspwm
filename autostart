@@ -138,7 +138,11 @@ start_if_executable "$POLKIT_AGENT"
 
 # Sliverbar owns its own lock file; an already running panel exits with LOCKBUSY.
 if bspwm_feature_enabled BSPWM_ENABLE_SLIVERBAR; then
-    start_if_executable "$SLIVERBAR_START" "${SLIVERBAR_ARGS[@]}"
+    if [[ $BSPWM_HOST_NAME == Pegasus4 ]]; then
+        "$BSPWM_CONFIG_DIR/bin/sliverbar-refresh.sh" 9>&- || log "Sliverbar refresh failed"
+    else
+        start_if_executable "$SLIVERBAR_START" "${SLIVERBAR_ARGS[@]}"
+    fi
 fi
 
 if bspwm_feature_enabled BSPWM_ENABLE_BLUEMAN; then

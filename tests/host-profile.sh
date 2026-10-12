@@ -14,6 +14,7 @@ load_profile() {
         PATH="$PATH" \
         BSPWM_CONFIG_DIR="$repository_root" \
         BSPWM_HOST_OVERRIDE="$1" \
+        AUTORANDR_CURRENT_PROFILE=lg-hdr-wqhd \
         bash -c '
             source "$BSPWM_CONFIG_DIR/lib/host-profile.sh"
             printf "%s|%s|%s|%s\n" \
@@ -24,7 +25,7 @@ load_profile() {
 
 [[ $(load_profile ikarus2) == "Ikarus2|laptop|25|1" ]]
 [[ $(load_profile Ikarus2) == "Ikarus2|laptop|25|1" ]]
-[[ $(load_profile PEGASUS4) == "Pegasus4|desktop|25|1" ]]
+[[ $(load_profile PEGASUS4) == "Pegasus4|desktop|30|1" ]]
 [[ $(load_profile unknown-host) == "unknown-host|generic|25|1" ]]
 
 BSPWM_CONFIG_DIR="$repository_root"
@@ -89,7 +90,7 @@ env -i HOME="$HOME" PATH="$PATH" BSPWM_CONFIG_DIR="$fixture" BSPWM_HOST_OVERRIDE
     source "$BSPWM_CONFIG_DIR/lib/host-profile.sh"
     [[ -z $SLIVERBAR_CONFIG ]]
 '
-[[ $(load_profile PeGaSuS4) == "Pegasus4|desktop|25|1" ]]
+[[ $(load_profile PeGaSuS4) == "Pegasus4|desktop|30|1" ]]
 [[ $(load_profile IKARUS2) == "Ikarus2|laptop|25|1" ]]
 for invalid in Ikarus ikarus ../Ikarus2; do
     load_profile "$invalid" 2>"$fixture/diagnostic" >/dev/null

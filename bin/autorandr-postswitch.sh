@@ -151,6 +151,11 @@ sync_monitor_geometry
 
 "$BSPWM_CONFIG_DIR/bin/wallpaper-refresh.sh" || log "wallpaper refresh failed"
 
+# Pegasus4 also changes panel height and fonts, which require a config reload.
+if [[ $BSPWM_HOST_NAME == Pegasus4 ]]; then
+    AUTORANDR_CURRENT_PROFILE="$PROFILE" "$BSPWM_CONFIG_DIR/bin/sliverbar-refresh.sh"
+fi
+
 # The panel normally follows RandR and bspwm events. Restart it through the
 # existing idempotent session launcher only if it exited during the switch.
 if bspwm_feature_enabled BSPWM_ENABLE_SLIVERBAR &&
