@@ -32,7 +32,7 @@ run_viewer() {
 }
 
 markdown_command=$(run_viewer guide.md)
-[[ $markdown_command == /bin/echo\ -e\ /bin/true\ *guide.md* ]]
+[[ $markdown_command == /bin/echo\ -e\ env\ PAGER=less\\\ -RS\ /bin/true\ -p\ -w\ 0\ *guide.md* ]]
 
 text_command=$(run_viewer notes.txt)
 [[ $text_command == /bin/echo\ -e\ /bin/true\ *notes.txt* ]]

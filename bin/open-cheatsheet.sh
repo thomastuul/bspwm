@@ -94,7 +94,8 @@ main() {
     md)
         require_command "$terminal"
         require_command "$md_viewer"
-        command=("$terminal" -e "$md_viewer" "$target")
+        require_command less
+        command=("$terminal" -e env PAGER="less -RS" "$md_viewer" -p -w 0 "$target")
         ;;
     txt)
         require_command "$terminal"
