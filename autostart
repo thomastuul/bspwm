@@ -164,14 +164,14 @@ if bspwm_feature_enabled BSPWM_ENABLE_NEXTCLOUD; then
 fi
 
 xset +dpms || true
-xset s 300 10 || true
-xset dpms 400 600 900 || true
+xset s 600 15 || true
+xset dpms 1200 1500 2400 || true
 
 if bspwm_feature_enabled BSPWM_ENABLE_SCREEN_LOCK &&
     command -v xss-lock >/dev/null 2>&1 &&
     command -v xsecurelock >/dev/null 2>&1 &&
     [[ -x $XSECURELOCK_DIMMER ]]; then
-    XSECURELOCK_DIM_TIME_MS="${XSECURELOCK_DIM_TIME_MS:-10000}" \
+    XSECURELOCK_DIM_TIME_MS="${XSECURELOCK_DIM_TIME_MS:-15000}" \
         start_once xss-lock -n "$XSECURELOCK_DIMMER" \
         --transfer-sleep-lock -- xsecurelock || true
 else
@@ -179,7 +179,7 @@ else
 fi
 
 if bspwm_feature_enabled BSPWM_ENABLE_AUTOLOCK; then
-    start_if_available xautolock -time 30 -detectsleep \
+    start_if_available xautolock -time 60 -detectsleep \
         -locker 'systemctl suspend-then-hibernate'
 fi
 start_if_executable "$HOME/.config/bspwm/bin/float-resize-bspwm.sh"

@@ -5,9 +5,9 @@ the Sliverbar panel:
 
 - **Sliverbar** (`sliverbar/`) is the current native C17 panel and the default
   panel started by `autostart`.
-Lemonbar was deliberately removed in commit `0cd26fe` (#126). It is a
-historical implementation, not an installed fallback. Its source remains in
-Git history; do not use its old launch commands with this checkout.
+  Lemonbar was deliberately removed in commit `0cd26fe` (#126). It is a
+  historical implementation, not an installed fallback. Its source remains in
+  Git history; do not use its old launch commands with this checkout.
 
 The configuration is intended for a Linux desktop with X11. It is personal
 configuration rather than a distribution-neutral installer; review paths,
@@ -99,8 +99,9 @@ On Ikarus2, the explicitly configured `BSPWM_INTERNAL_OUTPUT=eDP-1` and
 `BSPWM_EXTERNAL_OUTPUT=HDMI-1` enable the `mobile`/dock desktop reconciliation.
 Pegasus4 has no output pair and skips that consolidation. Both retain the
 previous `remove_disabled_monitors=true` and `remove_unplugged_monitors=false`
-settings. These do not promise retention of every disabled output. The hook merges duplicate
-workspace names, transfers every window to the remaining active monitor,
+settings. These do not promise retention of every disabled output. The hook
+merges duplicate workspace names, transfers every window to the remaining
+active monitor,
 removes the inactive bspwm monitor, and synchronizes its rectangle with
 RandR. The `xwallpaper` daemon started by `autostart` listens for these RandR
 changes and redraws the complete wallpaper without cropping. The hook also
@@ -215,12 +216,14 @@ old Lemonbar integration is obsolete; use `bin/start_recording.sh` and
 
 Autostart overrides include:
 
-| Variable | Default |
-|---|---|
-| `WALLPAPER` | Selected host's `BSPWM_WALLPAPER` |
-| `CONKY_START` | `$XDG_CONFIG_HOME/conky/start-conky.sh` (default config home: `$HOME/.config`) |
-| `XSECURELOCK_DIMMER` | `/usr/libexec/xsecurelock/dimmer` |
-| `AUTOSTART_LOG` | `$XDG_STATE_HOME/bspwm/autostart.log` |
+| Variable             | Default                                 |
+| -------------------- | --------------------------------------- |
+| `WALLPAPER`          | Selected host's `BSPWM_WALLPAPER`       |
+| `CONKY_START`        | `$XDG_CONFIG_HOME/conky/start-conky.sh` |
+| `XSECURELOCK_DIMMER` | `/usr/libexec/xsecurelock/dimmer`       |
+| `AUTOSTART_LOG`      | `$XDG_STATE_HOME/bspwm/autostart.log`   |
+
+The default config home for `CONKY_START` is `$HOME/.config`.
 
 Optional programs are skipped and logged when unavailable. A service that
 exits immediately is treated as a failed start and does not receive a
@@ -235,11 +238,25 @@ refreshed through the same serialized path as the autorandr hook.
 
 Both hosts keep their existing behavior; the desktop role does not disable sleep.
 
-| Mechanism | Control | Timing / action |
-|---|---|---|
-| Screen lock | `BSPWM_ENABLE_SCREEN_LOCK` | `xss-lock -n /usr/libexec/xsecurelock/dimmer --transfer-sleep-lock -- xsecurelock`; saver at 300 seconds, cycle 10 seconds, dimmer defaults to 10000 ms |
-| Display power | Unconditional `xset +dpms` | `xset dpms 400 600 900`: standby, suspend, off in seconds |
-| Automatic system sleep | `BSPWM_ENABLE_AUTOLOCK` (legacy name retained) | `xautolock -time 30 -detectsleep -locker 'systemctl suspend-then-hibernate'` |
+- Screen lock: controlled by `BSPWM_ENABLE_SCREEN_LOCK`. The saver starts after
+  600 seconds, followed by a 15-second cycle before locking. The dimmer defaults
+  to 15000 ms. The default command is:
+
+  ```bash
+  xss-lock -n /usr/libexec/xsecurelock/dimmer \
+    --transfer-sleep-lock -- xsecurelock
+  ```
+
+- Display power: `xset +dpms` is unconditional. Standby, suspend and off are set
+  to 1200, 1500 and 2400 seconds respectively with `xset dpms 1200 1500 2400`.
+- Automatic system sleep: controlled by `BSPWM_ENABLE_AUTOLOCK` (legacy name
+  retained). After 60 minutes of inactivity, the command requests
+  suspend-then-hibernate:
+
+  ```bash
+  xautolock -time 60 -detectsleep \
+    -locker 'systemctl suspend-then-hibernate'
+  ```
 
 Disabling the locking or AUTOLOCK switch does not disable DPMS. The sleep command
 requests a system action; its success depends on logind, sleep configuration and
@@ -314,7 +331,6 @@ Inspect runtime state:
 ```bash
 ls -la "$XDG_RUNTIME_DIR/bspwm" "$XDG_RUNTIME_DIR/lemonbar" "$XDG_RUNTIME_DIR/sliverbar"
 ```
-
 
 ## Known limitations
 
