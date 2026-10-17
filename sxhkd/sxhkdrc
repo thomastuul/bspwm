@@ -145,6 +145,10 @@ ctrl + alt + l
 # anything else
 #
 
+# Toggle Sliverbar workspace icons and numeric glyphs.
+super + ctrl + n
+    "$HOME/.local/bin/sliverbar" --action workspace toggle-icons
+
 # Hide or show Sliverbar.
 super + b
     bash -c 'BSPWM_CONFIG_DIR="$XDG_CONFIG_HOME/bspwm"; [[ -n $XDG_CONFIG_HOME ]] || BSPWM_CONFIG_DIR="$HOME/.config/bspwm"; unset BSPWM_HOST_PROFILE_LOADED; source "$BSPWM_CONFIG_DIR/lib/host-profile.sh" || exit; if [[ $(bspc config top_padding) == 0 ]]; then xdo show -a sliverbar && bspc config top_padding "$BSPWM_TOP_PADDING"; else xdo hide -a sliverbar && bspc config top_padding 0; fi'
