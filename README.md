@@ -238,25 +238,38 @@ refreshed through the same serialized path as the autorandr hook.
 
 Both hosts keep their existing behavior; the desktop role does not disable sleep.
 
-- Screen lock: controlled by `BSPWM_ENABLE_SCREEN_LOCK`. The saver starts after
-  600 seconds, followed by a 15-second cycle before locking. The dimmer defaults
-  to 15000 ms. The default command is:
+Idle timings are loaded from `lib/host-profile.sh`, then overridden by the
+selected host profile. Ikarus2 explicitly preserves its original timings;
+Pegasus4 and unknown hosts inherit the general defaults.
 
-  ```bash
-  xss-lock -n /usr/libexec/xsecurelock/dimmer \
-    --transfer-sleep-lock -- xsecurelock
-  ```
+| Profile variable | Unit | General default | Ikarus2 |
+| --- | --- | ---: | ---: |
+| `BSPWM_SAVER_TIMEOUT_SEC` | seconds | 600 | 300 |
+| `BSPWM_SAVER_CYCLE_SEC` | seconds | 15 | 10 |
+| `BSPWM_DIM_TIME_MS` | milliseconds | 15000 | 10000 |
+| `BSPWM_DPMS_STANDBY_SEC` | seconds | 1200 | 400 |
+| `BSPWM_DPMS_SUSPEND_SEC` | seconds | 1500 | 600 |
+| `BSPWM_DPMS_OFF_SEC` | seconds | 2400 | 900 |
+| `BSPWM_AUTO_SLEEP_MIN` | minutes | 60 | 30 |
 
-- Display power: `xset +dpms` is unconditional. Standby, suspend and off are set
-  to 1200, 1500 and 2400 seconds respectively with `xset dpms 1200 1500 2400`.
-- Automatic system sleep: controlled by `BSPWM_ENABLE_AUTOLOCK` (legacy name
-  retained). After 60 minutes of inactivity, the command requests
-  suspend-then-hibernate:
+- Screen lock is controlled by `BSPWM_ENABLE_SCREEN_LOCK`. `xset s` sets the
+  timeout and cycle; `xss-lock` starts the dimmer at the timeout and the locker
+  after the first cycle. The command remains
+  `xss-lock -n /usr/libexec/xsecurelock/dimmer --transfer-sleep-lock -- xsecurelock`.
+  An explicitly set, nonempty `XSECURELOCK_DIM_TIME_MS` environment variable
+  takes precedence over the profile's `BSPWM_DIM_TIME_MS`.
+- Display power uses unconditional `xset +dpms` and the three profile timings
+  passed to `xset dpms` for standby, suspend and off.
+- Automatic system sleep is controlled by `BSPWM_ENABLE_AUTOLOCK` (legacy
+  name retained). `xautolock -time` uses the profile's idle minutes and requests
+  `systemctl suspend-then-hibernate`, retaining `-detectsleep`.
 
-  ```bash
-  xautolock -time 60 -detectsleep \
-    -locker 'systemctl suspend-then-hibernate'
-  ```
+To adjust a machine, set the variables in `hosts/<host>/profile.sh`; removing
+its assignments restores the general defaults. Reverting the timing change
+requires restoring the defaults, Ikarus2 overrides and their `autostart`
+consumers together. Apply changes at the next login so existing `xss-lock`
+and `xautolock` processes receive the selected settings. Running `autostart`
+again updates `xset` but does not reliably reconfigure existing processes.
 
 Disabling the locking or AUTOLOCK switch does not disable DPMS. The sleep command
 requests a system action; its success depends on logind, sleep configuration and
