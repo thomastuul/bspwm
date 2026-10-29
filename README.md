@@ -209,10 +209,56 @@ ${XDG_STATE_HOME:-$HOME/.local/state}/bspwm/autostart.log
 ```
 
 Sliverbar stores its state and weather caches according to its configuration;
-see [sliverbar/README.md](sliverbar/README.md). The legacy Lemonbar runtime
-directory is still created for compatibility with `bin/screencast.sh`, whose
-old Lemonbar integration is obsolete; use `bin/start_recording.sh` and
-`bin/stop_recording.sh` through the configured shortcuts instead.
+see [sliverbar/README.md](sliverbar/README.md). Autostart still creates the legacy
+Lemonbar runtime directory, but the current screencast script no longer uses
+Lemonbar or its configuration.
+
+### Screen recording
+
+`Super+Alt+S` calls `bin/screencast.sh`. The first invocation starts a recording;
+the next stops it, even if the microphone has since been disconnected. From a
+terminal, use:
+
+```bash
+~/.config/bspwm/bin/screencast.sh
+```
+
+The script records the complete X11 screen to `~/Videos/screencast-*.mkv` at
+30 frames per second using H.264 video. Audio comes from the first available
+FIFINE source, otherwise Poly Studio P5, through PipeWire/PulseAudio. Other
+microphones and monitor sources are not selected automatically. If neither
+supported microphone is available, recording continues without an audio track.
+
+Sliverbar displays its recording indicator while the recording is active. An
+additional crossed-out microphone indicates recording without audio. Missing
+microphone input is informational: the script prints a hint only when its
+standard output is a terminal and does not show a desktop notification for
+this case. Actual startup failures are reported on standard error and, when
+`notify-send` is available, by a desktop notification.
+
+To deliberately test recording without audio, run the following command and
+invoke the script again to stop:
+
+```bash
+SCREENCAST_AUDIO=none ~/.config/bspwm/bin/screencast.sh
+```
+
+The script requires Bash, FFmpeg with X11 capture and PulseAudio input, `xdpyinfo`,
+`flock`, and the usual process utilities. `pactl` is needed for microphone
+selection; without it, recording is silent. It uses `DISPLAY` and requires
+`XDG_RUNTIME_DIR` to be set. Runtime files are:
+
+| File in `$XDG_RUNTIME_DIR` | Purpose                                          |
+| -------------------------- | ------------------------------------------------ |
+| `screencast.pid`           | Active FFmpeg process and panel recording marker |
+| `screencast.silent`        | Additional marker for a recording without audio  |
+| `screencast.file`          | Current output path                              |
+| `screencast.log`           | FFmpeg diagnostics, replaced on each start       |
+| `screencast.lock`          | Serializes concurrent shortcut invocations       |
+
+Normal stop removes the PID, silent, and output-path markers. It retains the
+recording, diagnostic log, and lock file. The panel marker contract is documented
+in [Sliverbar's usage guide](sliverbar/USAGE.md#p--screencast-indikator).
 
 Autostart overrides include:
 
@@ -242,15 +288,15 @@ Idle timings are loaded from `lib/host-profile.sh`, then overridden by the
 selected host profile. Ikarus2 explicitly preserves its original timings;
 Pegasus4 and unknown hosts inherit the general defaults.
 
-| Profile variable | Unit | General default | Ikarus2 |
-| --- | --- | ---: | ---: |
-| `BSPWM_SAVER_TIMEOUT_SEC` | seconds | 600 | 300 |
-| `BSPWM_SAVER_CYCLE_SEC` | seconds | 15 | 10 |
-| `BSPWM_DIM_TIME_MS` | milliseconds | 15000 | 10000 |
-| `BSPWM_DPMS_STANDBY_SEC` | seconds | 1200 | 400 |
-| `BSPWM_DPMS_SUSPEND_SEC` | seconds | 1500 | 600 |
-| `BSPWM_DPMS_OFF_SEC` | seconds | 2400 | 900 |
-| `BSPWM_AUTO_SLEEP_MIN` | minutes | 60 | 30 |
+| Profile variable          | Unit         | General default | Ikarus2 |
+| ------------------------- | ------------ | --------------: | ------: |
+| `BSPWM_SAVER_TIMEOUT_SEC` | seconds      |             600 |     300 |
+| `BSPWM_SAVER_CYCLE_SEC`   | seconds      |              15 |      10 |
+| `BSPWM_DIM_TIME_MS`       | milliseconds |           15000 |   10000 |
+| `BSPWM_DPMS_STANDBY_SEC`  | seconds      |            1200 |     400 |
+| `BSPWM_DPMS_SUSPEND_SEC`  | seconds      |            1500 |     600 |
+| `BSPWM_DPMS_OFF_SEC`      | seconds      |            2400 |     900 |
+| `BSPWM_AUTO_SLEEP_MIN`    | minutes      |              60 |      30 |
 
 - Screen lock is controlled by `BSPWM_ENABLE_SCREEN_LOCK`. `xset s` sets the
   timeout and cycle; `xss-lock` starts the dimmer at the timeout and the locker
