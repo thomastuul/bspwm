@@ -1,12 +1,17 @@
 #!/usr/bin/env bash
-# Toggle a screen recording, preferring FIFINE and then Poly audio.
+# Toggle a screen recording, preferring USB microphones before built-in audio.
 set -euo pipefail
 umask 077
+
+script_dir=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
+# shellcheck source=lib/screencast-audio.sh
+source "$script_dir/../lib/screencast-audio.sh"
 
 runtime=${XDG_RUNTIME_DIR:?XDG_RUNTIME_DIR ist nicht gesetzt}
 pidfile="$runtime/screencast.pid"
 silentfile="$runtime/screencast.silent"
 fileinfo="$runtime/screencast.file"
+portfile="$runtime/screencast.port"
 logfile="$runtime/screencast.log"
 exec 9>"$runtime/screencast.lock"
 flock -n 9 || exit 0
@@ -47,25 +52,26 @@ if [[ -f "$pidfile" ]]; then
     else
         hint 'Veralteten Aufnahmestatus entfernt.'
     fi
+    screencast_restore_audio_port "$portfile" || fail 'Vorheriger Mikrofonanschluss konnte nicht wiederhergestellt werden.'
     rm -f -- "$pidfile" "$silentfile" "$fileinfo"
     exit 0
 fi
 
 command -v ffmpeg >/dev/null || fail 'FFmpeg fehlt.'
-source_name=''
-if [[ ${SCREENCAST_AUDIO:-auto} != none ]] && command -v pactl >/dev/null; then
-    sources=$(pactl list short sources 2>/dev/null || true)
-    for pattern in FIFINE Poly_Studio_P5; do
-        source_name=$(awk -v pattern="$pattern" '$2 ~ pattern && $2 !~ /\.monitor$/ {print $2; exit}' <<< "$sources")
-        [[ -n "$source_name" ]] && break
-    done
-fi
+screencast_restore_audio_port "$portfile" || fail 'Vorheriger Mikrofonanschluss konnte nicht wiederhergestellt werden.'
+screencast_select_audio
 
 size=$(xdpyinfo 2>/dev/null | awk '/dimensions:/ && !found {print $2; found=1}') || fail 'Bildschirm nicht erreichbar.'
 [[ "$size" =~ ^[0-9]+x[0-9]+$ ]] || fail 'Bildschirmgröße nicht ermittelbar.'
 folder="$HOME/Videos"
 mkdir -p -- "$folder"
 file="$folder/screencast-$(date +%d-%m-%Y-%H-%M-%S-%N).mkv"
+if [[ -n $audio_port && -n $audio_previous_port && $audio_port != "$audio_previous_port" ]]; then
+    # Restore only this temporary port change, including after a failed start.
+    printf '%s\n' "$audio_physical_source" "$audio_previous_port" "$audio_port" > "$portfile"
+    trap 'screencast_restore_audio_port "$portfile"' EXIT
+    pactl set-source-port "$audio_physical_source" "$audio_port" || fail 'Internes Mikrofon konnte nicht ausgewählt werden.'
+fi
 args=(-nostdin -hide_banner -loglevel warning -n -probesize 32 -analyzeduration 0 -f x11grab -framerate 30 -video_size "$size" -i "${DISPLAY:-:0.0}")
 if [[ -n "$source_name" ]]; then
     args+=(-itsoffset 0.3 -probesize 32 -analyzeduration 0 -f pulse -i "$source_name" -ac 2 -c:a pcm_s16le)
@@ -98,4 +104,11 @@ if [[ "$ready" != true ]]; then
 fi
 printf '%s\n' "$file" > "$fileinfo"
 printf '%s\n' "$pid" > "$pidfile"
+trap - EXIT
 hint "Aufnahme gestartet: $file"
+if [[ -n $source_name ]]; then
+    hint "Audio: $audio_label"
+    if command -v notify-send >/dev/null; then
+        notify-send 'Bildschirmaufnahme gestartet' "Audio: $audio_label" || true
+    fi
+fi
