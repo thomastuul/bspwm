@@ -225,16 +225,36 @@ terminal, use:
 
 The script records the complete X11 screen to `~/Videos/screencast-*.mkv` at
 30 frames per second using H.264 video. Audio comes from the first available
-FIFINE source, otherwise Poly Studio P5, through PipeWire/PulseAudio. Other
-microphones and monitor sources are not selected automatically. If neither
-supported microphone is available, recording continues without an audio track.
+FIFINE source, otherwise Poly Studio P5, through PipeWire/PulseAudio. If neither
+is connected, a built-in microphone is used on any computer. Selection uses
+internal-microphone port metadata or a portless input marked as an internal
+device; it does not depend on a hostname or a fixed sound-card address. Monitor
+sources, onboard line inputs, and unrelated USB microphones are not selected.
+If no supported input is available, recording continues without an audio track.
+
+For an internal microphone, the script prefers `easyeffects_source` only when
+the PipeWire graph confirms a connection from that physical microphone. An
+available but disconnected or differently routed EasyEffects source is not
+enough. If necessary, a short, bounded `parec` probe wakes an idle EasyEffects
+input chain; its audio is discarded. Without a verified route, recording uses
+the internal microphone directly and identifies the missing EasyEffects path in
+the start message. The script does not launch EasyEffects or configure its
+autostart, filters, microphone gain, mute state, or default audio devices.
+
+If the sound card is using another input port, recording temporarily selects
+its available internal-microphone port. Normal stop or a failed start restores
+the previous port, provided the device is still present and the user has not
+selected another port meanwhile. This temporary change affects other clients
+using the same physical source during recording.
 
 Sliverbar displays its recording indicator while the recording is active. An
 additional crossed-out microphone indicates recording without audio. Missing
 microphone input is informational: the script prints a hint only when its
 standard output is a terminal and does not show a desktop notification for
-this case. Actual startup failures are reported on standard error and, when
-`notify-send` is available, by a desktop notification.
+this case. When audio is selected, a terminal hint and a desktop notification
+(if `notify-send` is available) identify the recording input and whether the
+internal microphone uses EasyEffects. Actual startup failures are reported on
+standard error and, when available, by a desktop notification.
 
 To deliberately test recording without audio, run the following command and
 invoke the script again to stop:
@@ -245,20 +265,31 @@ SCREENCAST_AUDIO=none ~/.config/bspwm/bin/screencast.sh
 
 The script requires Bash, FFmpeg with X11 capture and PulseAudio input, `xdpyinfo`,
 `flock`, and the usual process utilities. `pactl` is needed for microphone
-selection; without it, recording is silent. It uses `DISPLAY` and requires
-`XDG_RUNTIME_DIR` to be set. Runtime files are:
+selection; without it, recording is silent. `jq` is additionally required for
+internal-microphone detection. `pw-dump` is optional for verifying EasyEffects;
+`parec` and `timeout` allow verification when its input chain is idle. Without
+these optional tools, an unverified EasyEffects route falls back to direct
+microphone recording. It uses `DISPLAY` and requires `XDG_RUNTIME_DIR` to be set.
+Runtime files in `$XDG_RUNTIME_DIR` are:
 
-| File in `$XDG_RUNTIME_DIR` | Purpose                                          |
-| -------------------------- | ------------------------------------------------ |
-| `screencast.pid`           | Active FFmpeg process and panel recording marker |
-| `screencast.silent`        | Additional marker for a recording without audio  |
-| `screencast.file`          | Current output path                              |
-| `screencast.log`           | FFmpeg diagnostics, replaced on each start       |
-| `screencast.lock`          | Serializes concurrent shortcut invocations       |
+| File                | Purpose                                          |
+| ------------------- | ------------------------------------------------ |
+| `screencast.pid`    | Active FFmpeg process and panel recording marker |
+| `screencast.silent` | Additional marker for a recording without audio  |
+| `screencast.file`   | Current output path                              |
+| `screencast.port`   | Previous and temporary physical input port       |
+| `screencast.log`    | FFmpeg diagnostics, replaced on each start       |
+| `screencast.lock`   | Serializes concurrent shortcut invocations       |
 
-Normal stop removes the PID, silent, and output-path markers. It retains the
-recording, diagnostic log, and lock file. The panel marker contract is documented
-in [Sliverbar's usage guide](sliverbar/USAGE.md#p--screencast-indikator).
+Normal stop removes the PID, silent, output-path, and restored-port markers. It
+retains the recording, diagnostic log, and lock file. The panel marker contract
+is documented in [Sliverbar's usage guide](sliverbar/USAGE.md#p--screencast-indikator).
+
+Run `python3 tests/test_screencast_audio.py` to check microphone priority,
+EasyEffects routing, monitor exclusion, and input-port restoration with isolated
+fixtures. To undo this change, restore `bin/screencast.sh` from its preceding Git
+revision after stopping any active recording. The added helper and test can
+then be removed; microphone gain and EasyEffects settings are unaffected.
 
 Autostart overrides include:
 
