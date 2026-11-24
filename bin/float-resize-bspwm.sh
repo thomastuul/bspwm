@@ -11,7 +11,7 @@ declare -A SIZE_FOR=(
     ["keepassxc"]="60x80"
     ["zathura"]="30x90"
 )
-EXCLUDE=("mpv" "sxiv") # z.B.: ("gimp" "krita")
+EXCLUDE=("mpv" "nsxiv") # z.B.: ("gimp" "krita")
 # -------------------------------------------------------------------
 
 tolower() { printf '%s' "${1,,}"; }

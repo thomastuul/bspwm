@@ -60,7 +60,7 @@ bspc rule -a Virt-manager desktop='^6' state=floating follow=on
 bspc rule -a TelegramDesktop desktop='^8'
 bspc rule -a mpv state=floating follow=on sticky=on
 bspc rule -a Zathura state=floating
-bspc rule -a Sxiv state=floating
+bspc rule -a Nsxiv state=floating
 
 # Sets master/stack layout in bspwm
 bsp-layout set tall 1 -- --master-size 0.5
